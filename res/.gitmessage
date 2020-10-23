@@ -1,0 +1,17 @@
+# Adhere to the commit message guide outlined at
+# chris.beams.io/posts/git-commit
+# To set this as your default git commit template:
+# run `git config commit.template res/.gitmessage` from the repo root
+#
+# Subject line - Title for the commit
+# -------------- Max 50 characters --------------
+
+# Body - Explain what changes this commit makes and why they are
+# necessary
+# ---------- Max line length should not exceed 72 characters ----------
+
+# General guidelines:
+#   Do not end the subject line with a period
+#   Capitalize the first letter in the subject
+#   Use the imperative mood - ie. use 'Fix' instead of 'Fixed'
+#   Explain 'what' and 'why' in the body rather than 'how'
