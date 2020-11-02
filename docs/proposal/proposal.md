@@ -43,7 +43,9 @@ Synche will be a composite uploading tool for managing file uploads to a storage
 
 > Outline the proposed project.
 
-Synche be a multipart upload tool which will segment files and use concurrency to upload these segmented parts to a private server where Synche will reassemble them.
+![Usage diagram](https://i.imgur.com/yGoBU4a.png)
+
+Synche be a multipart upload tool which will segment files and use concurrency to upload these segmented parts to a private server where they are coalesced into a composite file.
 
 There are multiple parts to this project. There is the client side that will split, upload, compress, and encrypt files. It will also provide authentication and manage the file segmenter.
 
@@ -57,13 +59,13 @@ Lastly, it will use a database for file tracking and file hash storage.
 
 The original idea was to create an all-in-one system which would integrate with popular cloud storage services e.g. Google Drive, and support multipart file uploading to increase upload speed and reliability. Uploading large files or multiple files using these services can be slow and a broken connection may result in a full failure to upload. Upon further research, we discovered that creating a universal tool for these existing services would not be possible because there is limited access to their APIs.
 
-We were still interesed in creating some form of upload tool when we discovered AWS3's (Amazon Web Services) multipart uploading tool. As the name suggests, with AWS3, the user may send a request to initiate a multipart upload which uploads multiple parts of the same file concurrently instead of sequentially. 
+We were still interested in creating some form of upload tool when we discovered Amazon S3's (Amazon Web Services) multipart uploading tool. As the name suggests, with Amazon S3, the user may send a request to initiate a multipart upload which uploads multiple parts of the same file concurrently instead of sequentially. 
 
-AWS3 works by returning a response with an upload ID after the user has requested to initiate the multipart upload. This unique ID is used to upload parts, list the parts, complete an upload, or stop an upload.  AWS3 expects that the user splits their files themselves and numbers each part so the multipart uploading tool knows the order that the file should be reassembled. 
+Amazon S3 works by returning a response with an upload ID after the user has requested to initiate the multipart upload. This unique ID is used to upload parts, list the parts, complete an upload, or stop an upload.  Amazon S3 expects that the user splits their files themselves and numbers each part so the multipart uploading tool knows the order that the file should be reassembled. 
 
 We thought that the AWS tool is incredibly useful but it is not accessible. AWS products are expensive and cater for large businesses rather than an individual user. The AWS tool also does not provide a mechanism for splitting large files, it expects that the user does that themselves.
 
-We decided that we wanted to create a tool that is similar to the AWS3 multipart tool but is more accessible and user friendly. Currently, a full package multipart upload tool does not exist. This is what we aim to create.
+We decided that we wanted to create a tool that is similar to the Amazon S3 multipart tool but is more accessible and user friendly. Currently, a full package multipart upload tool does not exist. This is what we aim to create.
 
 ### Achievements
 
@@ -118,7 +120,7 @@ By using our software, the user has full ownership over their data. If they live
 
 *  Golang
 *  Java
-*  Clojure  
+*  Clojure 
 
 ### Programming tools / Tech stack
 
