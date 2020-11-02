@@ -1,29 +1,15 @@
-# CA400 template repo
+# Synche
 
-This is a template for CA400 projects.
+<img src='https://i.imgur.com/MCA6wwV.png' width='300'>
 
-## 1. Create your repo
+Synche is a multipart file transfer and self-hosted storage solution.
 
-One person from your project team should fork this repo, then add other teammates as project members on GitLab.
+## Links
 
-## 2. Name your repo appropriately
+- [Project Proposal](https://gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/blob/master/docs/proposal/proposal.md)
+- [Functional Specification](https://gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/tree/master/docs/functional-spec)
+- [Documentation](https://gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/tree/master/docs/documentation)
 
-The name of your project must be of the form `2021-ca400-XXXXXXX`, where "`XXXXXXX`"
-should be replaced with your usernames (e.g. `2021-ca400-sblott-pclarke`).
-**Note** that the year should be set as appropriate to your year of study (e.g. in the
-2021/2022 academic year, this would change to '2022-ca400-sblott-pclarke')
-
-It is the *name of your repo* which matters (not the name of your project).
-
-You can change the name of your repo on GitLab under:
-
-- Settings / General / Advanced / Change path
-
-It looks like this:
-
-![change-repo-path](./res/repo-change-path.png "Change repo path.")
-
-You should replace all of this file with a README describing your own project.
 
 ## Additional resources
 
