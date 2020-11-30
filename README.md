@@ -1,6 +1,6 @@
 # Synche
 
-<img src='https://i.postimg.cc/3RTvMbpW/new-tp.png' width='300'>
+<img src='https://i.postimg.cc/QCRDPv9y/new-crop.png' width='300'>
 
 Synche is a multipart file transfer and self-hosted storage solution.
 
