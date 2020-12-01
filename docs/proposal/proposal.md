@@ -7,7 +7,7 @@
 |Project Title:       | Synche            |
 |---------------------|-------------------|
 |Student 1 Name:      | Tara Collins      |
-|Student 1 ID:        | 15416118          |
+|Student 1 ID:        | 15416228          |
 |Student 2 Name:      | Theo Coyne Morgan |
 |Student 2 ID:        | 17338811          |
 |Project Supervisor:  | Dr. Stephen Blott |
