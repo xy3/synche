@@ -12,7 +12,7 @@
 |Student 2 ID:        | 17338811          |
 |Project Supervisor:  | Dr. Stephen Blott |
 
-<img src='https://i.imgur.com/lhd11w2.png' width='400'/>
+<img src='https://i.postimg.cc/QCRDPv9y/new-crop.png' width='400'/>
 
 ## SECTION B
 
