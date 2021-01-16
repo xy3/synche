@@ -1,4 +1,5 @@
 # Add files names (and patterns) you want git to ignore here.
+src/synche/data/
 
 # Ignore java .class files.
 *.class
