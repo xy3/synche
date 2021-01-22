@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(uploadCmd)
 }
 
 var uploadCmd = &cobra.Command{
@@ -19,4 +19,5 @@ var uploadCmd = &cobra.Command{
 
 func uploadJob() {
 	// retrieve a list of files that are on the server and return them here
+	println("Upload command executed")
 }
