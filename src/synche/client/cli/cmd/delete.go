@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(deleteCmd)
 }
 
 var deleteCmd = &cobra.Command{
@@ -19,4 +19,5 @@ var deleteCmd = &cobra.Command{
 
 func deleteJob() {
 	// retrieve a list of files that are on the server and return them here
+	println("Delete command executed")
 }

@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(moveCmd)
 }
 
 var moveCmd = &cobra.Command{

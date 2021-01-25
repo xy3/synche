@@ -15,9 +15,6 @@ var (
 	rootCmd = &cobra.Command{
 		Use:   "synche",
 		Short: "Synche is a fast file uploader and storage solution",
-		Run: func(cmd *cobra.Command, args []string) {
-			// Do Stuff Here (this is when someone runs synche with no command line arguments
-		},
 	}
 )
 
