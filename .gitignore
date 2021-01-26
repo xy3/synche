@@ -1,6 +1,6 @@
 # Add files names (and patterns) you want git to ignore here.
-src/synche/data/
-src/synche/.idea/
+src/data/
+src/.idea/
 
 # Ignore compiled C/C++ files.
 *.o

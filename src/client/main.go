@@ -1,9 +1,9 @@
 package main
 
 import (
-	"client/files"
-	"client/upload"
 	"fmt"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
 	"sync"
 )
 
