@@ -17,6 +17,18 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	defer receivedFile.Close()
 
 	// TODO: manage the chunk data received in the request
+
+	// Create "received" and "data" directory if they don't exist
+	// When the connection request feature is implemented, this should be done there instead
+	// os.ModePerm is equivalent to 0777
+	if _, err := os.Stat("../data"); os.IsNotExist(err) {
+		os.Mkdir("../data", os.ModePerm)
+	}
+
+	if _, err := os.Stat("../data/received"); os.IsNotExist(err) {
+		os.Mkdir("../data/received", os.ModePerm)
+	}
+
 	newFile, err := os.Create("../data/received/" + r.FormValue("hash"))
 	if err != nil {
 		panic(err) // todo
