@@ -1,0 +1,177 @@
+swagger: '2.0'
+
+host: localhost:8080
+basePath: /v1/api
+schemes:
+  - http
+
+info:
+  description: Synche Server API
+  version: 1.0.0
+  title: Synche
+  # put the contact info for your development or API team
+  contact:
+    email: you@your-company.com
+
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+# tags are used for organizing operations
+tags:
+- name: files
+  description: File manangement calls
+- name: testing
+  description: Endpoints for testing purposes during development
+
+paths:
+  /check:
+    get:
+      operationId: checkGet
+      tags:
+        - testing
+      produces:
+        - application/json
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+
+  /upload:
+    post:
+      tags:
+      - files
+      summary: adds an inventory item
+      operationId: uploadFile
+      description: Uploads a new file to the Synche server
+      consumes:
+      - multipart/form-data
+      produces:
+      - application/json
+      parameters:
+      - in: formData
+        name: chunkData
+        type: file
+        required: true
+        description: Chunk file data
+      - in: formData
+        name: chunkHash
+        type: string
+        required: true
+        description: The file hash of the chunk
+      - in: formData
+        name: chunkNumber
+        type: integer
+        required: true
+        description: The position index of the chunk in the file the chunk is from
+      - in: formData
+        name: uploadRequestId
+        type: string
+        required: true
+        description: The identifier for the composite file upload request
+      responses:
+        201:
+          description: OK
+          schema:
+            $ref: '#/definitions/UploadedChunk'
+        400:
+          description: error
+          schema:
+            $ref: '#/definitions/Error'
+        409:
+          description: error
+          schema:
+            $ref: '#/definitions/Error'
+        501:
+          description: not implemented
+          schema:
+            $ref: '#/definitions/NotImplemented'
+
+  /list:
+    get:
+      tags:
+      - files
+      summary: lists the files on the server
+      operationId: listFiles
+      description: Queries the server for the files and their locations stored on the server
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: directory
+          schema:
+            $ref: '#/definitions/DirectoryListRequest'
+          required: false
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/DirectoryContents'
+
+definitions:
+  Message:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+
+  UploadedChunk:
+    type: object
+    properties:
+        hash:
+          type: string
+          description: The file hash of the chunk
+        directoryId:
+          $ref: '#/definitions/DirectoryId'
+        compositeFileId:
+          type: string
+          description: The id of the file this chunk is a part of
+
+  DirectoryId:
+    type: string
+    format: uuid
+    example: d290f1ee-6c54-4b01-90e6-d701748f0851
+    description: the id of the directory to list
+
+  DirectoryListRequest:
+    type: object
+    properties:
+      directoryId:
+        $ref: '#/definitions/DirectoryId'
+      limit:
+        type: integer
+        example: 10
+        default: 500
+        description: the limit of file results to return
+
+  DirectoryContents:
+    type: object
+    properties:
+      directoryId:
+        $ref: '#/definitions/DirectoryId'
+      listings:
+        type: array
+        items:
+          type: string
+        example: ['file1', 'file2', 'directory1/']
+        description: the contents of the directory
+
+  Error:
+    type: object
+    required:
+      - message
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+
+  NotImplemented:
+    type: string
