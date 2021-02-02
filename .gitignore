@@ -1,6 +1,7 @@
 # Add files names (and patterns) you want git to ignore here.
 src/data/
 src/.idea/
+.idea/
 
 # Ignore compiled C/C++ files.
 *.o
