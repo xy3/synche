@@ -52,8 +52,11 @@ func NewSyncheAPI(spec *loads.Document) *SyncheAPI {
 		FilesListFilesHandler: files.ListFilesHandlerFunc(func(params files.ListFilesParams) middleware.Responder {
 			return middleware.NotImplemented("operation files.ListFiles has not yet been implemented")
 		}),
-		FilesUploadFileHandler: files.UploadFileHandlerFunc(func(params files.UploadFileParams) middleware.Responder {
-			return middleware.NotImplemented("operation files.UploadFile has not yet been implemented")
+		FilesNewUploadHandler: files.NewUploadHandlerFunc(func(params files.NewUploadParams) middleware.Responder {
+			return middleware.NotImplemented("operation files.NewUpload has not yet been implemented")
+		}),
+		FilesUploadChunkHandler: files.UploadChunkHandlerFunc(func(params files.UploadChunkParams) middleware.Responder {
+			return middleware.NotImplemented("operation files.UploadChunk has not yet been implemented")
 		}),
 	}
 }
@@ -98,8 +101,10 @@ type SyncheAPI struct {
 	TestingCheckGetHandler testing.CheckGetHandler
 	// FilesListFilesHandler sets the operation handler for the list files operation
 	FilesListFilesHandler files.ListFilesHandler
-	// FilesUploadFileHandler sets the operation handler for the upload file operation
-	FilesUploadFileHandler files.UploadFileHandler
+	// FilesNewUploadHandler sets the operation handler for the new upload operation
+	FilesNewUploadHandler files.NewUploadHandler
+	// FilesUploadChunkHandler sets the operation handler for the upload chunk operation
+	FilesUploadChunkHandler files.UploadChunkHandler
 
 	// ServeError is called when an error is received, there is a default handler
 	// but you can set your own with this
@@ -186,8 +191,11 @@ func (o *SyncheAPI) Validate() error {
 	if o.FilesListFilesHandler == nil {
 		unregistered = append(unregistered, "files.ListFilesHandler")
 	}
-	if o.FilesUploadFileHandler == nil {
-		unregistered = append(unregistered, "files.UploadFileHandler")
+	if o.FilesNewUploadHandler == nil {
+		unregistered = append(unregistered, "files.NewUploadHandler")
+	}
+	if o.FilesUploadChunkHandler == nil {
+		unregistered = append(unregistered, "files.UploadChunkHandler")
 	}
 
 	if len(unregistered) > 0 {
@@ -290,7 +298,11 @@ func (o *SyncheAPI) initHandlerCache() {
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}
-	o.handlers["POST"]["/upload"] = files.NewUploadFile(o.context, o.FilesUploadFileHandler)
+	o.handlers["POST"]["/upload/new"] = files.NewNewUpload(o.context, o.FilesNewUploadHandler)
+	if o.handlers["POST"] == nil {
+		o.handlers["POST"] = make(map[string]http.Handler)
+	}
+	o.handlers["POST"]["/upload/chunk"] = files.NewUploadChunk(o.context, o.FilesUploadChunkHandler)
 }
 
 // Serve creates a http handler to serve the API over HTTP

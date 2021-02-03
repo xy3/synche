@@ -29,7 +29,9 @@ type Client struct {
 type ClientService interface {
 	ListFiles(params *ListFilesParams) (*ListFilesOK, error)
 
-	UploadFile(params *UploadFileParams) (*UploadFileCreated, error)
+	NewUpload(params *NewUploadParams) (*NewUploadOK, error)
+
+	UploadChunk(params *UploadChunkParams) (*UploadChunkCreated, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -71,38 +73,74 @@ func (a *Client) ListFiles(params *ListFilesParams) (*ListFilesOK, error) {
 }
 
 /*
-  UploadFile adds an inventory item
+  NewUpload requests to initiate a new file upload
 
-  Uploads a new file to the Synche server
+  To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
 */
-func (a *Client) UploadFile(params *UploadFileParams) (*UploadFileCreated, error) {
+func (a *Client) NewUpload(params *NewUploadParams) (*NewUploadOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewUploadFileParams()
+		params = NewNewUploadParams()
 	}
 
 	result, err := a.transport.Submit(&runtime.ClientOperation{
-		ID:                 "uploadFile",
+		ID:                 "newUpload",
 		Method:             "POST",
-		PathPattern:        "/upload",
+		PathPattern:        "/upload/new",
 		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"multipart/form-data"},
+		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &UploadFileReader{formats: a.formats},
+		Reader:             &NewUploadReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*UploadFileCreated)
+	success, ok := result.(*NewUploadOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
-	msg := fmt.Sprintf("unexpected success response for uploadFile: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	msg := fmt.Sprintf("unexpected success response for newUpload: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+  UploadChunk adds an inventory item
+
+  Uploads a new chunk to the Synche server
+*/
+func (a *Client) UploadChunk(params *UploadChunkParams) (*UploadChunkCreated, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUploadChunkParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "uploadChunk",
+		Method:             "POST",
+		PathPattern:        "/upload/chunk",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"multipart/form-data"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UploadChunkReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UploadChunkCreated)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for uploadChunk: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

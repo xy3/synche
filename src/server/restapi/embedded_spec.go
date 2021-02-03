@@ -85,13 +85,19 @@ func init() {
             "schema": {
               "$ref": "#/definitions/DirectoryContents"
             }
+          },
+          "501": {
+            "description": "not implemented",
+            "schema": {
+              "$ref": "#/definitions/NotImplemented"
+            }
           }
         }
       }
     },
-    "/upload": {
+    "/upload/chunk": {
       "post": {
-        "description": "Uploads a new file to the Synche server",
+        "description": "Uploads a new chunk to the Synche server",
         "consumes": [
           "multipart/form-data"
         ],
@@ -102,7 +108,7 @@ func init() {
           "files"
         ],
         "summary": "adds an inventory item",
-        "operationId": "uploadFile",
+        "operationId": "uploadChunk",
         "parameters": [
           {
             "type": "file",
@@ -141,13 +147,59 @@ func init() {
             }
           },
           "400": {
-            "description": "error",
+            "description": "bad request",
             "schema": {
               "$ref": "#/definitions/Error"
             }
           },
           "409": {
-            "description": "error",
+            "description": "the file already exists or cannot be written to",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "501": {
+            "description": "not implemented",
+            "schema": {
+              "$ref": "#/definitions/NotImplemented"
+            }
+          }
+        }
+      }
+    },
+    "/upload/new": {
+      "post": {
+        "description": "To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "files"
+        ],
+        "summary": "requests to initiate a new file upload",
+        "operationId": "newUpload",
+        "parameters": [
+          {
+            "name": "fileInfo",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/FileInfo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/NewFileUploadRequestAccepted"
+            }
+          },
+          "400": {
+            "description": "bad request",
             "schema": {
               "$ref": "#/definitions/Error"
             }
@@ -186,8 +238,7 @@ func init() {
     "DirectoryId": {
       "description": "the id of the directory to list",
       "type": "string",
-      "format": "uuid",
-      "example": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      "example": "d701748f0851"
     },
     "DirectoryListRequest": {
       "type": "object",
@@ -210,11 +261,38 @@ func init() {
       ],
       "properties": {
         "code": {
-          "type": "integer",
-          "format": "int64"
+          "type": "integer"
         },
         "message": {
           "type": "string"
+        }
+      }
+    },
+    "FileInfo": {
+      "description": "required information about a file to intiate a multipart upload",
+      "type": "object",
+      "required": [
+        "name",
+        "size",
+        "hash",
+        "chunks"
+      ],
+      "properties": {
+        "chunks": {
+          "description": "the number of chunks the server should expect",
+          "type": "integer"
+        },
+        "hash": {
+          "description": "the hash of the entire file",
+          "type": "string"
+        },
+        "name": {
+          "description": "the original name of the file",
+          "type": "string"
+        },
+        "size": {
+          "description": "the size of the file in bits",
+          "type": "integer"
         }
       }
     },
@@ -222,10 +300,21 @@ func init() {
       "type": "object",
       "properties": {
         "code": {
-          "type": "integer",
-          "format": "int64"
+          "type": "integer"
         },
         "message": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "NewFileUploadRequestAccepted": {
+      "description": "accept the new file upload request and return a UUID for the file",
+      "type": "object",
+      "properties": {
+        "uploadRequestId": {
           "type": "string"
         }
       }
@@ -329,13 +418,19 @@ func init() {
             "schema": {
               "$ref": "#/definitions/DirectoryContents"
             }
+          },
+          "501": {
+            "description": "not implemented",
+            "schema": {
+              "$ref": "#/definitions/NotImplemented"
+            }
           }
         }
       }
     },
-    "/upload": {
+    "/upload/chunk": {
       "post": {
-        "description": "Uploads a new file to the Synche server",
+        "description": "Uploads a new chunk to the Synche server",
         "consumes": [
           "multipart/form-data"
         ],
@@ -346,7 +441,7 @@ func init() {
           "files"
         ],
         "summary": "adds an inventory item",
-        "operationId": "uploadFile",
+        "operationId": "uploadChunk",
         "parameters": [
           {
             "type": "file",
@@ -385,13 +480,59 @@ func init() {
             }
           },
           "400": {
-            "description": "error",
+            "description": "bad request",
             "schema": {
               "$ref": "#/definitions/Error"
             }
           },
           "409": {
-            "description": "error",
+            "description": "the file already exists or cannot be written to",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "501": {
+            "description": "not implemented",
+            "schema": {
+              "$ref": "#/definitions/NotImplemented"
+            }
+          }
+        }
+      }
+    },
+    "/upload/new": {
+      "post": {
+        "description": "To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "files"
+        ],
+        "summary": "requests to initiate a new file upload",
+        "operationId": "newUpload",
+        "parameters": [
+          {
+            "name": "fileInfo",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/FileInfo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/NewFileUploadRequestAccepted"
+            }
+          },
+          "400": {
+            "description": "bad request",
             "schema": {
               "$ref": "#/definitions/Error"
             }
@@ -430,8 +571,7 @@ func init() {
     "DirectoryId": {
       "description": "the id of the directory to list",
       "type": "string",
-      "format": "uuid",
-      "example": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      "example": "d701748f0851"
     },
     "DirectoryListRequest": {
       "type": "object",
@@ -454,11 +594,38 @@ func init() {
       ],
       "properties": {
         "code": {
-          "type": "integer",
-          "format": "int64"
+          "type": "integer"
         },
         "message": {
           "type": "string"
+        }
+      }
+    },
+    "FileInfo": {
+      "description": "required information about a file to intiate a multipart upload",
+      "type": "object",
+      "required": [
+        "name",
+        "size",
+        "hash",
+        "chunks"
+      ],
+      "properties": {
+        "chunks": {
+          "description": "the number of chunks the server should expect",
+          "type": "integer"
+        },
+        "hash": {
+          "description": "the hash of the entire file",
+          "type": "string"
+        },
+        "name": {
+          "description": "the original name of the file",
+          "type": "string"
+        },
+        "size": {
+          "description": "the size of the file in bits",
+          "type": "integer"
         }
       }
     },
@@ -466,10 +633,21 @@ func init() {
       "type": "object",
       "properties": {
         "code": {
-          "type": "integer",
-          "format": "int64"
+          "type": "integer"
         },
         "message": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "NewFileUploadRequestAccepted": {
+      "description": "accept the new file upload request and return a UUID for the file",
+      "type": "object",
+      "properties": {
+        "uploadRequestId": {
           "type": "string"
         }
       }

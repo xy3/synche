@@ -4,6 +4,7 @@ package restapi
 
 import (
 	"crypto/tls"
+	"github.com/go-openapi/runtime/middleware"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
 	"net/http"
 
@@ -46,9 +47,15 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.TestingCheckGetHandler = testing.CheckGetHandlerFunc(handlers.CheckGetHandler)
 
 	// TODO: Implement listing functionality
-	api.FilesListFilesHandler = files.ListFilesHandlerFunc(handlers.ListFilesHandler)
+	if api.FilesListFilesHandler == nil {
+		api.FilesListFilesHandler = files.ListFilesHandlerFunc(func(params files.ListFilesParams) middleware.Responder {
+			return middleware.NotImplemented("operation files.ListFilesHandlerFunc has not yet been implemented")
+		})
+	}
 
-	api.FilesUploadFileHandler = files.UploadFileHandlerFunc(handlers.UploadFileHandler)
+	api.FilesUploadChunkHandler = files.UploadChunkHandlerFunc(handlers.UploadChunkHandler)
+
+	api.FilesNewUploadHandler = files.NewUploadHandlerFunc(handlers.NewUploadFileHandler)
 	// 	============= End Route Handlers =============
 
 	api.PreServerShutdown = func() {}

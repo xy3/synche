@@ -22,7 +22,6 @@ type UploadedChunk struct {
 	CompositeFileID string `json:"compositeFileId,omitempty"`
 
 	// directory Id
-	// Format: uuid
 	DirectoryID DirectoryID `json:"directoryId,omitempty"`
 
 	// The file hash of the chunk

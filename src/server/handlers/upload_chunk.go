@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	UploadDirectory = "../data/received/"
+	UploadDirectory = "../data/received/" // TODO: get this value from a stored config file
 )
 
 var (
@@ -21,25 +21,29 @@ var (
 )
 
 
-func UploadFileHandler(params files.UploadFileParams) middleware.Responder {
+func UploadChunkHandler(params files.UploadChunkParams) middleware.Responder {
 	if params.ChunkData == nil {
 		return middleware.Error(404, fmt.Errorf("no file provided"))
 	}
 	defer params.ChunkData.Close()
 
 	if namedFile, ok := params.ChunkData.(*runtime.File); ok {
-		log.Printf("received chunk name: %s", namedFile.Header.Filename)
-		log.Printf("received chunk size: %d", namedFile.Header.Size)
-		log.Printf("received chunk hash: %d", params.ChunkHash)
-		log.Printf("received chunk number: %d", params.ChunkNumber)
-		log.Printf("received chunk request id: %d", params.UploadRequestID)
+		log.Print("=== Received new chunk ===")
+		log.Printf("Filename: %s", namedFile.Header.Filename)
+		log.Printf("Size: %d", namedFile.Header.Size)
+		log.Printf("ChunkHash: %s", params.ChunkHash)
+		log.Printf("ChunkNumber: %d", params.ChunkNumber)
+		log.Printf("UploadRequestID: %s", params.UploadRequestID)
 	}
 
 	// TODO: Check here that the actual hash of the data matches the provided hash (check params.ChunkHash == real hash)
 
 	// uploads file and save it locally
-	filename := path.Join(UploadDirectory, fmt.Sprintf("%s_%d_%d", params.ChunkHash, params.ChunkNumber, uploadCounter))
+	directory := path.Join(UploadDirectory, params.UploadRequestID)
+	filename := path.Join(directory, fmt.Sprintf("%d_%s", params.ChunkNumber, params.ChunkHash))
+
 	uploadCounter++
+
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return middleware.Error(500, fmt.Errorf("could not create file on server"))
@@ -54,9 +58,9 @@ func UploadFileHandler(params files.UploadFileParams) middleware.Responder {
 
 	log.Printf("file uploaded copied as %s", filename)
 
-	return files.NewUploadFileCreated().WithPayload(&models.UploadedChunk{
+	return files.NewUploadChunkCreated().WithPayload(&models.UploadedChunk{
 		CompositeFileID: params.UploadRequestID,
-		DirectoryID:     UploadDirectory, // TODO: Change this to the UUID of the directory from the database
+		DirectoryID:     models.DirectoryID(directory), // TODO: Change this to the ID of the directory from the database
 		Hash:            params.ChunkHash,
 	})
 }

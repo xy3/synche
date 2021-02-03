@@ -29,6 +29,12 @@ func (o *ListFilesReader) ReadResponse(response runtime.ClientResponse, consumer
 			return nil, err
 		}
 		return result, nil
+	case 501:
+		result := NewListFilesNotImplemented()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	default:
 		return nil, runtime.NewAPIError("response status code does not match any response statuses defined for this endpoint in the swagger spec", response, response.Code())
 	}
@@ -60,6 +66,36 @@ func (o *ListFilesOK) readResponse(response runtime.ClientResponse, consumer run
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewListFilesNotImplemented creates a ListFilesNotImplemented with default headers values
+func NewListFilesNotImplemented() *ListFilesNotImplemented {
+	return &ListFilesNotImplemented{}
+}
+
+/* ListFilesNotImplemented describes a response with status code 501, with default header values.
+
+not implemented
+*/
+type ListFilesNotImplemented struct {
+	Payload models.NotImplemented
+}
+
+func (o *ListFilesNotImplemented) Error() string {
+	return fmt.Sprintf("[GET /list][%d] listFilesNotImplemented  %+v", 501, o.Payload)
+}
+func (o *ListFilesNotImplemented) GetPayload() models.NotImplemented {
+	return o.Payload
+}
+
+func (o *ListFilesNotImplemented) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	// response payload
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 

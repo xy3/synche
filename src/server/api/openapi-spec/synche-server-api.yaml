@@ -38,13 +38,44 @@ paths:
           schema:
             $ref: '#/definitions/Message'
 
-  /upload:
+  /upload/new:
+    post:
+      tags:
+        - files
+      summary: requests to initiate a new file upload
+      operationId: newUpload
+      description: To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: fileInfo
+          schema:
+            $ref: '#/definitions/FileInfo'
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/NewFileUploadRequestAccepted'
+        400:
+          description: bad request
+          schema:
+            $ref: '#/definitions/Error'
+        501:
+          description: not implemented
+          schema:
+            $ref: '#/definitions/NotImplemented'
+
+  /upload/chunk:
     post:
       tags:
       - files
       summary: adds an inventory item
-      operationId: uploadFile
-      description: Uploads a new file to the Synche server
+      operationId: uploadChunk
+      description: Uploads a new chunk to the Synche server
       consumes:
       - multipart/form-data
       produces:
@@ -76,11 +107,11 @@ paths:
           schema:
             $ref: '#/definitions/UploadedChunk'
         400:
-          description: error
+          description: bad request
           schema:
             $ref: '#/definitions/Error'
         409:
-          description: error
+          description: the file already exists or cannot be written to
           schema:
             $ref: '#/definitions/Error'
         501:
@@ -110,15 +141,49 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/DirectoryContents'
+        501:
+          description: not implemented
+          schema:
+            $ref: '#/definitions/NotImplemented'
 
 definitions:
   Message:
     type: object
     properties:
+      success:
+        type: boolean
       code:
         type: integer
-        format: int64
       message:
+        type: string
+
+  FileInfo:
+    type: object
+    description: required information about a file to intiate a multipart upload
+    required:
+      - name
+      - size
+      - hash
+      - chunks
+    properties:
+      name:
+        type: string
+        description: the original name of the file
+      size:
+        type: integer
+        description: the size of the file in bits
+      hash:
+        type: string
+        description: the hash of the entire file
+      chunks:
+        type: integer
+        description: the number of chunks the server should expect
+
+  NewFileUploadRequestAccepted:
+    type: object
+    description: accept the new file upload request and return a UUID for the file
+    properties:
+      uploadRequestId:
         type: string
 
   UploadedChunk:
@@ -135,8 +200,7 @@ definitions:
 
   DirectoryId:
     type: string
-    format: uuid
-    example: d290f1ee-6c54-4b01-90e6-d701748f0851
+    example: d701748f0851
     description: the id of the directory to list
 
   DirectoryListRequest:
@@ -169,7 +233,6 @@ definitions:
     properties:
       code:
         type: integer
-        format: int64
       message:
         type: string
 

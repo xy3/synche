@@ -56,3 +56,45 @@ func (o *ListFilesOK) WriteResponse(rw http.ResponseWriter, producer runtime.Pro
 		}
 	}
 }
+
+// ListFilesNotImplementedCode is the HTTP code returned for type ListFilesNotImplemented
+const ListFilesNotImplementedCode int = 501
+
+/*ListFilesNotImplemented not implemented
+
+swagger:response listFilesNotImplemented
+*/
+type ListFilesNotImplemented struct {
+
+	/*
+	  In: Body
+	*/
+	Payload models.NotImplemented `json:"body,omitempty"`
+}
+
+// NewListFilesNotImplemented creates ListFilesNotImplemented with default headers values
+func NewListFilesNotImplemented() *ListFilesNotImplemented {
+
+	return &ListFilesNotImplemented{}
+}
+
+// WithPayload adds the payload to the list files not implemented response
+func (o *ListFilesNotImplemented) WithPayload(payload models.NotImplemented) *ListFilesNotImplemented {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the list files not implemented response
+func (o *ListFilesNotImplemented) SetPayload(payload models.NotImplemented) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *ListFilesNotImplemented) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(501)
+	payload := o.Payload
+	if err := producer.Produce(rw, payload); err != nil {
+		panic(err) // let the recovery middleware deal with this
+	}
+}

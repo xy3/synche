@@ -22,6 +22,9 @@ type Message struct {
 
 	// message
 	Message string `json:"message,omitempty"`
+
+	// success
+	Success bool `json:"success,omitempty"`
 }
 
 // Validate validates this message
