@@ -2,6 +2,7 @@
 src/data/
 src/.idea/
 .idea/
+*.iml
 
 # Ignore compiled C/C++ files.
 *.o

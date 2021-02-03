@@ -18,26 +18,26 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-// UploadFileMaxParseMemory sets the maximum size in bytes for
+// UploadChunkMaxParseMemory sets the maximum size in bytes for
 // the multipart form parser for this operation.
 //
 // The default value is 32 MB.
 // The multipart parser stores up to this + 10MB.
-var UploadFileMaxParseMemory int64 = 32 << 20
+var UploadChunkMaxParseMemory int64 = 32 << 20
 
-// NewUploadFileParams creates a new UploadFileParams object
+// NewUploadChunkParams creates a new UploadChunkParams object
 //
 // There are no default values defined in the spec.
-func NewUploadFileParams() UploadFileParams {
+func NewUploadChunkParams() UploadChunkParams {
 
-	return UploadFileParams{}
+	return UploadChunkParams{}
 }
 
-// UploadFileParams contains all the bound params for the upload file operation
+// UploadChunkParams contains all the bound params for the upload chunk operation
 // typically these are obtained from a http.Request
 //
-// swagger:parameters uploadFile
-type UploadFileParams struct {
+// swagger:parameters uploadChunk
+type UploadChunkParams struct {
 
 	// HTTP Request Object
 	HTTPRequest *http.Request `json:"-"`
@@ -67,13 +67,13 @@ type UploadFileParams struct {
 // BindRequest both binds and validates a request, it assumes that complex things implement a Validatable(strfmt.Registry) error interface
 // for simple values it will use straight method calls.
 //
-// To ensure default values, the struct must have been initialized with NewUploadFileParams() beforehand.
-func (o *UploadFileParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
+// To ensure default values, the struct must have been initialized with NewUploadChunkParams() beforehand.
+func (o *UploadChunkParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
 
 	o.HTTPRequest = r
 
-	if err := r.ParseMultipartForm(UploadFileMaxParseMemory); err != nil {
+	if err := r.ParseMultipartForm(UploadChunkMaxParseMemory); err != nil {
 		if err != http.ErrNotMultipart {
 			return errors.New(400, "%v", err)
 		} else if err := r.ParseForm(); err != nil {
@@ -115,12 +115,12 @@ func (o *UploadFileParams) BindRequest(r *http.Request, route *middleware.Matche
 // bindChunkData binds file parameter ChunkData.
 //
 // The only supported validations on files are MinLength and MaxLength
-func (o *UploadFileParams) bindChunkData(file multipart.File, header *multipart.FileHeader) error {
+func (o *UploadChunkParams) bindChunkData(file multipart.File, header *multipart.FileHeader) error {
 	return nil
 }
 
 // bindChunkHash binds and validates parameter ChunkHash from formData.
-func (o *UploadFileParams) bindChunkHash(rawData []string, hasKey bool, formats strfmt.Registry) error {
+func (o *UploadChunkParams) bindChunkHash(rawData []string, hasKey bool, formats strfmt.Registry) error {
 	if !hasKey {
 		return errors.Required("chunkHash", "formData", rawData)
 	}
@@ -140,7 +140,7 @@ func (o *UploadFileParams) bindChunkHash(rawData []string, hasKey bool, formats 
 }
 
 // bindChunkNumber binds and validates parameter ChunkNumber from formData.
-func (o *UploadFileParams) bindChunkNumber(rawData []string, hasKey bool, formats strfmt.Registry) error {
+func (o *UploadChunkParams) bindChunkNumber(rawData []string, hasKey bool, formats strfmt.Registry) error {
 	if !hasKey {
 		return errors.Required("chunkNumber", "formData", rawData)
 	}
@@ -165,7 +165,7 @@ func (o *UploadFileParams) bindChunkNumber(rawData []string, hasKey bool, format
 }
 
 // bindUploadRequestID binds and validates parameter UploadRequestID from formData.
-func (o *UploadFileParams) bindUploadRequestID(rawData []string, hasKey bool, formats strfmt.Registry) error {
+func (o *UploadChunkParams) bindUploadRequestID(rawData []string, hasKey bool, formats strfmt.Registry) error {
 	if !hasKey {
 		return errors.Required("uploadRequestId", "formData", rawData)
 	}

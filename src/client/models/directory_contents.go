@@ -19,7 +19,6 @@ import (
 type DirectoryContents struct {
 
 	// directory Id
-	// Format: uuid
 	DirectoryID DirectoryID `json:"directoryId,omitempty"`
 
 	// the contents of the directory

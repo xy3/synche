@@ -2,13 +2,27 @@ package upload
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/go-openapi/runtime"
 	"github.com/kalafut/imohash"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
 	"os"
+	"sync"
 )
 
-func NewChunkUploadParams(chunkPath, chunkName string) (*files.UploadFileParams, error) {
+func Chunk(wg *sync.WaitGroup, params *files.UploadChunkParams) {
+	defer wg.Done()
+
+	resp, err := apiclient.Default.Files.UploadChunk(params)
+	if err != nil {
+		panic(err) // TODO
+	}
+
+	fmt.Printf("%#v\n", resp.Payload)
+}
+
+func NewChunkUploadParams(chunkPath, chunkName, uploadRequestId string, chunkNum int64) (*files.UploadChunkParams, error) {
 	chunkHash, err := imohash.SumFile(chunkPath)
 	if err != nil {
 		return nil, err
@@ -20,10 +34,9 @@ func NewChunkUploadParams(chunkPath, chunkName string) (*files.UploadFileParams,
 	}
 
 	hash := hex.EncodeToString(chunkHash[:])
-	uploadRequestId := "example1"
 	readCloser := runtime.NamedReader(chunkName, file)
-	params := files.NewUploadFileParams().
-		WithChunkNumber(0).
+	params := files.NewUploadChunkParams().
+		WithChunkNumber(chunkNum).
 		WithChunkHash(hash).
 		WithUploadRequestID(uploadRequestId).
 		WithChunkData(readCloser)

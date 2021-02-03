@@ -11,17 +11,10 @@ import (
 	"sync"
 )
 
-func uploadChunk(wg *sync.WaitGroup, chunkPath string) {
-	defer wg.Done()
-
-	params, _ := upload.NewChunkUploadParams(chunkPath, "chunk_data")
-	resp, err := apiclient.Default.Files.UploadFile(params)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("%#v\n", resp.Payload)
-}
+const (
+	TestFilePath = "../data/test.mp4"
+	ChunkDir     = "../data/chunks"
+)
 
 func check() {
 	resp, err := apiclient.Default.Testing.CheckGet(testing.NewCheckGetParams())
@@ -33,32 +26,30 @@ func check() {
 
 //// sample usage
 func main() {
-	// This function simple hits the testing endpoint of the server to check if it can connect to it
+	// This function simply hits the testing endpoint of the server to check if it can connect to it
 	check()
 
-	filePath := "../data/test.mp4"
+	// Create "chunks" directory if it doesn't exist
+	_ = os.MkdirAll(ChunkDir, os.ModePerm)
 
-	// Create "data" and "chunks" directory if they don't exist
-	// os.ModePerm is equivalent to 0777
-	if _, err := os.Stat("../data"); os.IsNotExist(err) {
-		os.Mkdir("../data", os.ModePerm)
+	chunks, err := jobs.Split(TestFilePath, ChunkDir)
+	if err != nil {
+		panic(err)
 	}
 
-	if _, err := os.Stat("../data/chunks"); os.IsNotExist(err) {
-		os.Mkdir("../data/chunks", os.ModePerm)
-	}
-
-	chunks, err := jobs.Split(filePath, "../data/chunks")
-
+	// Send a new file upload request to the server
+	newUploadParams, _ := upload.NewFileUploadParams(TestFilePath, "test.mp4", int64(len(chunks)))
+	requestAccepted, err := upload.SendNewFileUploadRequest(newUploadParams)
 	if err != nil {
 		panic(err)
 	}
 
 	var wg sync.WaitGroup
 
-	for _, chunk := range chunks {
+	for chunkNum, chunk := range chunks {
 		wg.Add(1)
-		go uploadChunk(&wg, chunk)
+		params, _ := upload.NewChunkUploadParams(chunk, "chunk_data", requestAccepted.UploadRequestID, int64(chunkNum))
+		go upload.Chunk(&wg, params)
 	}
 
 	fmt.Println("Main: waiting for workers to finish")

@@ -12,7 +12,5 @@ require (
 	github.com/go-openapi/validate v0.20.1
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/kalafut/imohash v1.0.0
-	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	go.mongodb.org/mongo-driver v1.4.6 // indirect
 	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
 )

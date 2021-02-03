@@ -19,7 +19,6 @@ import (
 type DirectoryListRequest struct {
 
 	// directory Id
-	// Format: uuid
 	DirectoryID DirectoryID `json:"directoryId,omitempty"`
 
 	// the limit of file results to return
