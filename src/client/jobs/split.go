@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/kalafut/imohash"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"math"
 	"os"
@@ -24,7 +25,7 @@ func Split(filePath, chunkDir string) ([]string, error) {
 
 	fileSize := fileInfo.Size()
 
-	const fileChunk = 1 * (1 << 20) // 1MB, change this to your requirement
+	fileChunk := viper.GetInt("ChunkSize") * (1 << 20)
 
 	// calculate total number of parts the file will be chunked into
 
@@ -35,15 +36,19 @@ func Split(filePath, chunkDir string) ([]string, error) {
 
 	for i := uint64(0); i < totalPartsNum; i++ {
 
-		chunkSize := int(math.Min(fileChunk, float64(fileSize-int64(i*fileChunk))))
+		chunkSize := int(math.Min(float64(fileChunk), float64(fileSize-int64(i*uint64(fileChunk)))))
 		chunkBuffer := make([]byte, chunkSize)
 
-		file.Read(chunkBuffer)
+		_, err := file.Read(chunkBuffer)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
 		// write to disk
 		hash := imohash.Sum(chunkBuffer)
 		fileName := chunkDir + "/" + hex.EncodeToString(hash[:])
-		_, err := os.Create(fileName)
+		_, err = os.Create(fileName)
 
 		if err != nil {
 			fmt.Println(err)
@@ -51,7 +56,11 @@ func Split(filePath, chunkDir string) ([]string, error) {
 		}
 
 		// write/save buffer to disk
-		ioutil.WriteFile(fileName, chunkBuffer, os.ModeAppend)
+		err = ioutil.WriteFile(fileName, chunkBuffer, os.ModeAppend)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
 		chunks[i] = fileName
 

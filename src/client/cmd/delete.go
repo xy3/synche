@@ -10,8 +10,8 @@ func init() {
 
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "<Short description here>",
-	Long:  `<Long description here>`,
+	Short: "Delete a file on the server",
+	Long:  `Sends a request to the server to delete a file by a specified file ID.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		deleteJob()
 	},
