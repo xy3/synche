@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"fmt"
-	"github.com/spf13/viper"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // configCmd represents the config command
@@ -13,7 +12,7 @@ var configCmd = &cobra.Command{
 	Short: "Displays the current config path",
 	Long:  `Displays the current config path that Synche client is currently using`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(viper.ConfigFileUsed())
+		log.Infof("Config file path: %s", viper.ConfigFileUsed())
 	},
 }
 
