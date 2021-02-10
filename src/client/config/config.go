@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
 	"path"
@@ -9,11 +10,15 @@ import (
 
 // TODO Unmarshal the config into a struct
 
-// initConfig reads in config file and ENV variables if set.
-func InitConfig(cfgFile string) {
-	// Set defaults
+func SetDefaults() {
 	viper.SetDefault("ChunkDir", "../data/chunks")
 	viper.SetDefault("ChunkSize", 1) // 1MB
+	viper.SetDefault("verbose", false)
+}
+
+// initConfig reads in config file and ENV variables if set.
+func InitConfig(cfgFile string) {
+	SetDefaults()
 
 	viper.SetConfigType("yaml")
 	if cfgFile != "" {
@@ -37,7 +42,7 @@ func InitConfig(cfgFile string) {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		log.Trace("Using config file:", viper.ConfigFileUsed())
 	} else {
 		// the config file does not exist, so create a new one
 		err = viper.WriteConfigAs(cfgFile)
@@ -46,5 +51,4 @@ func InitConfig(cfgFile string) {
 			os.Exit(1)
 		}
 	}
-
 }

@@ -1,14 +1,16 @@
 package cmd
 
 import (
-	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/jobs"
-	"os"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 )
 
-var cfgFile string
+var (
+	cfgFile string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -23,15 +25,19 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }
 
 func init() {
 	cobra.OnInitialize(func() {
 		config.InitConfig(cfgFile)
-		jobs.SetupDirs()
+		data.SetupDirs()
+
+		if viper.GetBool("verbose") {
+			log.Infof("Verbose: true")
+			log.SetLevel(log.DebugLevel)
+		}
 	})
 
 	// Here you will define your flags and configuration settings.
@@ -39,8 +45,14 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche.yaml)")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "display verbose output (default is false)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	err := viper.BindPFlags(rootCmd.PersistentFlags())
+	if err != nil {
+		panic(err) // TODO
+	}
 }

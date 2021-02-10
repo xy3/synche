@@ -1,4 +1,4 @@
-package jobs
+package data
 
 import (
 	"github.com/spf13/viper"
