@@ -1,0 +1,14 @@
+server:
+  port: "8080"
+  uploadDirectory: "../data/received"
+
+database:
+  driver: "mysql"
+  name: "tst_synche_db"
+  username: "admin"
+  password: "admin"
+  protocol: "tcp"
+  address: "127.0.0.1:3306"
+
+# environment variables can be set as follows:
+# EXAMPLE_VAR: "environment variable"
