@@ -12,16 +12,20 @@ import (
 	"sync"
 )
 
-type FileUploader struct {
-	Splitter      data.Splitter
-	ChunkUploader ChunkUploader
+type FileUploader interface {
+	Upload(filePath string) error
 }
 
-func NewFileUploader(splitter data.Splitter, chunkUploader ChunkUploader) *FileUploader {
-	return &FileUploader{Splitter: splitter, ChunkUploader: chunkUploader}
+type FileUpload struct {
+	data.Splitter
+	ChunkUploader
 }
 
-func (fu *FileUploader) Upload(filePath string) error {
+func NewFileUpload(splitter data.Splitter, chunkUploader ChunkUploader) *FileUpload {
+	return &FileUpload{Splitter: splitter, ChunkUploader: chunkUploader}
+}
+
+func (fu *FileUpload) Upload(filePath string) error {
 	info, err := os.Stat(filePath)
 	if err != nil {
 		log.Error("Could not stat the file at the specified path")
@@ -66,7 +70,7 @@ func (fu *FileUploader) Upload(filePath string) error {
 	return nil
 }
 
-func (fu *FileUploader) uploadChunks(chunks []data.Chunk, uploadRequestID string) error {
+func (fu *FileUpload) uploadChunks(chunks []data.Chunk, uploadRequestID string) error {
 	var wg sync.WaitGroup
 	uploadErrors := make(chan error, len(chunks))
 
