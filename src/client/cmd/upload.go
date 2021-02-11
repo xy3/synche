@@ -9,8 +9,8 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
 )
 
-func NewUploadCmd(fileUploader *upload.FileUploader) *cobra.Command {
-	return &cobra.Command{
+func NewUploadCmd(fileUploader upload.FileUploader) *cobra.Command {
+	uploadCmd := &cobra.Command{
 		Use:   "upload [file path]",
 		Short: "Uploads a specified file to the server",
 		Long:  `Uploads a specified local file to the server using chunked uploading`,
@@ -20,15 +20,15 @@ func NewUploadCmd(fileUploader *upload.FileUploader) *cobra.Command {
 			return fileUploader.Upload(filePath)
 		},
 	}
+	uploadCmd.Flags().StringP("name", "n", "", "store the file on the server with this name instead")
+	return uploadCmd
 }
 
-
 func init() {
-	fileUploader := upload.NewFileUploader(*data.NewSplitter(data.DefaultChunkWriter), *upload.NewChunkUploader(apiclient.Default.Files.UploadChunk))
+	fileUploader := upload.NewFileUpload(*data.NewSplitter(data.DefaultChunkWriter), *upload.NewChunkUploader(apiclient.Default.Files.UploadChunk))
 	uploadCmd := NewUploadCmd(fileUploader)
 	rootCmd.AddCommand(uploadCmd)
-	uploadCmd.Flags().StringP("name", "n", "", "store the file on the server "+
-		"with this name instead")
+
 	err := viper.BindPFlags(uploadCmd.Flags())
 	if err != nil {
 		log.Fatalf("Could not bind flags to viper config: %v", err)
