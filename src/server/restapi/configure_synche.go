@@ -4,15 +4,18 @@ package restapi
 
 import (
 	"crypto/tls"
-	"github.com/go-openapi/runtime/middleware"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
-	"net/http"
-
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/spf13/viper"
+	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/database"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/testing"
+	"log"
+	"net/http"
 )
 
 //go:generate swagger generate server --target ../../server --name Synche --spec ../api/openapi-spec/synche-server-api.yaml --principal models.Message
@@ -24,6 +27,28 @@ func configureFlags(api *operations.SyncheAPI) {
 func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
+
+	err := c.InitConfig()
+	if err != nil {
+		log.Printf("Fatal error config file: %s \n", err)
+	}
+
+	// Read updates to the config file while server is running
+	viper.WatchConfig()
+
+	// Config vars
+	dbDriver := viper.GetString("database.driver")
+	dbUsername := viper.GetString("database.username")
+	dbPassword := viper.GetString("database.password")
+	dbProtocol := viper.GetString("database.protocol")
+	dbAddress := viper.GetString("database.address")
+	dbName := viper.GetString("database.name")
+
+	// Create database with chunk table and connection_request table if they don't exist
+	err = database.CreateDatabase(dbDriver, dbUsername, dbPassword, dbProtocol, dbAddress, dbName)
+	if err != nil {
+		log.Printf("Database creation failed: %s", err)
+	}
 
 	// Set your custom logger if needed. Default one is log.Printf
 	// Expected interface func(string, ...interface{})
@@ -53,9 +78,15 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		})
 	}
 
-	api.FilesUploadChunkHandler = files.UploadChunkHandlerFunc(handlers.UploadChunkHandler)
+	clientBuilder := database.NewDBClientBuilder()
+	dbClient := clientBuilder.BuildSqlClient(dbDriver, dbUsername, dbPassword, dbProtocol, dbAddress, dbName)
 
-	api.FilesNewUploadHandler = files.NewUploadHandlerFunc(handlers.NewUploadFileHandler)
+	api.FilesUploadChunkHandler = files.UploadChunkHandlerFunc(func(params files.UploadChunkParams) middleware.Responder {
+		return handlers.UploadChunkHandler(params, dbClient)})
+
+
+	api.FilesNewUploadHandler = files.NewUploadHandlerFunc(func(params files.NewUploadParams) middleware.Responder {
+		return handlers.NewUploadFileHandler(params, dbClient)})
 	// 	============= End Route Handlers =============
 
 	api.PreServerShutdown = func() {}
