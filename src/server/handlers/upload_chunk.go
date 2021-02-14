@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 	"io"
-	"log"
 	"os"
 	"path"
 )
@@ -27,12 +27,12 @@ func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.R
 
 	namedFile, ok := params.ChunkData.(*runtime.File)
 	if ok {
-		log.Print("=== Received new chunk ===")
-		log.Printf("Filename: %s", namedFile.Header.Filename)
-		log.Printf("Size: %d", namedFile.Header.Size)
-		log.Printf("ChunkHash: %s", params.ChunkHash)
-		log.Printf("ChunkNumber: %d", params.ChunkNumber)
-		log.Printf("UploadRequestID: %s", params.UploadRequestID)
+		log.Info("=== Received new chunk ===")
+		log.Info("Filename: %s", namedFile.Header.Filename)
+		log.Info("Size: %d", namedFile.Header.Size)
+		log.Info("ChunkHash: %s", params.ChunkHash)
+		log.Info("ChunkNumber: %d", params.ChunkNumber)
+		log.Info("UploadRequestID: %s", params.UploadRequestID)
 	}
 
 	// Frequently used params
@@ -57,9 +57,9 @@ func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.R
 		return middleware.Error(500, fmt.Errorf("could not upload file on server"))
 	}
 
-	log.Printf("Copied bytes %d", n)
+	log.Infof("Copied bytes %d", n)
 
-	log.Printf("File uploaded copied as %s", filename)
+	log.Infof("File uploaded copied as %s", filename)
 
 	// Get directory ID from connection_request table
 	var directoryId string
@@ -72,9 +72,9 @@ func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.R
 	// Insert chunk info into database
 	err = database.InsertChunk(db, namedFile.Header.Filename, namedFile.Header.Size, chunkHash, params.ChunkNumber, uploadRequestId, directoryId)
 	if err != nil {
-		log.Printf("Could not insert chunk %s", params.ChunkHash)
+		log.Fatalf("Could not insert chunk %s\n-----> %s", params.ChunkHash, err)
 	} else {
-		log.Printf("Inserted chunk information into database for chunk: %s", params.ChunkHash)
+		log.Infof("Inserted chunk information into database for chunk: %s", params.ChunkHash)
 	}
 
 	return files.NewUploadChunkCreated().WithPayload(&models.UploadedChunk{
