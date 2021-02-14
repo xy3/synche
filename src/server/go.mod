@@ -16,6 +16,7 @@ require (
 	github.com/kalafut/imohash v1.0.0
 	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/pelletier/go-toml v1.8.1 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.5.1 // indirect
 	github.com/spf13/cast v1.3.1 // indirect

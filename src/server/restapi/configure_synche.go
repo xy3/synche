@@ -7,6 +7,7 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/database"
@@ -14,7 +15,6 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/testing"
-	"log"
 	"net/http"
 )
 
@@ -30,7 +30,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 
 	err := c.InitConfig()
 	if err != nil {
-		log.Printf("Fatal error config file: %s \n", err)
+		log.Fatalf("Fatal error config file: %s", err)
 	}
 
 	// Read updates to the config file while server is running
@@ -47,7 +47,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// Create database with chunk table and connection_request table if they don't exist
 	err = database.CreateDatabase(dbDriver, dbUsername, dbPassword, dbProtocol, dbAddress, dbName)
 	if err != nil {
-		log.Printf("Database creation failed: %s", err)
+		log.Fatalf("Database creation failed: %s", err)
 	}
 
 	// Set your custom logger if needed. Default one is log.Printf

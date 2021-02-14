@@ -1,9 +1,10 @@
 package config
 
 import (
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"log"
 	"os"
+	"path"
 )
 
 // TODO: decide whether to create these structs and unmarshal
@@ -26,14 +27,18 @@ type DatabaseConfigurations struct {
 } */
 
 func InitConfig() (err error) {
-	viper.SetConfigName("config")
+	viper.SetConfigName(".synche-server")
 	viper.SetConfigType("yaml")
 
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
+
 	viper.AddConfigPath(home)
+	cfgFile := path.Join(home, ".synche-server.yaml")
+	viper.SetConfigFile(cfgFile)
+
 
 	// Enable reading environment variables
 	viper.AutomaticEnv()
@@ -42,10 +47,20 @@ func InitConfig() (err error) {
 	// var configuration Configuration
 
 	if err := viper.ReadInConfig(); err == nil {
-		log.Println("Using config file:", viper.ConfigFileUsed())
+		log.Infof("Using config file:", viper.ConfigFileUsed())
 	} else {
-		log.Printf("Unable to decode into struct, %v\n", err)
+		return err
 	}
+
+	// Set defaults
+	viper.SetDefault("server.port", "8080")
+	viper.SetDefault("server.uploadDirectory", "../data/received")
+	viper.SetDefault("database.driver", "mysql")
+	viper.SetDefault("database.name", "synche")
+	viper.SetDefault("database.username", "admin")
+	viper.SetDefault("database.password", "admin")
+	viper.SetDefault("database.protocol", "tcp")
+	viper.SetDefault("database.address", "127.0.0.1:3306")
 
 	// err = viper.Unmarshal(&configuration)
 
