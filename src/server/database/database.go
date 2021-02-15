@@ -144,10 +144,16 @@ func InsertChunk(db *sql.DB, fileName string, fileSize int64, chunkHash string, 
 		return err
 	}
 
-	log.Infof("Chunk information inserted in to database for %d chunk(s)", rows)
+	// ON DUPLICATE KEY UPDATE will result in 2 rows being updated if there is a duplicate key
+	if rows == 0 {
+		log.Warnf("Chunk information already exists in database for chunk: %s", chunkHash)
+	} else if rows == 1 {
+		log.Infof("Chunk information inserted into database for chunk: %s", chunkHash)
+	} else {
+		log.Infof("Chunk information updated in database for chunk: %s", chunkHash)
+	}
 	return nil
 }
-
 
 func CreateConnectionRequestTable(db *sql.DB) (err error) {
 	query := `CREATE TABLE IF NOT EXISTS connection_request(upload_request_id varchar(255) primary key, file_chunk_directory varchar(255), file_name varchar(255), file_size int(64), number_of_chunks int(64))`
@@ -192,6 +198,14 @@ func InsertConnectionRequest(db *sql.DB, uploadRequestId string, fileChunkDir st
 		return err
 	}
 
-	log.Infof("%d request ID added: ", rows)
+	// ON DUPLICATE KEY UPDATE will result in 2 rows being updated if there is a duplicate key
+	if rows == 0 {
+		log.Warnf("Connection request information already exists in database for connection request with ID: %s", uploadRequestId)
+	} else if rows == 1 {
+		log.Infof("Connection request inserted into database for connection request with ID: %s", uploadRequestId)
+	} else {
+		log.Info("Connection request updated in database for connection request with ID: %s", uploadRequestId)
+	}
+
 	return nil
 }
