@@ -14,6 +14,7 @@ require (
 	github.com/kalafut/imohash v1.0.0
 	github.com/magiconair/properties v1.8.1
 	github.com/sirupsen/logrus v1.4.2
+	github.com/spf13/afero v1.1.2
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1

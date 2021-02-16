@@ -7,11 +7,36 @@ import (
 	"path"
 )
 
-// TODO Unmarshal the config into a struct
+var Config Configuration
+
+type Configuration struct {
+	Synche SyncheConfig
+	Chunks ChunksConfig
+	Verbose bool
+}
+
+type SyncheConfig struct {
+	Dir string
+	DataDir string
+}
+
+type ChunksConfig struct {
+	Dir string
+	Size uint64
+}
 
 func SetDefaults() error {
-	viper.SetDefault("ChunkDir", "../data/chunks")
-	viper.SetDefault("ChunkSize", 1) // 1MB
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	syncheDir := path.Join(home, ".synche")
+	dataDir := path.Join(syncheDir, "data")
+	viper.SetDefault("synche.dir", syncheDir)
+	viper.SetDefault("synche.dataDir", dataDir)
+	viper.SetDefault("chunks.dir", path.Join(dataDir, "chunks"))
+	viper.SetDefault("chunks.size", 1) // 1MB
 	viper.SetDefault("verbose", false)
 	return nil
 }
@@ -25,21 +50,16 @@ func InitConfig(cfgFile string) error {
 	}
 
 	viper.SetConfigType("yaml")
+	viper.SetConfigName("synche-client")
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// config flag not set, search home dir for config
-		home, err := os.UserHomeDir()
-		if err != nil {
-			log.Fatalf("Could not get $HOME directory: %v", err)
-		}
-
-		// Search config in home directory with name ".synche" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".synche")
-		cfgFile = path.Join(home, ".synche.yaml")
-		viper.SetConfigFile(cfgFile)
+		// cfgFile not set, scan usual directories for existing config
+		viper.AddConfigPath(viper.GetString("synche.dir"))
+		viper.AddConfigPath("$HOME")
+		viper.AddConfigPath(".")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -49,10 +69,13 @@ func InitConfig(cfgFile string) error {
 		log.Debug("Using config file:", viper.ConfigFileUsed())
 	} else {
 		// the config file does not exist, so create a new one
-		err = viper.WriteConfigAs(cfgFile)
+		err = viper.WriteConfigAs(path.Join(viper.GetString("synche.dir"), "synche-client.yaml"))
 		if err != nil {
 			log.Fatalf("Unable to create new config file, %v", err)
 		}
 	}
+
+	err = viper.Unmarshal(&Config)
+
 	return nil
 }

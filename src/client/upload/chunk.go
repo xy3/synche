@@ -1,59 +1,55 @@
 package upload
 
 import (
-	"encoding/hex"
 	"github.com/go-openapi/runtime"
-	"github.com/kalafut/imohash"
 	log "github.com/sirupsen/logrus"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"os"
 	"sync"
 )
 
-type ChunkUploadApiRequest func(params *files.UploadChunkParams) (*files.UploadChunkCreated, error)
-
-type ChunkUploader struct {
-	Send ChunkUploadApiRequest
+type ChunkUploader interface {
+	Upload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error)
+	NewParams(chunk data.Chunk, requestID string) (*files.UploadChunkParams, error)
 }
 
-func NewChunkUploader(sender ChunkUploadApiRequest) *ChunkUploader {
-	return &ChunkUploader{Send: sender}
+type ChunkUpload struct {
+	hashFunc data.ChunkHashFunc
 }
 
-func (cu *ChunkUploader) Upload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error) {
+func NewChunkUpload(hashFunc data.ChunkHashFunc) *ChunkUpload {
+	return &ChunkUpload{hashFunc: hashFunc}
+}
+
+func (cu *ChunkUpload) Upload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error) {
 	defer wg.Done()
 
-	resp, err := cu.Send(params)
+	// TODO: Have a limit of errors before we consider it "not working"?
+	resp, err := apiclient.Default.Files.UploadChunk(params)
 	if err != nil {
+		// TODO: Bug - the channel seems to be closing prematurely when an upload fails... see [ch213]
 		uploadErrors <- err
 		return
 	}
 
-	log.Debugf("%#v\n", resp.Payload)
+	log.Infof("Response received: %#v", resp.Payload)
 
 	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly
 }
 
-func (cu *ChunkUploader) NewParams(
-	chunkPath, chunkName, uploadRequestId string,
-	chunkNum int64,
-) (*files.UploadChunkParams, error) {
-	chunkHash, err := imohash.SumFile(chunkPath)
+func (cu *ChunkUpload) NewParams(chunk data.Chunk, requestID string) (*files.UploadChunkParams, error) {
+	file, err := os.Open(chunk.Path)
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := os.Open(chunkPath)
-	if err != nil {
-		return nil, err
-	}
-
-	hash := hex.EncodeToString(chunkHash[:])
-	readCloser := runtime.NamedReader(chunkName, file)
+	readCloser := runtime.NamedReader(chunk.Hash, file)
 	params := files.NewUploadChunkParams().
-		WithChunkNumber(chunkNum).
-		WithChunkHash(hash).
-		WithUploadRequestID(uploadRequestId).
+		WithChunkNumber(int64(chunk.Num)).
+		WithChunkHash(chunk.Hash).
+		WithUploadRequestID(requestID).
 		WithChunkData(readCloser)
 
 	return params, nil

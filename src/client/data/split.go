@@ -1,55 +1,42 @@
 package data
 
 import (
-	"encoding/hex"
-	"github.com/kalafut/imohash"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"math"
 	"os"
+	"path"
 )
 
-type Chunk struct {
-	Path string
-	Hash string
-	Num  uint64
-}
-
-func NewChunk(path string, hash string, number uint64) *Chunk {
-	return &Chunk{Path: path, Hash: hash, Num: number}
-}
-
-type Splitter struct {
+type SplitJob struct {
 	chunkWriter ChunkWriter
+	hashFunc 	ChunkHashFunc
+	chunkDir    string
+	chunkSize   uint64
 }
 
-func NewSplitter(chunkWriter ChunkWriter) *Splitter {
-	return &Splitter{chunkWriter}
+
+func NewSplitJob(chunkWriter ChunkWriter, hashFunc ChunkHashFunc, chunkDir string, chunkMBs uint64) *SplitJob {
+	if chunkMBs < 1 {
+		chunkMBs = 1
+	}
+	chunkSize := chunkMBs * (1 << 20)
+	return &SplitJob{chunkWriter: chunkWriter, hashFunc: hashFunc, chunkDir: chunkDir, chunkSize: chunkSize}
 }
 
-func (s *Splitter) Split(filePath, chunkDir string) ([]Chunk, error) {
-	file, err := os.Open(filePath)
-
+func (s *SplitJob) Split(file *os.File) (*[]Chunk, error) {
+	// Prepare the chunk array
+	stats, err := file.Stat()
 	if err != nil {
-		log.Errorf("Could not open: '%s'", filePath)
 		return nil, err
 	}
+	fileSize := stats.Size()
+	numChunks := uint64(math.Ceil(float64(fileSize) / float64(s.chunkSize))) // total number of chunks
+	log.Printf("Splitting to %d pieces.\n", numChunks)
+	chunks := make([]Chunk, numChunks)
 
-	defer file.Close()
-
-	fileInfo, _ := file.Stat()
-	fileSize := fileInfo.Size()
-	fileChunk := viper.GetInt("ChunkSize") * (1 << 20)
-
-	// calculate total number of parts the file will be chunked into
-	totalPartsNum := uint64(math.Ceil(float64(fileSize) / float64(fileChunk)))
-	chunks := make([]Chunk, totalPartsNum)
-
-	log.Printf("Splitting to %d pieces.\n", totalPartsNum)
-	for i := uint64(0); i < totalPartsNum; i++ {
-
-		chunkSize := int(math.Min(float64(fileChunk), float64(fileSize-int64(i*uint64(fileChunk)))))
-		chunkBytes := make([]byte, chunkSize)
+	for i := uint64(0); i < numChunks; i++ {
+		numChunkBytes := int(math.Min(float64(s.chunkSize), float64(fileSize-int64(i*s.chunkSize))))
+		chunkBytes := make([]byte, numChunkBytes)
 
 		_, err := file.Read(chunkBytes)
 		if err != nil {
@@ -58,19 +45,20 @@ func (s *Splitter) Split(filePath, chunkDir string) ([]Chunk, error) {
 		}
 
 		// write to disk
-		hash := imohash.Sum(chunkBytes)
-		chunkHash := hex.EncodeToString(hash[:])
-		chunkPath := chunkDir + "/" + chunkHash
-		err = s.chunkWriter(chunkPath, &chunkBytes)
+		chunkHash := s.hashFunc(chunkBytes)
+		chunkPath := path.Join(s.chunkDir, chunkHash)
+		chunk := NewChunk(chunkPath, chunkHash, i)
+
+		err = s.chunkWriter(chunk, &chunkBytes)
 		if err != nil {
 			log.Errorf("Failed to write the chunk data to: '%s'", chunkPath)
 			return nil, err
 		}
 
-		chunks[i] = *NewChunk(chunkPath, chunkHash, i)
+		chunks[i] = *chunk
 
 		log.Debug("Split to : ", chunkPath)
 	}
 
-	return chunks, err
+	return &chunks, nil
 }

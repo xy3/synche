@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/cmd/mocks"
 	"testing"
 )
 
@@ -11,19 +12,10 @@ var (
 	textFile = "testdata/test_upload_file.txt"
 )
 
-type MockFileUploader struct {
-	mock.Mock
-}
-
-func (m *MockFileUploader) Upload(filePath string) error {
-	m.Called(filePath)
-	return nil
-}
-
 func TestUploadCommand(t *testing.T) {
 	// Create a new mock FileUploader and return no error for any string input
-	fileUploader := new(MockFileUploader)
-	fileUploader.On("Upload", mock.AnythingOfType("string")).Return(nil)
+	fileUploader := new(mocks.Uploader)
+	fileUploader.On("Run", mock.AnythingOfType("string")).Return(nil)
 	uploadCmd := NewUploadCmd(fileUploader)
 
 	testCases := []struct {
