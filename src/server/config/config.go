@@ -13,7 +13,7 @@ import (
 	Database DatabaseConfigurations
 }
 
-type ServerConfigurations struct {
+type Server struct {
 	Port string
 }
 
@@ -26,19 +26,42 @@ type DatabaseConfigurations struct {
 	DBAddress string
 } */
 
-func InitConfig() (err error) {
-	viper.SetConfigName(".synche-server")
-	viper.SetConfigType("yaml")
-
+func SetDefaults() (err error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
+	syncheDir := path.Join(home, ".synche")
 
-	viper.AddConfigPath(home)
-	cfgFile := path.Join(home, ".synche-server.yaml")
+	viper.SetDefault("synche.dir", syncheDir)
+	viper.SetDefault("server.port", "8080")
+	viper.SetDefault("server.uploadDirectory", syncheDir + "/data/received")
+	viper.SetDefault("database.driver", "mysql")
+	viper.SetDefault("database.name", "synche")
+	viper.SetDefault("database.username", "admin")
+	viper.SetDefault("database.password", "admin")
+	viper.SetDefault("database.protocol", "tcp")
+	viper.SetDefault("database.address", "127.0.0.1:3306")
+	return nil
+}
+
+func InitConfig() (err error) {
+	err = SetDefaults()
+
+	viper.SetConfigName(".synche-server")
+	viper.SetConfigType("yaml")
+
+	syncheDir := viper.GetString("synche.dir")
+	if _, err := os.Stat(syncheDir); os.IsNotExist(err) {
+		err = os.Mkdir(syncheDir, os.ModePerm)}
+	if err != nil {
+		return err
+	}
+
+	// Set config file
+	viper.AddConfigPath(syncheDir)
+	cfgFile := path.Join(syncheDir, ".synche-server.yaml")
 	viper.SetConfigFile(cfgFile)
-
 
 	// Enable reading environment variables
 	viper.AutomaticEnv()
@@ -46,22 +69,16 @@ func InitConfig() (err error) {
 	// If unmarshaling, create configuration here
 	// var configuration Configuration
 
-	if err := viper.ReadInConfig(); err == nil {
-		log.Infof("Using config file:", viper.ConfigFileUsed())
-	} else {
-		return err
+	if err := viper.ReadInConfig(); err != nil {
+		// Config file doesn't exist, create it
+		err = viper.WriteConfigAs(cfgFile)
+		if err != nil {
+			return err
+		}
+		log.Infof("Using config file: %s", viper.ConfigFileUsed())
 	}
 
-	// Set defaults
-	viper.SetDefault("server.port", "8080")
-	viper.SetDefault("server.uploadDirectory", "../data/received")
-	viper.SetDefault("database.driver", "mysql")
-	viper.SetDefault("database.name", "synche")
-	viper.SetDefault("database.username", "admin")
-	viper.SetDefault("database.password", "admin")
-	viper.SetDefault("database.protocol", "tcp")
-	viper.SetDefault("database.address", "127.0.0.1:3306")
-
+	// Unmarshalling can be done here
 	// err = viper.Unmarshal(&configuration)
 
 	return err

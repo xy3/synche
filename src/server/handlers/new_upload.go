@@ -18,7 +18,7 @@ func NewUploadFileHandler(params files.NewUploadParams, db *sql.DB) middleware.R
 	//requestUuid := uuid.New().String() could use uuid?
 	uploadRequestId := *params.FileInfo.Hash // just use the file hash for the moment
 
-	// Make a directory in /data/received with the hash as the name
+	// Make a directory in .synche/data/received with the hash as the name
 	fileChunkDir := filepath.Join(viper.GetString("server.uploadDirectory"), uploadRequestId)
 	_ = os.MkdirAll(fileChunkDir, os.ModePerm)
 
@@ -26,8 +26,6 @@ func NewUploadFileHandler(params files.NewUploadParams, db *sql.DB) middleware.R
 	err := database.InsertConnectionRequest(db, uploadRequestId, fileChunkDir, *params.FileInfo.Name, *params.FileInfo.Size, *params.FileInfo.Chunks)
 	if err != nil {
 		log.Fatalf("Could not insert connection request into database with ID: %s\n-----> %s", uploadRequestId, err)
-	} else {
-		log.Infof("Inserted into database connection request information with ID: %s", uploadRequestId)
 	}
 
 	contents := models.NewFileUploadRequestAccepted{

@@ -28,11 +28,11 @@ func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.R
 	namedFile, ok := params.ChunkData.(*runtime.File)
 	if ok {
 		log.Info("=== Received new chunk ===")
-		log.Info("Filename: %s", namedFile.Header.Filename)
-		log.Info("Size: %d", namedFile.Header.Size)
-		log.Info("ChunkHash: %s", params.ChunkHash)
-		log.Info("ChunkNumber: %d", params.ChunkNumber)
-		log.Info("UploadRequestID: %s", params.UploadRequestID)
+		log.Infof("Filename: %s", namedFile.Header.Filename)
+		log.Infof("Size: %d", namedFile.Header.Size)
+		log.Infof("ChunkHash: %s", params.ChunkHash)
+		log.Infof("ChunkNumber: %d", params.ChunkNumber)
+		log.Infof("UploadRequestID: %s", params.UploadRequestID)
 	}
 
 	// Frequently used params
@@ -73,8 +73,6 @@ func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.R
 	err = database.InsertChunk(db, namedFile.Header.Filename, namedFile.Header.Size, chunkHash, params.ChunkNumber, uploadRequestId, directoryId)
 	if err != nil {
 		log.Fatalf("Could not insert chunk %s\n-----> %s", params.ChunkHash, err)
-	} else {
-		log.Infof("Inserted chunk information into database for chunk: %s", params.ChunkHash)
 	}
 
 	return files.NewUploadChunkCreated().WithPayload(&models.UploadedChunk{
