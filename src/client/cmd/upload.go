@@ -7,7 +7,6 @@ import (
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
-	"os"
 )
 
 func NewUploadCmd(uploader Uploader) *cobra.Command {
@@ -34,14 +33,14 @@ type Uploader interface {
 }
 
 type UploadJob struct {
-	splitJob      data.SplitJob
+	splitter      data.Splitter
 	chunkUploader upload.ChunkUploader
 	fileUploader  upload.FileUploader
 	chunksDir     string
 }
 
 func (u UploadJob) Run(filePath string) error {
-	file, err := os.Open(filePath)
+	file, err := data.AppFS.Open(filePath)
 	if err != nil {
 		return nil
 	}
@@ -52,25 +51,26 @@ func NewUploadJob(
 	chunkWriter data.ChunkWriter,
 	chunkHashFunc data.ChunkHashFunc,
 	fileHashFunc data.FileHashFunc,
+	newUploadRequester upload.NewUploadRequester,
 	chunksDir string,
 	chunkMBs uint64,
 ) (
 	*UploadJob,
 ) {
-	splitJob := data.NewSplitJob(chunkWriter, chunkHashFunc, chunksDir, chunkMBs)
+	splitter := data.NewSplitJob(chunkWriter, chunkHashFunc, chunksDir, chunkMBs)
 	chunkUploader := upload.NewChunkUpload(chunkHashFunc)
-	fileUploader := upload.NewFileUpload(*splitJob, chunkUploader, fileHashFunc)
+	fileUploader := upload.NewFileUpload(splitter, chunkUploader, fileHashFunc, newUploadRequester)
 
 	return &UploadJob{
 		chunksDir:     chunksDir,
-		splitJob:      *splitJob,
+		splitter:      splitter,
 		chunkUploader: chunkUploader,
 		fileUploader:  fileUploader,
 	}
 }
 
 func NewDefaultUploadJob() *UploadJob {
-	return NewUploadJob(data.DefaultChunkWriter, data.DefaultChunkHashFunc, data.DefaultFileHashFunc, c.Config.Chunks.Dir, 1)
+	return NewUploadJob(data.DefaultChunkWriter, data.DefaultChunkHashFunc, data.DefaultFileHashFunc, upload.DefaultNewUploadRequester, c.Config.Chunks.Dir, 1)
 }
 
 func init() {

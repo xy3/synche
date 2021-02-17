@@ -1,9 +1,9 @@
-package data
+package data_test
 
 import (
-	"fmt"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"os"
 	"path"
 	"testing"
@@ -19,7 +19,7 @@ var (
 )
 
 func TestDefaultChunkWriter(t *testing.T) {
-	AppFS = afero.NewMemMapFs()
+	data.SetFileSystem(afero.NewMemMapFs())
 
 	testCases := []struct {
 		Name       string
@@ -31,12 +31,12 @@ func TestDefaultChunkWriter(t *testing.T) {
 		{"writing empty byte array to chunk file", defaultPath + "2", []byte{}, nil},
 	}
 	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("%v", tc.Name), func(t *testing.T) {
-			chunk := NewChunk(tc.ChunkPath, DefaultChunkHashFunc(tc.ChunkBytes), 1)
-			actual := DefaultChunkWriter(chunk, &tc.ChunkBytes)
+		t.Run(tc.Name, func(t *testing.T) {
+			chunk := data.NewChunk(tc.ChunkPath, data.DefaultChunkHashFunc(tc.ChunkBytes), 1)
+			actual := data.DefaultChunkWriter(chunk, &tc.ChunkBytes)
 			assert.Equal(t, tc.Expected, actual)
 
-			if _, err := AppFS.Stat(tc.ChunkPath); os.IsNotExist(err) {
+			if _, err := data.AppFS.Stat(tc.ChunkPath); os.IsNotExist(err) {
 				t.Errorf("chunk file was not created: %v", err)
 			}
 		})

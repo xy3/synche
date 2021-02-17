@@ -2,8 +2,6 @@ package data
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
-	"os"
 )
 
 type Chunk struct {
@@ -21,7 +19,7 @@ func NewChunk(path string, hash string, number uint64) *Chunk {
 
 func DefaultChunkWriter(chunk *Chunk, chunkBytes *[]byte) error {
 	// write/save buffer to disk
-	err := afero.WriteFile(AppFS, chunk.Path, *chunkBytes, os.ModeAppend)
+	err := Afs.WriteFile(chunk.Path, *chunkBytes, 0644)
 	if err != nil {
 		log.Errorf("Chunk writer Failed to write the chunk data to a new file: %v", err)
 		return err
