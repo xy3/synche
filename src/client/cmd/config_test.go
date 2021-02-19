@@ -1,10 +1,10 @@
-package cmd
+package cmd_test
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/cmd"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"io/ioutil"
 	"testing"
@@ -20,7 +20,7 @@ func TestConfigCommand(t *testing.T) {
 	// Avoid printing any log output during the tests
 	log.SetOutput(ioutil.Discard)
 
-	configCmd := NewConfigCommand()
+	configCmd := cmd.NewConfigCommand()
 
 	err := config.InitConfig(testConfigFile)
 	if err != nil {
@@ -36,7 +36,7 @@ func TestConfigCommand(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("%v ", tc.Name), func(t *testing.T) {
+		t.Run(tc.Name, func(t *testing.T) {
 			configCmd.SetArgs(tc.Args)
 
 			if err := configCmd.Execute(); err != nil {

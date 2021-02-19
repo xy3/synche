@@ -25,11 +25,10 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.OnInitialize(func() {
-		err := config.InitConfig(cfgFile)
+		err := data.SetupDirs()
 		if err != nil {
-			log.Fatalf("Could not initialize the config: %v", err)
+			log.Fatalf("Could not set up the required directories: %v", err)
 		}
-		data.SetupDirs()
 
 		if viper.GetBool("verbose") {
 			log.Infof("Verbose: true")
@@ -43,6 +42,10 @@ func Execute() {
 }
 
 func init() {
+	err := config.InitConfig(cfgFile)
+	if err != nil {
+		log.Fatalf("Could not initialize the config: %v", err)
+	}
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
@@ -54,7 +57,7 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	err := viper.BindPFlags(rootCmd.PersistentFlags())
+	err = viper.BindPFlags(rootCmd.PersistentFlags())
 	if err != nil {
 		panic(err) // TODO
 	}

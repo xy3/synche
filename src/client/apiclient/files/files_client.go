@@ -25,13 +25,16 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
+// ClientOption is the option for Client methods
+type ClientOption func(*runtime.ClientOperation)
+
 // ClientService is the interface for Client methods
 type ClientService interface {
-	ListFiles(params *ListFilesParams) (*ListFilesOK, error)
+	ListFiles(params *ListFilesParams, opts ...ClientOption) (*ListFilesOK, error)
 
-	NewUpload(params *NewUploadParams) (*NewUploadOK, error)
+	NewUpload(params *NewUploadParams, opts ...ClientOption) (*NewUploadOK, error)
 
-	UploadChunk(params *UploadChunkParams) (*UploadChunkCreated, error)
+	UploadChunk(params *UploadChunkParams, opts ...ClientOption) (*UploadChunkCreated, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -41,13 +44,12 @@ type ClientService interface {
 
   Queries the server for the files and their locations stored on the server
 */
-func (a *Client) ListFiles(params *ListFilesParams) (*ListFilesOK, error) {
+func (a *Client) ListFiles(params *ListFilesParams, opts ...ClientOption) (*ListFilesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewListFilesParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "listFiles",
 		Method:             "GET",
 		PathPattern:        "/list",
@@ -58,7 +60,12 @@ func (a *Client) ListFiles(params *ListFilesParams) (*ListFilesOK, error) {
 		Reader:             &ListFilesReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -77,13 +84,12 @@ func (a *Client) ListFiles(params *ListFilesParams) (*ListFilesOK, error) {
 
   To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
 */
-func (a *Client) NewUpload(params *NewUploadParams) (*NewUploadOK, error) {
+func (a *Client) NewUpload(params *NewUploadParams, opts ...ClientOption) (*NewUploadOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewNewUploadParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "newUpload",
 		Method:             "POST",
 		PathPattern:        "/upload/new",
@@ -94,7 +100,12 @@ func (a *Client) NewUpload(params *NewUploadParams) (*NewUploadOK, error) {
 		Reader:             &NewUploadReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
@@ -113,13 +124,12 @@ func (a *Client) NewUpload(params *NewUploadParams) (*NewUploadOK, error) {
 
   Uploads a new chunk to the Synche server
 */
-func (a *Client) UploadChunk(params *UploadChunkParams) (*UploadChunkCreated, error) {
+func (a *Client) UploadChunk(params *UploadChunkParams, opts ...ClientOption) (*UploadChunkCreated, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewUploadChunkParams()
 	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
+	op := &runtime.ClientOperation{
 		ID:                 "uploadChunk",
 		Method:             "POST",
 		PathPattern:        "/upload/chunk",
@@ -130,7 +140,12 @@ func (a *Client) UploadChunk(params *UploadChunkParams) (*UploadChunkCreated, er
 		Reader:             &UploadChunkReader{formats: a.formats},
 		Context:            params.Context,
 		Client:             params.HTTPClient,
-	})
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ src/data/
 src/.idea/
 .idea/
 *.iml
+mocks/
 
 # Ignore compiled C/C++ files.
 *.o
