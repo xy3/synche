@@ -37,15 +37,9 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	viper.WatchConfig()
 
 	// Config vars
-	dbDriver := viper.GetString("database.driver")
-	dbUsername := viper.GetString("database.username")
-	dbPassword := viper.GetString("database.password")
-	dbProtocol := viper.GetString("database.protocol")
-	dbAddress := viper.GetString("database.address")
-	dbName := viper.GetString("database.name")
 
 	// Create database with chunk table and connection_request table if they don't exist
-	err = database.CreateDatabase(dbDriver, dbUsername, dbPassword, dbProtocol, dbAddress, dbName)
+	err = database.CreateDatabase(c.Config.Database)
 	if err != nil {
 		log.Fatalf("Database creation failed: %s", err)
 	}
@@ -79,7 +73,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	}
 
 	clientBuilder := database.NewDBClientBuilder()
-	dbClient := clientBuilder.BuildSqlClient(dbDriver, dbUsername, dbPassword, dbProtocol, dbAddress, dbName)
+	dbClient := clientBuilder.BuildSqlClient(c.Config.Database)
 
 	api.FilesUploadChunkHandler = files.UploadChunkHandlerFunc(func(params files.UploadChunkParams) middleware.Responder {
 		return handlers.UploadChunkHandler(params, dbClient)})

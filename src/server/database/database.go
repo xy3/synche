@@ -6,20 +6,21 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"time"
 )
 
-func DSN(DBUsername string, DBPassword string, DBProtocol string, DBAddress string) (dsn string) {
-	return fmt.Sprintf("%s:%s@%s(%s)/", DBUsername, DBPassword, DBProtocol, DBAddress)
+func NewDSN(dbConfig config.DatabaseConfig) (dsn string) {
+	return fmt.Sprintf("%s:%s@%s(%s)/", dbConfig.Username, dbConfig.Password, dbConfig.Protocol, dbConfig.Address)
 }
 
-func CreateDatabase(driverName string, DBUsername string, DBPassword string, DBProtocol string, DBAddress string, name string) (err error) {
+func CreateDatabase(dbConfig config.DatabaseConfig) (err error) {
 	/* Data source name configuration has the following parameters:
 	  [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN] */
-	dataSourceName := DSN(DBUsername, DBPassword, DBProtocol, DBAddress)
+	dataSourceName := NewDSN(dbConfig)
 
-	// Create a DB without connecting to an existing DB, validates DSN
-	db, err := sql.Open(driverName, dataSourceName)
+	// Create a DB without connecting to an existing DB, validates NewDSN
+	db, err := sql.Open(dbConfig.Driver, dataSourceName)
 	if err != nil {
 		return err
 	}
@@ -31,11 +32,11 @@ func CreateDatabase(driverName string, DBUsername string, DBPassword string, DBP
 	defer cancelFunc()
 
 	// Returns a pool of underlying DB connections
-	result, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS " + name)
+	result, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS " + dbConfig.Name)
 	if err != nil {
 		return err
 	}
-	log.Infof("Database %s created successfully", name)
+	log.Infof("Database %s created successfully", dbConfig.Name)
 
 	no, err := result.RowsAffected()
 	if err != nil {
@@ -50,7 +51,7 @@ func CreateDatabase(driverName string, DBUsername string, DBPassword string, DBP
 	}
 
 	// Create and connect to database
-	db, err = DBConnection(driverName, dataSourceName, name)
+	db, err = DBConnection(dbConfig.Driver, dataSourceName, dbConfig.Name)
 	if err != nil {
 		return err
 	}
