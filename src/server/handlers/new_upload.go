@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
+	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
@@ -19,7 +19,7 @@ func NewUploadFileHandler(params files.NewUploadParams, db *sql.DB) middleware.R
 	uploadRequestId := *params.FileInfo.Hash // just use the file hash for the moment
 
 	// Make a directory in .synche/data/received with the hash as the name
-	fileChunkDir := filepath.Join(viper.GetString("server.uploadDirectory"), uploadRequestId)
+	fileChunkDir := filepath.Join(c.Config.Server.UploadDir, uploadRequestId)
 	_ = os.MkdirAll(fileChunkDir, os.ModePerm)
 
 	// Store upload request ID, chunk directory, file name, file size, and number of chunks in the database
