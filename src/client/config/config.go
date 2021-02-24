@@ -10,19 +10,18 @@ import (
 var Config Configuration
 
 type Configuration struct {
-	Synche SyncheConfig
-	Chunks ChunksConfig
+	Synche  SyncheConfig
+	Chunks  ChunksConfig
 	Verbose bool
 }
 
 type SyncheConfig struct {
-	Dir string
+	Dir     string
 	DataDir string
 }
 
 type ChunksConfig struct {
-	Dir string
-	Size uint64
+	Size int64
 }
 
 func SetDefaults() error {
@@ -35,7 +34,6 @@ func SetDefaults() error {
 	dataDir := path.Join(syncheDir, "data")
 	viper.SetDefault("synche.dir", syncheDir)
 	viper.SetDefault("synche.dataDir", dataDir)
-	viper.SetDefault("chunks.dir", path.Join(dataDir, "chunks"))
 	viper.SetDefault("chunks.size", 1) // 1MB
 	viper.SetDefault("verbose", false)
 	return nil

@@ -1,73 +1,82 @@
 package data
 
 import (
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
+	"io"
 	"math"
-	"path"
 )
 
 //go:generate mockery --name=Splitter --case underscore
 type Splitter interface {
-	Split(file afero.File) (*[]Chunk, error)
-	NumChunks(fileSize int64) uint64
+	NumChunks() int64
+	NextChunk() ([]byte, error)
+	Split(handleChunk func(*Chunk) error) error
+	File() *SplitFile
 }
 
-type SplitJob struct {
-	ChunkWriter ChunkWriter
-	HashFunc    ChunkHashFunc
-	ChunkDir    string
-	ChunkSize   uint64
+type SplitFile struct {
+	FileSize     int64
+	ChunkSize    int64
+	CurrentIndex int64
+	Path         string
+	Name         string
+	Hash         string
+	Reader       io.Reader
 }
 
-func NewSplitJob(chunkWriter ChunkWriter, hashFunc ChunkHashFunc, chunkDir string, chunkMBs uint64) *SplitJob {
+func (sf *SplitFile) File() *SplitFile {
+	return sf
+}
+
+func NewSplitFile(fileSize, chunkMBs int64, path, name, hash string, reader io.Reader) *SplitFile {
 	if chunkMBs < 1 {
 		chunkMBs = 1
 	}
-	chunkSize := chunkMBs * (1 << 20)
-	return &SplitJob{ChunkWriter: chunkWriter, HashFunc: hashFunc, ChunkDir: chunkDir, ChunkSize: chunkSize}
+	chunkSize := chunkMBs * MB
+	return &SplitFile{
+		FileSize:     fileSize,
+		ChunkSize:    chunkSize,
+		CurrentIndex: 0,
+		Path:         path,
+		Name:         name,
+		Hash:         hash,
+		Reader:       reader,
+	}
 }
 
-func (s *SplitJob) NumChunks(fileSize int64) uint64 {
-	return uint64(math.Ceil(float64(fileSize) / float64(s.ChunkSize))) // total number of chunks
+func (sf SplitFile) NumChunks() int64 {
+	return int64(math.Ceil(float64(sf.FileSize) / float64(sf.ChunkSize)))
 }
 
-func (s *SplitJob) Split(file afero.File) (*[]Chunk, error) {
-	// Prepare the chunk array
-	stats, err := file.Stat()
+func (sf *SplitFile) NextChunk() ([]byte, error) {
+	if sf.CurrentIndex >= sf.NumChunks() {
+		return nil, nil
+	}
+	// Use ChunkSize only if it is smaller than the rest of the file
+	numChunkBytes := sf.FileSize - (sf.CurrentIndex * sf.ChunkSize)
+	if sf.ChunkSize < numChunkBytes {
+		numChunkBytes = sf.ChunkSize
+	}
+
+	chunkBytes := make([]byte, numChunkBytes)
+	_, err := sf.Reader.Read(chunkBytes)
 	if err != nil {
-		return nil, err
-	}
-	fileSize := stats.Size()
-	numChunks := s.NumChunks(fileSize)
-	log.Infof("Splitting to %d pieces.", numChunks)
-	chunks := make([]Chunk, numChunks)
-
-	for i := uint64(0); i < numChunks; i++ {
-		numChunkBytes := int(math.Min(float64(s.ChunkSize), float64(fileSize-int64(i*s.ChunkSize))))
-		chunkBytes := make([]byte, numChunkBytes)
-
-		_, err := file.Read(chunkBytes)
-		if err != nil {
-			log.Errorf("Failed to read from the chunk buffer: %v", err)
-			return nil, err
-		}
-
-		// write to disk
-		chunkHash := s.HashFunc(chunkBytes)
-		chunkPath := path.Join(s.ChunkDir, chunkHash)
-		chunk := NewChunk(chunkPath, chunkHash, i)
-
-		err = s.ChunkWriter(chunk, &chunkBytes)
-		if err != nil {
-			log.Errorf("Failed to write the chunk data to: '%s'", chunkPath)
-			return nil, err
-		}
-
-		chunks[i] = *chunk
-
-		log.Debug("Split to : ", chunkPath)
+		return chunkBytes, err
 	}
 
-	return &chunks, nil
+	sf.CurrentIndex++
+	return chunkBytes, nil
+}
+
+func (sf SplitFile) Split(handleChunk func(*Chunk) error) error {
+	for sf.CurrentIndex < sf.NumChunks() {
+		chunkBytes, err := sf.NextChunk()
+		if err != nil {
+			return err
+		}
+		chunk := NewChunk(sf.CurrentIndex, &chunkBytes)
+		if err = handleChunk(chunk); err != nil {
+			return err
+		}
+	}
+	return nil
 }

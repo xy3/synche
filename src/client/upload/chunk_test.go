@@ -5,58 +5,45 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
-	"reflect"
 	"testing"
 )
-
-func TestNewChunkUpload(t *testing.T) {
-	t.Run("new chunk upload", func(t *testing.T) {
-		actual := upload.NewChunkUpload(data.DefaultChunkHashFunc)
-		value := reflect.ValueOf(*actual)
-		require.Equal(t, 1, value.NumField())
-		require.True(t, value.Field(0).IsValid())
-	})
-}
 
 func TestChunkUpload_NewParams(t *testing.T) {
 	data.SetFileSystem(afero.NewMemMapFs())
 
 	testCases := []struct {
-		Name             string
-		Chunk            data.Chunk
-		UploadRequestID  string
-		ChunkFileContent []byte
-		ExpectedError    error
+		Name            string
+		Chunk           data.Chunk
+		UploadRequestID string
+		ChunkBytes      []byte
+		ExpectedError   error
 	}{
 		{
-			Chunk: data.Chunk{Path: "testdata/chunk", Hash: "hash", Num: 1},
+			Chunk:           data.Chunk{Hash: "hash", Num: 1},
 			UploadRequestID: "reqId",
-			ChunkFileContent: []byte("test file content"),
-			ExpectedError: nil,
+			ChunkBytes:      []byte("test file content"),
+			ExpectedError:   nil,
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			err := data.Afs.WriteFile(tc.Chunk.Path, tc.ChunkFileContent, 0644)
-			if err != nil {
-				t.Errorf("Failed to write the test file content: %v", err)
-			}
-
-			chunkUpload := new(upload.ChunkUpload)
-			params, err := chunkUpload.NewParams(tc.Chunk, tc.UploadRequestID)
-			require.Equal(t, tc.ExpectedError, err)
-			if tc.ExpectedError == nil {
-				require.Equal(t, tc.UploadRequestID, params.UploadRequestID)
-				require.Equal(t, int64(tc.Chunk.Num), params.ChunkNumber)
-				require.Equal(t, tc.Chunk.Hash, params.ChunkHash)
-				paramData := make([]byte, len(tc.ChunkFileContent))
-				_, err = params.ChunkData.Read(paramData)
-				if err != nil {
-					t.Errorf("Could not read the param chunk data: %v", paramData)
+		t.Run(
+			tc.Name, func(t *testing.T) {
+				chunkUpload := new(upload.ChunkUpload)
+				tc.Chunk.Bytes = &tc.ChunkBytes
+				params := chunkUpload.NewParams(tc.Chunk, tc.UploadRequestID)
+				if tc.ExpectedError == nil {
+					require.Equal(t, tc.UploadRequestID, params.UploadRequestID)
+					require.Equal(t, tc.Chunk.Num, params.ChunkNumber)
+					require.Equal(t, tc.Chunk.Hash, params.ChunkHash)
+					paramData := make([]byte, len(tc.ChunkBytes))
+					_, err := params.ChunkData.Read(paramData)
+					if err != nil {
+						t.Errorf("Could not read the param chunk data: %v", paramData)
+					}
+					require.Equal(t, tc.ChunkBytes, paramData)
 				}
-				require.Equal(t, tc.ChunkFileContent, paramData)
-			}
-		})
+			},
+		)
 	}
 }
 

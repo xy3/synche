@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"bytes"
 	"github.com/go-openapi/runtime"
 	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
@@ -11,62 +12,11 @@ import (
 
 //go:generate mockery --name=ChunkUploader --case underscore
 type ChunkUploader interface {
-	UploadChunks(chunks []data.Chunk, uploadRequestID string) error
 	Upload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error)
-	NewParams(chunk data.Chunk, requestID string) (*files.UploadChunkParams, error)
+	NewParams(chunk data.Chunk, requestID string) *files.UploadChunkParams
 }
 
-type ChunkUpload struct {
-	hashFunc data.ChunkHashFunc
-}
-
-func NewChunkUpload(hashFunc data.ChunkHashFunc) *ChunkUpload {
-	return &ChunkUpload{hashFunc: hashFunc}
-}
-
-func (cu *ChunkUpload) UploadChunks(chunks []data.Chunk, uploadRequestID string) error {
-	var wg sync.WaitGroup
-	uploadErrors := make(chan error, len(chunks))
-
-	for _, chunk := range chunks {
-		wg.Add(1)
-		params, err := cu.NewParams(chunk, uploadRequestID)
-		if err != nil {
-			panic(err)
-		}
-		go cu.Upload(&wg, params, uploadErrors)
-	}
-
-	// TODO: return when an error is encountered (here we could wait for N errors and then 'call it a day'?)
-	err := <-uploadErrors
-	if err != nil {
-		wg.Wait()
-		close(uploadErrors)
-		return err
-	}
-
-	//// Attempt to cast the error as an UploadChunkBadRequest
-	//if err, ok := err.(*files.UploadChunkBadRequest); ok {
-	//	log.Errorf("%v", *err.Payload.Message)
-	//} else {
-	//	// otherwise, just print the Error() as supplied by go-swagger
-	//	log.Errorf("%s", err.Error())
-	//}
-
-	log.Infof("Waiting for upload workers to finish.")
-	wg.Wait()
-	log.Infof("All upload workers completed.")
-	close(uploadErrors)
-
-	//for err := range uploadErrors {
-	//	if err != nil {
-	//		log.Errorf("%v\n", err)
-	//		return err
-	//	}
-	//}
-
-	return nil
-}
+type ChunkUpload struct{}
 
 func (cu *ChunkUpload) Upload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error) {
 	defer wg.Done()
@@ -76,26 +26,25 @@ func (cu *ChunkUpload) Upload(wg *sync.WaitGroup, params *files.UploadChunkParam
 	if err != nil {
 		// TODO: Bug - the channel seems to be closing prematurely when an upload fails... see [ch213]
 		uploadErrors <- err
+		// Attempt to cast the error as an UploadChunkBadRequest
+		if err, ok := err.(*files.UploadChunkBadRequest); ok {
+			log.Errorf("%v", *err.Payload.Message)
+		} else  {
+			// otherwise, just print the Error() as supplied by go-swagger
+			log.Errorf("%s", err.Error())
+		}
 		return
 	}
 
-	log.Infof("Response received: %#v", resp.Payload)
-
+	log.Infof("Successfully uploaded chunk: %s | File ID: %s | Server Directory: %s", resp.Payload.Hash, resp.Payload.CompositeFileID, resp.Payload.DirectoryID)
 	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly
 }
 
-func (cu *ChunkUpload) NewParams(chunk data.Chunk, requestID string) (*files.UploadChunkParams, error) {
-	file, err := data.AppFS.Open(chunk.Path)
-	if err != nil {
-		return nil, err
-	}
-
-	readCloser := runtime.NamedReader(chunk.Hash, file)
-	params := files.NewUploadChunkParams().
-		WithChunkNumber(int64(chunk.Num)). // TODO: Change the API endpoint to use uint64 instead of int64
+func (cu *ChunkUpload) NewParams(chunk data.Chunk, requestID string) *files.UploadChunkParams {
+	readCloser := runtime.NamedReader(chunk.Hash, bytes.NewReader(*chunk.Bytes))
+	return files.NewUploadChunkParams().
+		WithChunkNumber(chunk.Num).
 		WithChunkHash(chunk.Hash).
 		WithUploadRequestID(requestID).
 		WithChunkData(readCloser)
-
-	return params, nil
 }

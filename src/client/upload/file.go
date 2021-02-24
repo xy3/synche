@@ -2,61 +2,58 @@ package upload
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
+	"sync"
 )
 
 //go:generate mockery --name=FileUploader --case underscore
 type FileUploader interface {
-	Upload(file afero.File) error
+	Upload(splitter data.Splitter) error
 }
 
 type FileUpload struct {
-	Splitter      data.Splitter
-	ChunkUploader ChunkUploader
-	FileHashFunc data.FileHashFunc
+	ChunkUploader      ChunkUploader
 	NewUploadRequester NewUploadRequester
 }
 
-func NewFileUpload(
-	splitter data.Splitter,
-	chunkUploader ChunkUploader,
-	fileHashFunc data.FileHashFunc,
-	newUploadRequester NewUploadRequester,
-) *FileUpload {
-	return &FileUpload{
-		Splitter: splitter,
-		ChunkUploader: chunkUploader,
-		FileHashFunc: fileHashFunc,
-		NewUploadRequester: newUploadRequester,
-	}
+func NewFileUpload(chunkUploader ChunkUploader, newUploadRequester NewUploadRequester) *FileUpload {
+	return &FileUpload{ChunkUploader: chunkUploader, NewUploadRequester: newUploadRequester}
 }
 
+func (fu *FileUpload) Upload(splitter data.Splitter) error {
+	var wg sync.WaitGroup
+	uploadErrors := make(chan error, splitter.NumChunks())
 
-func (fu *FileUpload) Upload(file afero.File) error {
-	chunks, err := fu.Splitter.Split(file)
+	uploadRequestID, err := fu.NewUploadRequester.CreateNewUpload(splitter)
 	if err != nil {
 		return err
 	}
 
-	fileHash, err := fu.FileHashFunc(file.Name())
+	// The anonymous func here is called everytime a new chunk is read from the file
+	err = splitter.Split(
+		func(chunk *data.Chunk) error {
+			params := fu.ChunkUploader.NewParams(*chunk, uploadRequestID)
+			wg.Add(1)
+			go fu.ChunkUploader.Upload(&wg, params, uploadErrors)
+			return nil
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	uploadRequestID, err := fu.NewUploadRequester.CreateNewUpload(file, fileHash, int64(len(*chunks)))
-	if err != nil {
-		return err
-	}
-
-	log.Info("Uploading chunks to the server")
-	err = fu.ChunkUploader.UploadChunks(*chunks, uploadRequestID)
-	if err != nil {
-		return err
-	}
-
-	// TODO: Show some sort of progress report to the user (and do the uploading in the background?)
+	log.Info("Waiting for upload workers to finish.")
+	wg.Wait()
 	log.Info("Finished uploading all chunks to the server")
+	close(uploadErrors)
+
+	// Here we could attempt to cast the error as an UploadChunkBadRequest or other relevant error types
+	for err := range uploadErrors {
+		if err != nil {
+			log.Errorf("%v\n", err)
+			return err
+		}
+	}
 
 	return nil
 }
