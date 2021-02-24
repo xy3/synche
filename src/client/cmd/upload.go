@@ -7,6 +7,7 @@ import (
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
+	"path"
 )
 
 func NewUploadCmd(uploader Uploader) *cobra.Command {
@@ -33,44 +34,41 @@ type Uploader interface {
 }
 
 type UploadJob struct {
-	splitter      data.Splitter
 	chunkUploader upload.ChunkUploader
 	fileUploader  upload.FileUploader
-	chunksDir     string
+	fileHashFunc  data.FileHashFunc
 }
 
 func (u UploadJob) Run(filePath string) error {
 	file, err := data.AppFS.Open(filePath)
 	if err != nil {
-		return nil
+		return err
 	}
-	return u.fileUploader.Upload(file)
+	stat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	hash, err := u.fileHashFunc(filePath)
+	if err != nil {
+		return err
+	}
+	splitFile := data.NewSplitFile(stat.Size(), c.Config.Chunks.Size, filePath, path.Base(filePath), hash, file)
+	return u.fileUploader.Upload(splitFile)
 }
 
-func NewUploadJob(
-	chunkWriter data.ChunkWriter,
-	chunkHashFunc data.ChunkHashFunc,
-	fileHashFunc data.FileHashFunc,
-	newUploadRequester upload.NewUploadRequester,
-	chunksDir string,
-	chunkMBs uint64,
-) (
-	*UploadJob,
-) {
-	splitter := data.NewSplitJob(chunkWriter, chunkHashFunc, chunksDir, chunkMBs)
-	chunkUploader := upload.NewChunkUpload(chunkHashFunc)
-	fileUploader := upload.NewFileUpload(splitter, chunkUploader, fileHashFunc, newUploadRequester)
+func NewUploadJob(newUploadRequester upload.NewUploadRequester, fileHashFunc data.FileHashFunc) *UploadJob {
+	chunkUploader := new(upload.ChunkUpload)
+	fileUploader := upload.NewFileUpload(chunkUploader, newUploadRequester)
 
 	return &UploadJob{
-		chunksDir:     chunksDir,
-		splitter:      splitter,
 		chunkUploader: chunkUploader,
 		fileUploader:  fileUploader,
+		fileHashFunc:  fileHashFunc,
 	}
 }
 
 func NewDefaultUploadJob() *UploadJob {
-	return NewUploadJob(data.DefaultChunkWriter, data.DefaultChunkHashFunc, data.DefaultFileHashFunc, upload.DefaultNewUploadRequester, c.Config.Chunks.Dir, 1)
+	return NewUploadJob(upload.DefaultNewUploadRequester, data.DefaultFileHashFunc)
 }
 
 func init() {

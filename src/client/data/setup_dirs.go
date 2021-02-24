@@ -8,8 +8,8 @@ import (
 func SetupDirs() error {
 	// Create "chunks" directory if it doesn't exist
 	dirs := []string{
-		c.Config.Chunks.Dir,
 		c.Config.Synche.Dir,
+		c.Config.Synche.DataDir,
 	}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
