@@ -1,8 +1,8 @@
 package upload
 
 import (
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/models"
 )
@@ -28,7 +28,7 @@ func (nu *NewUploadRequest) CreateNewUpload(splitter data.Splitter) (uploadReque
 }
 
 func (nu *NewUploadRequest) NewUpload(params *files.NewUploadParams) (*models.NewFileUploadRequestAccepted, error) {
-	requestAccepted, err := apiclient.Client.Files.NewUpload(params)
+	requestAccepted, err := config.Client.Files.NewUpload(params)
 	if err != nil {
 		return nil, err
 	}

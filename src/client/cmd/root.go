@@ -30,6 +30,11 @@ func Execute() {
 			log.Fatalf("Could not set up the required directories: %v", err)
 		}
 
+		err = config.ConfigureClient()
+		if err != nil {
+			log.Fatalf("Failed to configure the Synche client: %v", err)
+		}
+
 		if viper.GetBool("verbose") {
 			log.Infof("Verbose: true")
 			log.SetLevel(log.DebugLevel)
