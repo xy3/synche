@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"github.com/go-openapi/runtime"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"sync"
 )
@@ -22,7 +22,7 @@ func (cu *ChunkUpload) Upload(wg *sync.WaitGroup, params *files.UploadChunkParam
 	defer wg.Done()
 
 	// TODO: Have a limit of errors before we consider it "not working"?
-	resp, err := apiclient.Client.Files.UploadChunk(params)
+	resp, err := config.Client.Files.UploadChunk(params)
 	if err != nil {
 		// TODO: Bug - the channel seems to be closing prematurely when an upload fails... see [ch213]
 		uploadErrors <- err

@@ -3,6 +3,7 @@ package config
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"os"
 	"path"
 )
@@ -12,7 +13,14 @@ var Config Configuration
 type Configuration struct {
 	Synche  SyncheConfig
 	Chunks  ChunksConfig
+	Server  ServerConfig
 	Verbose bool
+}
+
+type ServerConfig struct {
+	Host     string
+	BasePath string
+	Schemes  []string
 }
 
 type SyncheConfig struct {
@@ -36,6 +44,10 @@ func SetDefaults() error {
 	viper.SetDefault("synche.dataDir", dataDir)
 	viper.SetDefault("chunks.size", 1) // 1MB
 	viper.SetDefault("verbose", false)
+
+	viper.SetDefault("server.host", apiclient.DefaultHost)
+	viper.SetDefault("server.basePath", apiclient.DefaultBasePath)
+	viper.SetDefault("server.schemes", apiclient.DefaultSchemes)
 	return nil
 }
 
