@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/database"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
@@ -30,7 +30,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 
 	err := c.InitConfig()
 	if err != nil {
-		log.Fatalf("Fatal error config file: %s", err)
+		log.Fatalf("Failed to initialise config: %v", err)
 	}
 
 	// Read updates to the config file while server is running
@@ -38,10 +38,10 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 
 	// Config vars
 
-	// Create database with chunk table and connection_request table if they don't exist
-	err = database.CreateDatabase(c.Config.Database)
+	// Create data with chunk table and connection_request table if they don't exist
+	err = data.CreateDatabase(c.Config.Database)
 	if err != nil {
-		log.Fatalf("Database creation failed: %s", err)
+		log.Fatalf("DatabaseData creation failed: %v", err)
 	}
 
 	// Set your custom logger if needed. Default one is log.Printf
@@ -72,15 +72,16 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		})
 	}
 
-	clientBuilder := database.NewDBClientBuilder()
-	dbClient := clientBuilder.BuildSqlClient(c.Config.Database)
+	redisClient := data.BuildRedisClient(c.Config.Redis)
+	dbClient := data.BuildDBClient(c.Config.Database)
+	dataAccess := data.Wrapper{Cache: redisClient, Database: dbClient}
 
 	api.FilesUploadChunkHandler = files.UploadChunkHandlerFunc(func(params files.UploadChunkParams) middleware.Responder {
-		return handlers.UploadChunkHandler(params, dbClient)})
+		return handlers.UploadChunkHandler(params, dataAccess)})
 
 
 	api.FilesNewUploadHandler = files.NewUploadHandlerFunc(func(params files.NewUploadParams) middleware.Responder {
-		return handlers.NewUploadFileHandler(params, dbClient)})
+		return handlers.NewUploadFileHandler(params, dataAccess)})
 	// 	============= End Route Handlers =============
 
 	api.PreServerShutdown = func() {}
