@@ -25,6 +25,6 @@ func VerifyChunk(chunkFilePath string) (bool, error) {
 
 
 func VerifyComposite(filename string) (bool, error) {
-	// do something like "select * from database where file == filename
+	// do something like "select * from data where file == filename
 	return false, nil
 }

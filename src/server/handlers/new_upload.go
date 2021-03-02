@@ -1,18 +1,17 @@
 package handlers
 
 import (
-	"database/sql"
+	"fmt"
 	"github.com/go-openapi/runtime/middleware"
-	log "github.com/sirupsen/logrus"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/database"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 	"os"
 	"path/filepath"
 )
 
-func NewUploadFileHandler(params files.NewUploadParams, db *sql.DB) middleware.Responder {
+func NewUploadFileHandler(params files.NewUploadParams, dataAccess data.Wrapper) middleware.Responder {
 	// TODO: Check the file info here e.g. verify the hash
 
 	//requestUuid := uuid.New().String() could use uuid?
@@ -22,10 +21,15 @@ func NewUploadFileHandler(params files.NewUploadParams, db *sql.DB) middleware.R
 	fileChunkDir := filepath.Join(c.Config.Server.UploadDir, uploadRequestId)
 	_ = os.MkdirAll(fileChunkDir, os.ModePerm)
 
-	// Store upload request ID, chunk directory, file name, file size, and number of chunks in the database
-	err := database.InsertConnectionRequest(db, uploadRequestId, fileChunkDir, *params.FileInfo.Name, *params.FileInfo.Size, *params.FileInfo.Chunks)
+	// Store upload request ID, chunk directory, file name, file size, and number of chunks in the data
+	err := data.Database.InsertConnectionRequest(dataAccess.Database, uploadRequestId, fileChunkDir, filepath.Base(*params.FileInfo.Name), *params.FileInfo.Size, *params.FileInfo.Chunks)
 	if err != nil {
-		log.Fatalf("Could not insert connection request into database with ID: %s\n-----> %s", uploadRequestId, err)
+		return middleware.Error(400, fmt.Errorf("could not access file data on server: %v", err))
+	}
+
+	err = dataAccess.Cache.SetNumberOfChunks(uploadRequestId, *params.FileInfo.Chunks)
+	if err != nil {
+		return middleware.Error(400, fmt.Errorf("could not access file data on server: %v", err))
 	}
 
 	contents := models.NewFileUploadRequestAccepted{

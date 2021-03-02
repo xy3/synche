@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/database"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/jobs"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 	"io"
@@ -19,7 +19,42 @@ var (
 	uploadCounter = 0
 )
 
-func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.Responder {
+func reassembleUponAllChunksReceived(cache data.Cache, db data.Database, numberOfChunks int, uploadRequestId string, directoryId string) error {
+	// Check if upload counter has
+	if numberOfChunks == uploadCounter {
+		uploadCounter = 0
+		fileName, err := data.Database.ShowConnectionRequestFileName(db, uploadRequestId)
+		if err != nil {
+			return err
+		}
+
+		if err = jobs.ReassembleFile(cache, directoryId, fileName, uploadRequestId); err != nil {
+			log.Fatalf("HEEEEEEEEEEEERE %v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createChunkFile(filename string, chunkData io.Reader) middleware.Responder {
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return middleware.Error(500, fmt.Errorf("could not create file on server %v", err))
+	}
+
+	n, err := io.Copy(f, chunkData)
+	if err != nil {
+		return middleware.Error(500, fmt.Errorf("could not upload file on server %v", err))
+	}
+
+	log.Infof("Copied bytes %d", n)
+	log.Infof("File uploaded copied as %s", filename)
+
+	return nil
+}
+
+func UploadChunkHandler(params files.UploadChunkParams, dataAccess data.Wrapper) middleware.Responder {
 	if params.ChunkData == nil {
 		return middleware.Error(404, fmt.Errorf("no file provided"))
 	}
@@ -36,6 +71,7 @@ func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.R
 	}
 
 	// Frequently used params
+	db := dataAccess.Database
 	uploadRequestId := params.UploadRequestID
 	chunkHash := params.ChunkHash
 
@@ -47,32 +83,30 @@ func UploadChunkHandler(params files.UploadChunkParams, db *sql.DB) middleware.R
 
 	uploadCounter++
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return middleware.Error(500, fmt.Errorf("could not create file on server"))
+	// Create the file to write the chunk to
+	if err := createChunkFile(filename, params.ChunkData); err != nil {
+		return middleware.Error(409, fmt.Errorf("could not access file data on server: %v", err))
 	}
-
-	n, err := io.Copy(f, params.ChunkData)
-	if err != nil {
-		return middleware.Error(500, fmt.Errorf("could not upload file on server"))
-	}
-
-	log.Infof("Copied bytes %d", n)
-
-	log.Infof("File uploaded copied as %s", filename)
 
 	// Get directory ID from connection_request table
-	var directoryId string
-	query := "SELECT file_chunk_directory FROM connection_request WHERE upload_request_id=?"
-	col := db.QueryRow(query, uploadRequestId)
-	if err := col.Scan(&directoryId); err != nil {
-		log.Fatal("Could not find row directory_id in table connection_request")
+	directoryId, err := data.Database.ShowFileChunkDirectory(db, uploadRequestId)
+	if err != nil {
+		return middleware.Error(400, fmt.Errorf("could not access file data on server: %v", err))
 	}
 
-	// Insert chunk info into database
-	err = database.InsertChunk(db, namedFile.Header.Filename, namedFile.Header.Size, chunkHash, params.ChunkNumber, uploadRequestId, directoryId)
+	// Insert chunk info into data
+	if err := data.Database.InsertChunk(db, namedFile.Header.Filename, namedFile.Header.Size, chunkHash, params.ChunkNumber, uploadRequestId, directoryId); err != nil {
+		return middleware.Error(400, fmt.Errorf("could not store file info on server: %v", err))
+	}
+
+	// Reassemble file when uploadCounter indicates all chunks have been received
+	numberOfChunks, err := dataAccess.RetrieveNumberOfChunks(uploadRequestId)
 	if err != nil {
-		log.Fatalf("Could not insert chunk %s\n-----> %s", params.ChunkHash, err)
+		return middleware.Error(501, fmt.Errorf("could not access file data on server: %v", err))
+	}
+
+	if err := reassembleUponAllChunksReceived(dataAccess.Cache, db, int(numberOfChunks), uploadRequestId, directoryId); err != nil {
+		return middleware.Error(400, fmt.Errorf("could not reassemble file on server: %v", err))
 	}
 
 	return files.NewUploadChunkCreated().WithPayload(&models.UploadedChunk{

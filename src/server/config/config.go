@@ -12,11 +12,13 @@ var Config Configuration
 type Configuration struct {
 	Server   ServerConfig
 	Database DatabaseConfig
+	Redis RedisConfig
 }
 
 type ServerConfig struct {
 	Port string
 	UploadDir string
+	StorageDir string
 }
 
 type DatabaseConfig struct {
@@ -26,6 +28,14 @@ type DatabaseConfig struct {
 	Password string
 	Protocol string
 	Address  string
+}
+
+type RedisConfig struct {
+	Network string
+	Address string
+	Port string
+	Password string
+	DB int
 }
 
 func SetDefaults() (err error) {
@@ -38,12 +48,20 @@ func SetDefaults() (err error) {
 	viper.SetDefault("synche.dir", syncheDir)
 	viper.SetDefault("server.port", "8080")
 	viper.SetDefault("server.uploadDir", syncheDir + "/data/received")
-	viper.SetDefault("database.driver", "mysql")
-	viper.SetDefault("database.name", "synche")
-	viper.SetDefault("database.username", "admin")
-	viper.SetDefault("database.password", "admin")
-	viper.SetDefault("database.protocol", "tcp")
-	viper.SetDefault("database.address", "127.0.0.1:3306")
+	viper.SetDefault("server.storageDir", home)
+
+	viper.SetDefault("data.driver", "mysql")
+	viper.SetDefault("data.name", "synche")
+	viper.SetDefault("data.username", "admin")
+	viper.SetDefault("data.password", "admin")
+	viper.SetDefault("data.protocol", "tcp")
+	viper.SetDefault("data.address", "127.0.0.1:3306")
+
+	viper.SetDefault("redis.network", "tcp")
+	viper.SetDefault("redis.address", "localhost")
+	viper.SetDefault("redis.port", "6379")
+	viper.SetDefault("redis.password", "")
+	viper.SetDefault("redis.db", 0)
 	return nil
 }
 
@@ -69,7 +87,7 @@ func InitConfig() (err error) {
 
 	if err := viper.ReadInConfig(); err != nil {
 		// Config file doesn't exist, create it
-		err = viper.WriteConfigAs(path.Join(syncheDir, ".synche-server.yaml"))
+		err = viper.SafeWriteConfigAs(path.Join(syncheDir, "synche-server.yaml"))
 		if err != nil {
 			return err
 		}
