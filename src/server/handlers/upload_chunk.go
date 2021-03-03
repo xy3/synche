@@ -29,7 +29,6 @@ func reassembleUponAllChunksReceived(cache data.Cache, db data.Database, numberO
 		}
 
 		if err = jobs.ReassembleFile(cache, directoryId, fileName, uploadRequestId); err != nil {
-			log.Fatalf("HEEEEEEEEEEEERE %v", err)
 			return err
 		}
 	}
