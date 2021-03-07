@@ -4,12 +4,13 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
 	"testing"
 )
 
 func TestChunkUpload_NewParams(t *testing.T) {
-	data.SetFileSystem(afero.NewMemMapFs())
+	files.SetFileSystem(afero.NewMemMapFs())
 
 	testCases := []struct {
 		Name            string

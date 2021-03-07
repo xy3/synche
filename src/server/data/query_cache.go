@@ -1,7 +1,7 @@
 package data
 
 import (
-	json "encoding/json"
+	"encoding/json"
 	"github.com/gomodule/redigo/redis"
 	log "github.com/sirupsen/logrus"
 )

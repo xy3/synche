@@ -4,13 +4,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
+	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/setup"
 )
 
-var (
-	cfgFile string
-)
+var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -25,17 +24,22 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.OnInitialize(func() {
-		err := data.SetupDirs()
+		err := c.InitConfig(cfgFile)
+		if err != nil {
+			log.Fatalf("Could not initialize the config: %v", err)
+		}
+
+		err = setup.Dirs(files.AppFS, c.RequiredDirs())
 		if err != nil {
 			log.Fatalf("Could not set up the required directories: %v", err)
 		}
 
-		err = config.ConfigureClient()
+		err = c.ConfigureClient()
 		if err != nil {
 			log.Fatalf("Failed to configure the Synche client: %v", err)
 		}
 
-		if viper.GetBool("verbose") {
+		if c.Config.Synche.Debug {
 			log.Infof("Verbose: true")
 			log.SetLevel(log.DebugLevel)
 		}
@@ -47,23 +51,10 @@ func Execute() {
 }
 
 func init() {
-	err := config.InitConfig(cfgFile)
-	if err != nil {
-		log.Fatalf("Could not initialize the config: %v", err)
-	}
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche/synche-client.yaml)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "display verbose output (default is false)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	err = viper.BindPFlags(rootCmd.PersistentFlags())
+	err := viper.BindPFlags(rootCmd.PersistentFlags())
 	if err != nil {
-		panic(err) // TODO
+		log.Fatal(err)
 	}
 }

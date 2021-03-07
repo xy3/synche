@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/kalafut/imohash"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"hash/crc32"
 )
 
@@ -19,7 +20,7 @@ func CRC32Hash(bytes []byte) string {
 }
 
 func ImoHash(filePath string) (hash string, err error) {
-	fileData, err := Afs.ReadFile(filePath)
+	fileData, err := files.Afs.ReadFile(filePath)
 	if err != nil {
 		return hash, err
 	}

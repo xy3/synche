@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"os"
 	"testing"
 )
@@ -27,7 +28,7 @@ func TestCRC32Hash(t *testing.T) {
 }
 
 func TestImoHash(t *testing.T) {
-	data.SetFileSystem(afero.NewMemMapFs())
+	files.SetFileSystem(afero.NewMemMapFs())
 
 	testCases := []struct {
 		Name     string
@@ -46,12 +47,12 @@ func TestImoHash(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			fileName := "testdata/hash/test"
-			err := data.Afs.WriteFile(fileName, tc.Bytes, 0644)
+			err := files.Afs.WriteFile(fileName, tc.Bytes, 0644)
 			if err != nil {
 				t.Error(err)
 			}
 
-			_, err = data.AppFS.Stat(fileName)
+			_, err = files.AppFS.Stat(fileName)
 			if os.IsNotExist(err) {
 				t.Errorf("file \"%s\" does not exist.\n", fileName)
 			}

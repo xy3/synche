@@ -1,4 +1,4 @@
-package data
+package files
 
 import "github.com/spf13/afero"
 
