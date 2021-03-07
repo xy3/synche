@@ -41,7 +41,7 @@ func RequiredDirs() []string {
 	}
 }
 
-func SetDefaults(home string) interface{} {
+func SetClientDefaults(home string) interface{} {
 	syncheDir := path.Join(home, ".synche")
 	dataDir := path.Join(syncheDir, "data")
 
@@ -67,7 +67,7 @@ func SetDefaults(home string) interface{} {
 }
 
 func InitConfig(cfgFile string) error {
-	err := config.Read(cfgFile, "synche-client", SetDefaults)
+	err := config.Read(cfgFile, "synche-client", SetClientDefaults)
 	if err != nil {
 		return err
 	}

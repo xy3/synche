@@ -43,6 +43,14 @@ type RedisConfig struct {
 	DB       int
 }
 
+func RequiredDirs() []string {
+	return []string{
+		Config.Synche.Dir,
+		Config.Server.UploadDir,
+		Config.Server.StorageDir,
+	}
+}
+
 func SetDefaults(home string) interface{} {
 	syncheDir := filepath.Join(home, ".synche")
 	storageDir := filepath.Join(syncheDir, "data")
@@ -88,5 +96,7 @@ func InitConfig(cfgFile string) error {
 		return err
 	}
 
+	// Read updates to the config file while server is running
+	viper.WatchConfig()
 	return nil
 }

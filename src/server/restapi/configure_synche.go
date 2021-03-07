@@ -8,7 +8,6 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
@@ -21,15 +20,12 @@ import (
 //go:generate swagger generate server --target ../../server --name Synche --spec ../api/openapi-spec/synche-server-api.yaml --principal models.Message --flag-strategy=pflag --exclude-main
 
 func configureFlags(api *operations.SyncheAPI) {
-	//api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
+	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
 }
 
 func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
-
-	// Read updates to the config file while server is running
-	viper.WatchConfig()
 
 	// Create data with chunk table and connection_request table if they don't exist
 	err := data.CreateDatabase(c.Config.Database)
