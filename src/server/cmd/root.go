@@ -31,12 +31,12 @@ func Execute() {
 	cobra.OnInitialize(func() {
 		err := c.InitConfig(cfgFile)
 		if err != nil {
-			log.Fatalf("Failed to initialize config: %v", err)
+			log.WithError(err).Fatal("Failed to initialize config")
 		}
 
 		err = setup.Dirs(files.AppFS, c.RequiredDirs())
 		if err != nil {
-			log.Fatalf("Could not set up the required directories: %v", err)
+			log.WithError(err).Fatal("Could not set up the required directories")
 		}
 
 		if viper.GetBool("config.synche.debug") {

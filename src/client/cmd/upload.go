@@ -21,7 +21,7 @@ func NewUploadCmd(uploader Uploader) *cobra.Command {
 			filePath := args[0]
 			err := uploader.Run(filePath)
 			if err != nil {
-				log.Fatalf("Failed to upload the file: %v", err)
+				log.WithError(err).Fatal("Failed to upload the file")
 			}
 		},
 	}
@@ -78,6 +78,6 @@ func init() {
 
 	err := viper.BindPFlags(uploadCmd.Flags())
 	if err != nil {
-		log.Fatalf("Could not bind flags to viper config: %v", err)
+		log.WithError(err).Fatal("Could not bind flags to viper config")
 	}
 }

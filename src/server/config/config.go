@@ -22,7 +22,7 @@ type SyncheConfig struct {
 }
 
 type ServerConfig struct {
-	Port       string
+	Port       int
 	UploadDir  string
 	StorageDir string
 }
@@ -51,8 +51,7 @@ func RequiredDirs() []string {
 	}
 }
 
-func SetDefaults(home string) interface{} {
-	syncheDir := filepath.Join(home, ".synche")
+func ServerDefaults(syncheDir string) interface{} {
 	storageDir := filepath.Join(syncheDir, "data")
 
 	defaultCfg := Configuration{
@@ -62,7 +61,7 @@ func SetDefaults(home string) interface{} {
 			Debug:   false,
 		},
 		Server: ServerConfig{
-			Port:       "8080",
+			Port:       8080,
 			StorageDir: storageDir,
 			UploadDir:  filepath.Join(storageDir, "received"),
 		},
@@ -87,16 +86,21 @@ func SetDefaults(home string) interface{} {
 }
 
 func InitConfig(cfgFile string) error {
-	err := config.Read(cfgFile, "synche-server", SetDefaults)
+	cfg, err := config.New(cfgFile, "synche-server")
 	if err != nil {
 		return err
 	}
+
+	err = cfg.ReadOrCreate(ServerDefaults(cfg.Dir))
+	if err != nil {
+		return err
+	}
+
 	err = viper.UnmarshalKey("config", &Config)
 	if err != nil {
 		return err
 	}
 
-	// Read updates to the config file while server is running
 	viper.WatchConfig()
 	return nil
 }

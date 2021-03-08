@@ -23,6 +23,10 @@ func configureFlags(api *operations.SyncheAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
 }
 
+func OverrideFlags() {
+	port = c.Config.Server.Port
+}
+
 func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
@@ -30,7 +34,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// Create data with chunk table and connection_request table if they don't exist
 	err := data.CreateDatabase(c.Config.Database)
 	if err != nil {
-		log.Fatalf("DatabaseData creation failed: %v", err)
+		log.WithError(err).Fatal("DatabaseData creation failed")
 	}
 
 	// Set your custom logger if needed. Default one is log.Printf

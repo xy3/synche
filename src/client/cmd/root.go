@@ -26,17 +26,17 @@ func Execute() {
 	cobra.OnInitialize(func() {
 		err := c.InitConfig(cfgFile)
 		if err != nil {
-			log.Fatalf("Could not initialize the config: %v", err)
+			log.WithError(err).Fatal("Could not initialize the config")
 		}
 
 		err = setup.Dirs(files.AppFS, c.RequiredDirs())
 		if err != nil {
-			log.Fatalf("Could not set up the required directories: %v", err)
+			log.WithError(err).Fatal("Could not set up the required directories")
 		}
 
 		err = c.ConfigureClient()
 		if err != nil {
-			log.Fatalf("Failed to configure the Synche client: %v", err)
+			log.WithError(err).Fatal("Failed to configure the Synche client")
 		}
 
 		if c.Config.Synche.Debug {

@@ -1,7 +1,7 @@
 package jobs_test
 
 import (
-	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/jobs"
 	"testing"
 )
@@ -16,7 +16,7 @@ func TestCreateUniqueFilePath(t *testing.T) {
 		{filePath: "data/", fileName: "test.mp4", result: "data/test.mp4"},
 	} {
 		if uniqueName := jobs.CreateUniqueFilePath(tt.filePath, tt.fileName); uniqueName != tt.result {
-			log.Fatalf("Expected: %s. Got: %s", tt.result, uniqueName)
+			require.Equal(t, tt.result, uniqueName)
 		}
 	}
 }

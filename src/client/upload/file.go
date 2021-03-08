@@ -44,7 +44,7 @@ func (fu *FileUpload) Upload(splitter data.Splitter) error {
 
 	log.Info("Waiting for upload workers to finish.")
 	wg.Wait()
-	log.Info("Finished uploading all chunks to the server")
+	log.Infof("Finished uploading all %d chunks to the server", splitter.NumChunks())
 	close(uploadErrors)
 
 	// Here we could attempt to cast the error as an UploadChunkBadRequest or other relevant error types

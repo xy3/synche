@@ -41,8 +41,7 @@ func RequiredDirs() []string {
 	}
 }
 
-func SetClientDefaults(home string) interface{} {
-	syncheDir := path.Join(home, ".synche")
+func ClientDefaults(syncheDir string) interface{} {
 	dataDir := path.Join(syncheDir, "data")
 
 	defaultCfg := Configuration{
@@ -67,14 +66,21 @@ func SetClientDefaults(home string) interface{} {
 }
 
 func InitConfig(cfgFile string) error {
-	err := config.Read(cfgFile, "synche-client", SetClientDefaults)
+	cfg, err := config.New(cfgFile, "synche-client")
 	if err != nil {
 		return err
 	}
+
+	err = cfg.ReadOrCreate(ClientDefaults(cfg.Dir))
+	if err != nil {
+		return err
+	}
+
 	err = viper.UnmarshalKey("config", &Config)
 	if err != nil {
 		return err
 	}
 
+	viper.WatchConfig()
 	return nil
 }

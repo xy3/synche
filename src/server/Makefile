@@ -5,3 +5,6 @@ generate:
 		 --principal models.Message \
 		 --flag-strategy=pflag \
 		 --exclude-main
+
+build:
+	go build -o ../../build

@@ -4,20 +4,32 @@ import (
 	"fmt"
 	"github.com/oleiade/reflections"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"strings"
 )
 
-func Setup(cfg interface{}) (interface{}, error) {
-	log.Warn("No config file found")
-	fmt.Print("Would you like to set up a new config now? [Y/n]: ")
-	var ans string
-	_, _ = fmt.Scanln(&ans)
-	if strings.ToLower(ans) == "n" {
-		return cfg, nil
+func (cfg SyncheConfig) Update(currentCfg interface{}) error {
+	if !cfg.IsNew {
+		fmt.Print("Would you like to update the current config? [Y/n]: ")
+		var ans string
+		_, _ = fmt.Scanln(&ans)
+		if strings.ToLower(ans) == "n" {
+			return nil
+		}
+
+		err := cfg.Create(currentCfg)
+		if err != nil {
+			return err
+		}
 	}
 
+	log.Infof("Config file updated at: %s", viper.ConfigFileUsed())
+	return nil
+}
+
+func Setup(cfg interface{}) (interface{}, error) {
 	log.Info("Synche will now prompt you for each config value in the format: 'Field (default value)'")
-	log.Info("Leave the input blank (press enter) at any time to use the default value.")
+	log.Info("Leave the input blank (press enter) at any time to use the default/current value.")
 
 	configMap, err := reflections.Items(cfg)
 	if err != nil {
