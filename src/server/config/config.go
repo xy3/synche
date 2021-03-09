@@ -1,23 +1,29 @@
 package config
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"os"
-	"path"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
+	"path/filepath"
 )
 
 var Config Configuration
 
 type Configuration struct {
+	Synche   SyncheConfig
 	Server   ServerConfig
 	Database DatabaseConfig
-	Redis RedisConfig
+	Redis    RedisConfig
+}
+
+type SyncheConfig struct {
+	Dir     string
+	Verbose bool
+	Debug   bool
 }
 
 type ServerConfig struct {
-	Port string
-	UploadDir string
+	Port       int
+	UploadDir  string
 	StorageDir string
 }
 
@@ -31,70 +37,70 @@ type DatabaseConfig struct {
 }
 
 type RedisConfig struct {
-	Network string
-	Address string
-	Port string
+	Protocol string
+	Address  string
 	Password string
-	DB int
+	DB       int
 }
 
-func SetDefaults() (err error) {
-	home, err := os.UserHomeDir()
+func RequiredDirs() []string {
+	return []string{
+		Config.Synche.Dir,
+		Config.Server.UploadDir,
+		Config.Server.StorageDir,
+	}
+}
+
+func ServerDefaults(syncheDir string) interface{} {
+	storageDir := filepath.Join(syncheDir, "data")
+
+	defaultCfg := Configuration{
+		Synche: SyncheConfig{
+			Dir:     syncheDir,
+			Verbose: false,
+			Debug:   false,
+		},
+		Server: ServerConfig{
+			Port:       8080,
+			StorageDir: storageDir,
+			UploadDir:  filepath.Join(storageDir, "received"),
+		},
+		Database: DatabaseConfig{
+			Driver:   "mysql",
+			Name:     "synche",
+			Username: "root",
+			Password: "",
+			Protocol: "tcp",
+			Address:  "127.0.0.1:3306",
+		},
+		Redis: RedisConfig{
+			Protocol: "tcp",
+			Address:  "127.0.0.1:6379",
+			Password: "",
+			DB:       0,
+		},
+	}
+
+	viper.SetDefault("config", defaultCfg)
+	return defaultCfg
+}
+
+func InitConfig(cfgFile string) error {
+	cfg, err := config.New(cfgFile, "synche-server")
 	if err != nil {
 		return err
 	}
-	syncheDir := path.Join(home, ".synche")
 
-	viper.SetDefault("synche.dir", syncheDir)
-	viper.SetDefault("server.port", "8080")
-	viper.SetDefault("server.uploadDir", syncheDir + "/data/received")
-	viper.SetDefault("server.storageDir", home)
+	err = cfg.ReadOrCreate(ServerDefaults(cfg.Dir))
+	if err != nil {
+		return err
+	}
 
-	viper.SetDefault("data.driver", "mysql")
-	viper.SetDefault("data.name", "synche")
-	viper.SetDefault("data.username", "admin")
-	viper.SetDefault("data.password", "admin")
-	viper.SetDefault("data.protocol", "tcp")
-	viper.SetDefault("data.address", "127.0.0.1:3306")
+	err = viper.UnmarshalKey("config", &Config)
+	if err != nil {
+		return err
+	}
 
-	viper.SetDefault("redis.network", "tcp")
-	viper.SetDefault("redis.address", "localhost")
-	viper.SetDefault("redis.port", "6379")
-	viper.SetDefault("redis.password", "")
-	viper.SetDefault("redis.db", 0)
+	viper.WatchConfig()
 	return nil
-}
-
-func InitConfig() (err error) {
-	err = SetDefaults()
-
-	viper.SetConfigName("synche-server")
-	viper.SetConfigType("yaml")
-
-	syncheDir := viper.GetString("synche.dir")
-	if _, err := os.Stat(syncheDir); os.IsNotExist(err) {
-		err = os.Mkdir(syncheDir, 0755)
-	}
-	if err != nil {
-		return err
-	}
-
-	// Set config file
-	viper.AddConfigPath(syncheDir)
-
-	// Enable reading environment variables
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		// Config file doesn't exist, create it
-		err = viper.SafeWriteConfigAs(path.Join(syncheDir, "synche-server.yaml"))
-		if err != nil {
-			return err
-		}
-		log.Infof("Using config file: %s", viper.ConfigFileUsed())
-	}
-
-	err = viper.Unmarshal(&Config)
-
-	return err
 }

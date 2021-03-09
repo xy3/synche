@@ -16,20 +16,18 @@ func createTables(db *sql.DB) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Printf("Successfully created chunk table")
 
 	// Add connection request table to data by default
 	err = CreateConnectionRequestTable(db)
 	if err != nil {
 		return err
 	}
-	log.Info("Successfully created connection_request table")
 
 	return nil
 }
 
-func DBConnection(driverName string, dataSourceName string, name string) (db *sql.DB, err error){
-	db, err = sql.Open(driverName, dataSourceName + name)
+func DBConnection(driverName string, dataSourceName string, name string) (db *sql.DB, err error) {
+	db, err = sql.Open(driverName, dataSourceName+name)
 	if err != nil {
 		return db, err
 	}
@@ -58,7 +56,7 @@ func NewDSN(dbConfig config.DatabaseConfig) (dsn string) {
 
 func CreateDatabase(dbConfig config.DatabaseConfig) (err error) {
 	/* Data source name configuration has the following parameters:
-	  [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN] */
+	[username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN] */
 	dataSourceName := NewDSN(dbConfig)
 
 	// Create a Database without connecting to an existing Database, validates NewDSN
@@ -66,25 +64,25 @@ func CreateDatabase(dbConfig config.DatabaseConfig) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Infof("Database %s opened successfully", dataSourceName)
+	log.Debug("Opened DSN connection successfully")
 
 	/* Create the Database now that connection has been established
-	  Timeout in case of connectivity or runtime errors */
+	Timeout in case of connectivity or runtime errors */
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
 
 	// Returns a pool of underlying Database connections
-	result, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS " + dbConfig.Name)
+	result, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS "+dbConfig.Name)
 	if err != nil {
 		return err
 	}
-	log.Infof("Database %s created successfully", dbConfig.Name)
+	log.Debugf("Database %s created successfully", dbConfig.Name)
 
 	no, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	log.Infof("Rows affected when creating data: %d", no)
+	log.Debugf("Rows affected when creating data: %d", no)
 
 	/* Need to close the existing connection to the Database and open a new
 	connection with the correct Database name that we just created */
@@ -98,10 +96,10 @@ func CreateDatabase(dbConfig config.DatabaseConfig) (err error) {
 		return err
 	}
 	defer db.Close()
-	log.Info("Successfully connected to data")
+	log.Info("Database connection successful")
 
 	if err = createTables(db); err != nil {
-	return err
+		return err
 	}
 	if err := db.Close(); err != nil {
 		return err
@@ -126,7 +124,10 @@ func CreateChunkTable(db *sql.DB) (err error) {
 		return err
 	}
 
-	log.Infof("Rows affected when creating chunk table: %d", rows)
+	if rows > 0 {
+		log.Info("Successfully created chunk table")
+	}
+
 	return nil
 }
 
@@ -146,7 +147,9 @@ func CreateConnectionRequestTable(db *sql.DB) (err error) {
 		return err
 	}
 
-	log.Infof("Rows affected when creating table: %d", rows)
+	if rows > 0 {
+		log.Info("Successfully created connection_request table")
+	}
+
 	return nil
 }
-

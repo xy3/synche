@@ -1,20 +1,20 @@
 package config
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
-	"os"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
 	"path"
 )
 
-var Config Configuration
+var (
+	Config Configuration
+)
 
 type Configuration struct {
 	Synche  SyncheConfig
 	Chunks  ChunksConfig
 	Server  ServerConfig
-	Verbose bool
 }
 
 type ServerConfig struct {
@@ -26,66 +26,61 @@ type ServerConfig struct {
 type SyncheConfig struct {
 	Dir     string
 	DataDir string
+	Verbose bool
+	Debug   bool
 }
 
 type ChunksConfig struct {
 	Size int64
 }
 
-func SetDefaults() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
+func RequiredDirs() []string {
+	return []string{
+		Config.Synche.Dir,
+		Config.Synche.DataDir,
 	}
-
-	syncheDir := path.Join(home, ".synche")
-	dataDir := path.Join(syncheDir, "data")
-	viper.SetDefault("synche.dir", syncheDir)
-	viper.SetDefault("synche.dataDir", dataDir)
-	viper.SetDefault("chunks.size", 1) // 1MB
-	viper.SetDefault("verbose", false)
-
-	viper.SetDefault("server.host", apiclient.DefaultHost)
-	viper.SetDefault("server.basePath", apiclient.DefaultBasePath)
-	viper.SetDefault("server.schemes", apiclient.DefaultSchemes)
-	return nil
 }
 
-// initConfig reads in config file and ENV variables if set.
+func ClientDefaults(syncheDir string) interface{} {
+	dataDir := path.Join(syncheDir, "data")
+
+	defaultCfg := Configuration{
+		Synche: SyncheConfig{
+			Dir:     syncheDir,
+			DataDir: dataDir,
+			Verbose: false,
+			Debug:   false,
+		},
+		Chunks: ChunksConfig{
+			Size: 1,
+		},
+		Server: ServerConfig{
+			Host:     apiclient.DefaultHost,
+			BasePath: apiclient.DefaultBasePath,
+			Schemes:  apiclient.DefaultSchemes,
+		},
+	}
+
+	viper.SetDefault("config", defaultCfg)
+	return defaultCfg
+}
+
 func InitConfig(cfgFile string) error {
-	err := SetDefaults()
+	cfg, err := config.New(cfgFile, "synche-client")
 	if err != nil {
-		log.Errorf("Failed to set config defaults: %v", err)
 		return err
 	}
 
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("synche-client")
-
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// cfgFile not set, scan usual directories for existing config
-		viper.AddConfigPath(viper.GetString("synche.dir"))
-		viper.AddConfigPath("$HOME")
-		viper.AddConfigPath(".")
+	err = cfg.ReadOrCreate(ClientDefaults(cfg.Dir))
+	if err != nil {
+		return err
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		log.Debug("Using config file:", viper.ConfigFileUsed())
-	} else {
-		// the config file does not exist, so create a new one
-		err = viper.WriteConfigAs(path.Join(viper.GetString("synche.dir"), "synche-client.yaml"))
-		if err != nil {
-			log.Fatalf("Unable to create new config file, %v", err)
-		}
+	err = viper.UnmarshalKey("config", &Config)
+	if err != nil {
+		return err
 	}
 
-	err = viper.Unmarshal(&Config)
-
+	viper.WatchConfig()
 	return nil
 }

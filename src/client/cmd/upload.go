@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
 	"path"
 )
@@ -20,7 +21,7 @@ func NewUploadCmd(uploader Uploader) *cobra.Command {
 			filePath := args[0]
 			err := uploader.Run(filePath)
 			if err != nil {
-				log.Fatalf("Failed to upload the file: %v", err)
+				log.WithError(err).Fatal("Failed to upload the file")
 			}
 		},
 	}
@@ -40,7 +41,7 @@ type UploadJob struct {
 }
 
 func (u UploadJob) Run(filePath string) error {
-	file, err := data.AppFS.Open(filePath)
+	file, err := files.AppFS.Open(filePath)
 	if err != nil {
 		return err
 	}
@@ -77,6 +78,6 @@ func init() {
 
 	err := viper.BindPFlags(uploadCmd.Flags())
 	if err != nil {
-		log.Fatalf("Could not bind flags to viper config: %v", err)
+		log.WithError(err).Fatal("Could not bind flags to viper config")
 	}
 }

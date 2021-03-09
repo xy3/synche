@@ -8,7 +8,6 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
@@ -18,40 +17,32 @@ import (
 	"net/http"
 )
 
-//go:generate swagger generate server --target ../../server --name Synche --spec ../api/openapi-spec/synche-server-api.yaml --principal models.Message
+//go:generate swagger generate server --target ../../server --name Synche --spec ../api/openapi-spec/synche-server-api.yaml --principal models.Message --flag-strategy=pflag --exclude-main
 
 func configureFlags(api *operations.SyncheAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
+}
+
+func OverrideFlags() {
+	port = c.Config.Server.Port
 }
 
 func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
 
-	err := c.InitConfig()
-	if err != nil {
-		log.Fatalf("Failed to initialise config: %v", err)
-	}
-
-	// Read updates to the config file while server is running
-	viper.WatchConfig()
-
-	// Config vars
-
 	// Create data with chunk table and connection_request table if they don't exist
-	err = data.CreateDatabase(c.Config.Database)
+	err := data.CreateDatabase(c.Config.Database)
 	if err != nil {
-		log.Fatalf("DatabaseData creation failed: %v", err)
+		log.WithError(err).Fatal("DatabaseData creation failed")
 	}
 
 	// Set your custom logger if needed. Default one is log.Printf
 	// Expected interface func(string, ...interface{})
-	//
-	// Example:
-	// api.Logger = log.Printf
+	api.Logger = log.Infof
 
 	api.UseSwaggerUI()
-	// To continue using redoc as your UI, uncomment the following line
+	// To use redoc as the UI, uncomment the following line
 	// api.UseRedoc()
 
 	api.JSONConsumer = runtime.JSONConsumer()
@@ -77,11 +68,12 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	dataAccess := data.Wrapper{Cache: redisClient, Database: dbClient}
 
 	api.FilesUploadChunkHandler = files.UploadChunkHandlerFunc(func(params files.UploadChunkParams) middleware.Responder {
-		return handlers.UploadChunkHandler(params, dataAccess)})
-
+		return handlers.UploadChunkHandler(params, dataAccess)
+	})
 
 	api.FilesNewUploadHandler = files.NewUploadHandlerFunc(func(params files.NewUploadParams) middleware.Responder {
-		return handlers.NewUploadFileHandler(params, dataAccess)})
+		return handlers.NewUploadFileHandler(params, dataAccess)
+	})
 	// 	============= End Route Handlers =============
 
 	api.PreServerShutdown = func() {}

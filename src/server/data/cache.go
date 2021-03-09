@@ -23,26 +23,28 @@ func ping(c redis.Conn) error {
 		return err
 	}
 
-	// Log PONG
-	log.Infof("CacheData PING response = %s\n", s)
+	log.Debugf("CacheData PING response: %s", s)
 	return nil
 }
 
-func newPool(network string, address string, port string, password string, db int) *redis.Pool {
+func newPool(redisCfg config.RedisConfig) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle: 80,
 		MaxActive: 12000,
 		// Create and configure the connection
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial(network, address + ":" + port, redis.DialPassword(password), redis.DialDatabase(db))
+			c, err := redis.Dial(redisCfg.Protocol, redisCfg.Address,
+				redis.DialPassword(redisCfg.Password),
+				redis.DialDatabase(redisCfg.DB),
+			)
 			return c, err
 		},
 	}
 }
 
-func BuildRedisClient(rConfig config.RedisConfig) *CacheData {
+func BuildRedisClient(redisCfg config.RedisConfig) *CacheData {
 	// Pointer to redis.Pool
-	pool := newPool(rConfig.Network, rConfig.Address, rConfig.Port, rConfig.Password, rConfig.DB)
+	pool := newPool(redisCfg)
 
 	// Connection from the pool
 	conn := pool.Get()
