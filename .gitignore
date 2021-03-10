@@ -4,6 +4,7 @@ src/.idea/
 .idea/
 *.iml
 mocks/
+speed_tests/
 
 # Ignore compiled C/C++ files.
 *.o

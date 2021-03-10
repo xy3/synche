@@ -7,10 +7,10 @@ import (
 )
 
 type Chunk struct {
-	fileName   string
-	fileSize    string
-	chunkHash   string
-	chunkNumber int64
+	fileName           string
+	fileSize           string
+	chunkHash          string
+	chunkNumber        int64
 	uploadRequestId    string
 	fileChunkDirectory string
 }
@@ -18,12 +18,19 @@ type Chunk struct {
 type ConnectionRequest struct {
 	uploadRequestId    string
 	fileChunkDirectory string
-	fileName         string
-	fileSize       int64
-	numberOfChunks int64
+	fileName           string
+	fileSize           int64
+	numberOfChunks     int64
 }
 
-func (db *DatabaseData) InsertChunk(fileName string, fileSize int64, chunkHash string, chunkNumber int64, uploadRequestId string, directoryId string) error {
+func (db *Database) InsertChunk(
+	fileName string,
+	fileSize int64,
+	chunkHash string,
+	chunkNumber int64,
+	uploadRequestId string,
+	directoryId string,
+) error {
 	query := "INSERT INTO chunk(file_name, file_size, chunk_hash, chunk_number, upload_request_id, file_chunk_directory) VALUES (?, ?, ?, ?, ?, ?)" +
 		"ON DUPLICATE KEY UPDATE file_name=VALUES(file_name), file_size=VALUES(file_size), chunk_number=VALUES(chunk_number), upload_request_id=VALUES(upload_request_id), file_chunk_directory=VALUES(file_chunk_directory)"
 
@@ -58,7 +65,13 @@ func (db *DatabaseData) InsertChunk(fileName string, fileSize int64, chunkHash s
 	return nil
 }
 
-func (db *DatabaseData) InsertConnectionRequest(uploadRequestId string, fileChunkDir string, fileName string, fileSize int64, numberOfChunks int64) error {
+func (db *Database) InsertConnectionRequest(
+	uploadRequestId string,
+	fileChunkDir string,
+	fileName string,
+	fileSize int64,
+	numberOfChunks int64,
+) error {
 	query := "INSERT INTO connection_request(upload_request_id, file_chunk_directory, file_name, file_size, number_of_chunks) VALUES (?, ?, ?, ?, ?)" +
 		"ON DUPLICATE KEY UPDATE file_chunk_directory=VALUES(file_chunk_directory), file_name=VALUES(file_name), file_size=VALUES(file_size), number_of_chunks=VALUES(number_of_chunks)"
 
@@ -93,7 +106,7 @@ func (db *DatabaseData) InsertConnectionRequest(uploadRequestId string, fileChun
 	return nil
 }
 
-func (db *DatabaseData) ShowNumberOfChunks(uploadRequestId string) (numberOfChunks int64, err error) {
+func (db *Database) NumberOfChunks(uploadRequestId string) (numberOfChunks int64, err error) {
 	query := "SELECT number_of_chunks FROM connection_request WHERE upload_request_id=?"
 	row := db.mysql.QueryRow(query, uploadRequestId)
 
@@ -103,7 +116,7 @@ func (db *DatabaseData) ShowNumberOfChunks(uploadRequestId string) (numberOfChun
 	return connectionRequest.numberOfChunks, err
 }
 
-func (db *DatabaseData) ShowConnectionRequestFileName(uploadRequestId string) (fileName string, err error) {
+func (db *Database) ConnectionRequestFileName(uploadRequestId string) (fileName string, err error) {
 	query := "SELECT file_name FROM connection_request WHERE upload_request_id=?"
 	row := db.mysql.QueryRow(query, uploadRequestId)
 
@@ -113,7 +126,7 @@ func (db *DatabaseData) ShowConnectionRequestFileName(uploadRequestId string) (f
 	return connectionRequest.fileName, err
 }
 
-func (db *DatabaseData) ShowFileChunkDirectory(uploadRequestId string) (directoryId string, err error) {
+func (db *Database) ChunkDirectory(uploadRequestId string) (directoryId string, err error) {
 	query := "SELECT file_chunk_directory FROM connection_request WHERE upload_request_id=?"
 	col := db.mysql.QueryRow(query, uploadRequestId)
 

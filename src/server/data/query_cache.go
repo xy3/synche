@@ -15,7 +15,7 @@ type ConnectionRequestCache struct {
 	NumberOfChunks  int64  `json:"number_of_chunks,string"`
 }
 
-func (c *CacheData) SetNumberOfChunks(uploadRequestId string, numberOfChunks int64) error {
+func (c *Cache) SetNumberOfChunks(uploadRequestId string, numberOfChunks int64) error {
 	// Create object to add to cache
 	crc := ConnectionRequestCache{ UploadRequestId: uploadRequestId,
 								   NumberOfChunks: numberOfChunks}
@@ -37,7 +37,7 @@ func (c *CacheData) SetNumberOfChunks(uploadRequestId string, numberOfChunks int
 	return nil
 }
 
-func (c *CacheData) GetNumberOfChunks(uploadRequestId string) (numberOfChunks int64, err error) {
+func (c *Cache) GetNumberOfChunks(uploadRequestId string) (numberOfChunks int64, err error) {
 	// Get a connection from the pool
 	conn := c.redis.Get()
 
@@ -55,7 +55,7 @@ func (c *CacheData) GetNumberOfChunks(uploadRequestId string) (numberOfChunks in
 	return crc.NumberOfChunks, err
 }
 
-func (c *CacheData) DeleteKeyNumberOfChunks(uploadRequestId string) error {
+func (c *Cache) DeleteKeyNumberOfChunks(uploadRequestId string) error {
 	// Get a connection from the pool
 	conn := c.redis.Get()
 

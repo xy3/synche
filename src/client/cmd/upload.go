@@ -4,11 +4,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
 	"path"
+	"time"
 )
 
 func NewUploadCmd(uploader Uploader) *cobra.Command {
@@ -18,11 +18,14 @@ func NewUploadCmd(uploader Uploader) *cobra.Command {
 		Long:  `Uploads a specified local file to the server using chunked uploading`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			start := time.Now()
 			filePath := args[0]
 			err := uploader.Run(filePath)
 			if err != nil {
 				log.WithError(err).Fatal("Failed to upload the file")
 			}
+			elapsed := time.Since(start)
+			log.Info(elapsed)
 		},
 	}
 	uploadCmd.Flags().StringP("name", "n", "", "store the file on the server with this name instead")
@@ -45,6 +48,7 @@ func (u UploadJob) Run(filePath string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	stat, err := file.Stat()
 	if err != nil {
 		return err
@@ -53,8 +57,8 @@ func (u UploadJob) Run(filePath string) error {
 	if err != nil {
 		return err
 	}
-	splitFile := data.NewSplitFile(stat.Size(), c.Config.Chunks.Size, filePath, path.Base(filePath), hash, file)
-	return u.fileUploader.Upload(splitFile)
+	splitFile := data.NewSplitFile(stat.Size(), viper.GetInt64("config.chunks.size"), filePath, path.Base(filePath), hash, file)
+	return u.fileUploader.AsyncUpload(splitFile)
 }
 
 func NewUploadJob(newUploadRequester upload.NewUploadRequester, fileHashFunc data.FileHashFunc) *UploadJob {
@@ -75,9 +79,12 @@ func NewDefaultUploadJob() *UploadJob {
 func init() {
 	uploadCmd := NewUploadCmd(NewDefaultUploadJob())
 	rootCmd.AddCommand(uploadCmd)
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+	uploadCmd.Flags().Int64P("chunksize", "s", 1024, "size in KB for each chunk")
+	uploadCmd.Flags().IntP("workers", "w", 10, "number of chunks to upload in parallel")
 
-	err := viper.BindPFlags(uploadCmd.Flags())
-	if err != nil {
-		log.WithError(err).Fatal("Could not bind flags to viper config")
-	}
+	_ = viper.BindPFlag("config.chunks.size", uploadCmd.Flags().Lookup("chunksize"))
+	_ = viper.BindPFlag("config.chunks.workers", uploadCmd.Flags().Lookup("workers"))
 }

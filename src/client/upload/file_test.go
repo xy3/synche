@@ -27,7 +27,7 @@ func TestFileUpload_Upload(t *testing.T) {
 			mockSplitter.On("Split", mock.Anything).Return(nil)
 			mockNewUploadRequester.On("CreateNewUpload", mock.Anything).Return("uploadRequestID", nil)
 
-			err := fileUpload.Upload(mockSplitter)
+			err := fileUpload.AsyncUpload(mockSplitter)
 			require.Equal(t, tc.ExpectedError, err)
 			if err != nil {
 				t.Errorf("Failed to close the test data file: %v", err)

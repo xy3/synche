@@ -50,7 +50,7 @@ func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilePath stri
 	return newFilePath
 }
 
-func ReassembleFile(cache data.Cache, chunkDir string, fileName string, uploadRequestId string) error {
+func ReassembleFile(cache *data.Cache, chunkDir string, fileName string, uploadRequestId string) error {
 	chunkFileNames, err := ioutil.ReadDir(chunkDir)
 	if err != nil {
 		return err

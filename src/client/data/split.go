@@ -1,6 +1,7 @@
 package data
 
 import (
+	log "github.com/sirupsen/logrus"
 	"io"
 	"math"
 )
@@ -31,7 +32,7 @@ func NewSplitFile(fileSize, chunkMBs int64, path, name, hash string, reader io.R
 	if chunkMBs < 1 {
 		chunkMBs = 1
 	}
-	chunkSize := chunkMBs * MB
+	chunkSize := chunkMBs * KB
 	return &SplitFile{
 		FileSize:     fileSize,
 		ChunkSize:    chunkSize,
@@ -60,6 +61,7 @@ func (sf *SplitFile) NextChunk() ([]byte, error) {
 	chunkBytes := make([]byte, numChunkBytes)
 	_, err := sf.Reader.Read(chunkBytes)
 	if err != nil {
+		log.Error("Couldn't read from reader")
 		return chunkBytes, err
 	}
 
@@ -67,7 +69,7 @@ func (sf *SplitFile) NextChunk() ([]byte, error) {
 	return chunkBytes, nil
 }
 
-func (sf SplitFile) Split(handleChunk func(*Chunk) error) error {
+func (sf *SplitFile) Split(handleChunk func(*Chunk) error) error {
 	for sf.CurrentIndex < sf.NumChunks() {
 		chunkBytes, err := sf.NextChunk()
 		if err != nil {

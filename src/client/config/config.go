@@ -12,9 +12,9 @@ var (
 )
 
 type Configuration struct {
-	Synche  SyncheConfig
-	Chunks  ChunksConfig
-	Server  ServerConfig
+	Synche SyncheConfig
+	Chunks ChunksConfig
+	Server ServerConfig
 }
 
 type ServerConfig struct {
@@ -31,7 +31,8 @@ type SyncheConfig struct {
 }
 
 type ChunksConfig struct {
-	Size int64
+	Size    int64
+	Workers int
 }
 
 func RequiredDirs() []string {
@@ -52,7 +53,8 @@ func ClientDefaults(syncheDir string) interface{} {
 			Debug:   false,
 		},
 		Chunks: ChunksConfig{
-			Size: 1,
+			Size:    1,
+			Workers: 10,
 		},
 		Server: ServerConfig{
 			Host:     apiclient.DefaultHost,

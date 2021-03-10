@@ -37,25 +37,6 @@ func init() {
   "host": "localhost:8080",
   "basePath": "/v1/api",
   "paths": {
-    "/check": {
-      "get": {
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "testing"
-        ],
-        "operationId": "checkGet",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/Message"
-            }
-          }
-        }
-      }
-    },
     "/list": {
       "get": {
         "description": "Queries the server for the files and their locations stored on the server",
@@ -66,7 +47,7 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "files"
+          "transfer"
         ],
         "summary": "lists the files on the server",
         "operationId": "listFiles",
@@ -105,7 +86,7 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "files"
+          "transfer"
         ],
         "summary": "adds an inventory item",
         "operationId": "uploadChunk",
@@ -177,7 +158,7 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "files"
+          "transfer"
         ],
         "summary": "requests to initiate a new file upload",
         "operationId": "newUpload",
@@ -255,18 +236,7 @@ func init() {
       }
     },
     "Error": {
-      "type": "object",
-      "required": [
-        "message"
-      ],
-      "properties": {
-        "code": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
-        }
-      }
+      "type": "string"
     },
     "FileInfo": {
       "description": "required information about a file to intiate a multipart upload",
@@ -341,12 +311,8 @@ func init() {
   },
   "tags": [
     {
-      "description": "File manangement calls",
-      "name": "files"
-    },
-    {
-      "description": "Endpoints for testing purposes during development",
-      "name": "testing"
+      "description": "File transfer requests",
+      "name": "transfer"
     }
   ]
 }`))
@@ -370,25 +336,6 @@ func init() {
   "host": "localhost:8080",
   "basePath": "/v1/api",
   "paths": {
-    "/check": {
-      "get": {
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "testing"
-        ],
-        "operationId": "checkGet",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/Message"
-            }
-          }
-        }
-      }
-    },
     "/list": {
       "get": {
         "description": "Queries the server for the files and their locations stored on the server",
@@ -399,7 +346,7 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "files"
+          "transfer"
         ],
         "summary": "lists the files on the server",
         "operationId": "listFiles",
@@ -438,7 +385,7 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "files"
+          "transfer"
         ],
         "summary": "adds an inventory item",
         "operationId": "uploadChunk",
@@ -510,7 +457,7 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "files"
+          "transfer"
         ],
         "summary": "requests to initiate a new file upload",
         "operationId": "newUpload",
@@ -588,18 +535,7 @@ func init() {
       }
     },
     "Error": {
-      "type": "object",
-      "required": [
-        "message"
-      ],
-      "properties": {
-        "code": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
-        }
-      }
+      "type": "string"
     },
     "FileInfo": {
       "description": "required information about a file to intiate a multipart upload",
@@ -626,20 +562,6 @@ func init() {
         "size": {
           "description": "the size of the file in bits",
           "type": "integer"
-        }
-      }
-    },
-    "Message": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
-        },
-        "success": {
-          "type": "boolean"
         }
       }
     },
@@ -674,12 +596,8 @@ func init() {
   },
   "tags": [
     {
-      "description": "File manangement calls",
-      "name": "files"
-    },
-    {
-      "description": "Endpoints for testing purposes during development",
-      "name": "testing"
+      "description": "File transfer requests",
+      "name": "transfer"
     }
   ]
 }`))
