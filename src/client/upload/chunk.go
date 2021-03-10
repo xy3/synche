@@ -22,33 +22,36 @@ type ChunkUpload struct{}
 func (cu *ChunkUpload) SyncUpload(params *transfer.UploadChunkParams) error {
 	resp, err := config.Client.Transfer.UploadChunk(params)
 	if err != nil {
-		// if mErr, ok := err.(*transfer.UploadChunkBadRequest); ok {
-		// 	log.Error(mErr.Payload)
-		// } else  {
-		// 	log.Error(err)
-		// }
 		log.Error(err)
 		return err
 	}
 	chunk := resp.Payload
-	log.WithFields(log.Fields{"hash": chunk.Hash, "file_id": chunk.CompositeFileID, "directory_id": chunk.DirectoryID}).Debug("Successfully uploaded chunk")
+	log.WithFields(log.Fields{
+		"hash": chunk.Hash,
+		"file_id": chunk.CompositeFileID,
+		"directory_id": chunk.DirectoryID,
+	}).Debug("Successfully uploaded chunk")
 	return nil
 }
-
 
 func (cu *ChunkUpload) AsyncUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, uploadErrors chan error) {
 	defer wg.Done()
 
-	// TODO: Have a limit of errors before we consider it "not working"?
+	// TODO: Have a limit of errors before we consider it "not working"
 	resp, err := config.Client.Transfer.UploadChunk(params)
 	if err != nil {
-		// TODO: Bug - the channel seems to be closing prematurely when an upload fails... see [ch213]
 		uploadErrors <- err
 		log.Error(err)
 		return
 	}
+
 	chunk := resp.Payload
-	log.WithFields(log.Fields{"hash": chunk.Hash, "file_id": chunk.CompositeFileID, "directory_id": chunk.DirectoryID}).Debug("Successfully uploaded chunk")
+	log.WithFields(log.Fields{
+		"hash":         chunk.Hash,
+		"file_id":      chunk.CompositeFileID,
+		"directory_id": chunk.DirectoryID,
+	}).Debug("Successfully uploaded chunk")
+
 	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly
 }
 

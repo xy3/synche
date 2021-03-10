@@ -23,16 +23,12 @@ func NewUploadFileHandler(params transfer.NewUploadParams, syncheData data.Synch
 	// Store upload request ID, chunk directory, file name, file size, and number of chunks in the data
 	err := syncheData.Database.InsertConnectionRequest(uploadRequestId, fileChunkDir, filepath.Base(*params.FileInfo.Name), *params.FileInfo.Size, *params.FileInfo.Chunks)
 	if err != nil {
-		return transfer.NewNewUploadBadRequest()
+		return transfer.NewNewUploadBadRequest().WithPayload("failed to add the upload request to the database")
 	}
 
-	err = syncheData.Cache.SetNumberOfChunks(uploadRequestId, *params.FileInfo.Chunks)
-	if err != nil {
-		return transfer.NewNewUploadBadRequest()
-	}
+	_ = syncheData.Cache.SetNumberOfChunks(uploadRequestId, *params.FileInfo.Chunks)
 
-	contents := models.NewFileUploadRequestAccepted{
+	return transfer.NewNewUploadOK().WithPayload(&models.NewFileUploadRequestAccepted{
 		UploadRequestID: uploadRequestId,
-	}
-	return transfer.NewNewUploadOK().WithPayload(&contents)
+	})
 }

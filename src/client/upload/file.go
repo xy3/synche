@@ -22,14 +22,12 @@ func NewFileUpload(chunkUploader ChunkUploader, newUploadRequester NewUploadRequ
 	return &FileUpload{ChunkUploader: chunkUploader, NewUploadRequester: newUploadRequester}
 }
 
-
 func (fu *FileUpload) SyncUpload(splitter data.Splitter) error {
 	uploadRequestID, err := fu.NewUploadRequester.CreateNewUpload(splitter)
 	if err != nil {
 		return err
 	}
 
-	// The anonymous func here is called everytime a new chunk is read from the file
 	err = splitter.Split(
 		func(chunk *data.Chunk) error {
 			params := fu.ChunkUploader.NewParams(*chunk, uploadRequestID)
@@ -43,7 +41,6 @@ func (fu *FileUpload) SyncUpload(splitter data.Splitter) error {
 	return nil
 }
 
-
 func (fu *FileUpload) AsyncUpload(splitter data.Splitter) error {
 	var wg sync.WaitGroup
 	uploadErrors := make(chan error)
@@ -53,15 +50,15 @@ func (fu *FileUpload) AsyncUpload(splitter data.Splitter) error {
 		return err
 	}
 
-	// The anonymous func here is called everytime a new chunk is read from the file
 	workers := viper.GetInt("config.chunks.workers")
 	chunkSize := viper.GetInt("config.chunks.size")
 	log.WithFields(log.Fields{"workers": workers, "chunksize": chunkSize}).Info("Chunk config")
-	// splitFile := splitter.File()
+
+	// The closure func here is called everytime a new chunk is read from the file
 	err = splitter.Split(
 		func(chunk *data.Chunk) error {
 			idx := splitter.File().CurrentIndex
-			if idx % int64(workers) == 0 {
+			if idx%int64(workers) == 0 {
 				log.Infof("%d - Waiting for %d workers...", idx, workers)
 				wg.Wait()
 			}

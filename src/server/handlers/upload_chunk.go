@@ -72,26 +72,26 @@ func storeChunkData(
 	// Get directory ID from connection_request table
 	directoryId, err := data.Database.ChunkDirectory(params.UploadRequestID)
 	if err != nil {
-		return transfer.NewUploadChunkBadRequest().WithPayload("")
+		return transfer.NewUploadChunkBadRequest().WithPayload("failed to find the chunk directory")
 	}
 
 	// Insert chunk info into data
 	err = data.Database.InsertChunk(file.Header.Filename, file.Header.Size, params.ChunkHash, params.ChunkNumber, params.UploadRequestID, directoryId)
 	if err != nil {
-		return transfer.NewUploadChunkBadRequest()
+		return transfer.NewUploadChunkBadRequest().WithPayload("failed to add the chunk data to the database")
 	}
 
 	// Reassemble file when uploadCounter indicates all chunks have been received
 	numberOfChunks, err := data.NumberOfChunks(params.UploadRequestID)
 	if err != nil {
-		return transfer.NewUploadChunkBadRequest()
+		return transfer.NewUploadChunkBadRequest().WithPayload("failed to find the number of chunks for this file")
 	}
 
 	if uploadCounter >= int(numberOfChunks) {
 		uploadCounter = 0
 		err = reassembleFile(data, params.UploadRequestID, directoryId)
 		if err != nil {
-			return transfer.NewUploadChunkBadRequest()
+			return transfer.NewUploadChunkBadRequest().WithPayload("failed to re-assemble the file")
 		}
 	}
 
