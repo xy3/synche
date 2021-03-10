@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	"log"
 	"net"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/go-openapi/runtime/flagext"
 	"github.com/go-openapi/swag"
+	flag "github.com/spf13/pflag"
 	"golang.org/x/net/netutil"
 
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"

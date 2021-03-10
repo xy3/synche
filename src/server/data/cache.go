@@ -6,13 +6,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 )
 
-type Cache interface {
-	SetNumberOfChunks(uploadRequestId string, numberOfChunks int64) error
-	GetNumberOfChunks(uploadRequestId string) (numberOfChunks int64, err error)
-	DeleteKeyNumberOfChunks(uploadRequestId string) error
-}
-
-type CacheData struct {
+type Cache struct {
 	// wrap redis connection and any other driver that may be needed
 	redis *redis.Pool
 }
@@ -23,7 +17,7 @@ func ping(c redis.Conn) error {
 		return err
 	}
 
-	log.Debugf("CacheData PING response: %s", s)
+	log.Debugf("Cache PING response: %s", s)
 	return nil
 }
 
@@ -42,7 +36,7 @@ func newPool(redisCfg config.RedisConfig) *redis.Pool {
 	}
 }
 
-func BuildRedisClient(redisCfg config.RedisConfig) *CacheData {
+func NewRedisCache(redisCfg config.RedisConfig) *Cache {
 	// Pointer to redis.Pool
 	pool := newPool(redisCfg)
 
@@ -56,5 +50,5 @@ func BuildRedisClient(redisCfg config.RedisConfig) *CacheData {
 		log.Errorf("Issue connecting to Redis: %v", err)
 	}
 
-	return &CacheData{redis: pool}
+	return &Cache{redis: pool}
 }

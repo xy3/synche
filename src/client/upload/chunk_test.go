@@ -49,5 +49,5 @@ func TestChunkUpload_NewParams(t *testing.T) {
 }
 
 func TestChunkUpload_Upload(t *testing.T) {
-	// TODO: Test Chunk Upload function
+	// TODO: Test Chunk AsyncUpload function
 }

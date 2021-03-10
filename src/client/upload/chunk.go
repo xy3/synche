@@ -12,13 +12,30 @@ import (
 
 //go:generate mockery --name=ChunkUploader --case underscore
 type ChunkUploader interface {
-	Upload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error)
+	AsyncUpload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error)
 	NewParams(chunk data.Chunk, requestID string) *files.UploadChunkParams
+	SyncUpload(params *files.UploadChunkParams) error
 }
 
 type ChunkUpload struct{}
 
-func (cu *ChunkUpload) Upload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error) {
+func (cu *ChunkUpload) SyncUpload(params *files.UploadChunkParams) error {
+	resp, err := config.Client.Files.UploadChunk(params)
+	if err != nil {
+		if mErr, ok := err.(*files.UploadChunkBadRequest); ok {
+			log.Error(*mErr.Payload.Message)
+		} else  {
+			log.Error(err)
+		}
+		return err
+	}
+	chunk := resp.Payload
+	log.WithFields(log.Fields{"hash": chunk.Hash, "file_id": chunk.CompositeFileID, "directory_id": chunk.DirectoryID}).Debug("Successfully uploaded chunk")
+	return nil
+}
+
+
+func (cu *ChunkUpload) AsyncUpload(wg *sync.WaitGroup, params *files.UploadChunkParams, uploadErrors chan error) {
 	defer wg.Done()
 
 	// TODO: Have a limit of errors before we consider it "not working"?
@@ -27,16 +44,16 @@ func (cu *ChunkUpload) Upload(wg *sync.WaitGroup, params *files.UploadChunkParam
 		// TODO: Bug - the channel seems to be closing prematurely when an upload fails... see [ch213]
 		uploadErrors <- err
 		// Attempt to cast the error as an UploadChunkBadRequest
-		if err, ok := err.(*files.UploadChunkBadRequest); ok {
-			log.Errorf("%v", *err.Payload.Message)
+		if mErr, ok := err.(*files.UploadChunkBadRequest); ok {
+			log.Errorf(" +. %v", *mErr.Payload.Message)
 		} else  {
 			// otherwise, just print the Error() as supplied by go-swagger
-			log.Errorf("%s", err.Error())
+			log.Error("hh ",err)
 		}
 		return
 	}
-
-	log.Infof("Successfully uploaded chunk: %s | File ID: %s | Server Directory: %s", resp.Payload.Hash, resp.Payload.CompositeFileID, resp.Payload.DirectoryID)
+	chunk := resp.Payload
+	log.WithFields(log.Fields{"hash": chunk.Hash, "file_id": chunk.CompositeFileID, "directory_id": chunk.DirectoryID}).Debug("Successfully uploaded chunk")
 	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly
 }
 

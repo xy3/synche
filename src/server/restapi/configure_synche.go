@@ -12,8 +12,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/testing"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 	"net/http"
 )
 
@@ -34,7 +33,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// Create data with chunk table and connection_request table if they don't exist
 	err := data.CreateDatabase(c.Config.Database)
 	if err != nil {
-		log.WithError(err).Fatal("DatabaseData creation failed")
+		log.WithError(err).Fatal("Database creation failed")
 	}
 
 	// Set your custom logger if needed. Default one is log.Printf
@@ -51,27 +50,25 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.JSONProducer = runtime.JSONProducer()
 
 	// You may change here the memory limit for this multipart form parser. Below is the default (32 MB).
-	// files.UploadFileMaxParseMemory = 32 << 20
+	// transfer.UploadFileMaxParseMemory = 32 << 20
 
 	// ============= Start Route Handlers =============
-	api.TestingCheckGetHandler = testing.CheckGetHandlerFunc(handlers.CheckGetHandler)
-
 	// TODO: Implement listing functionality
-	if api.FilesListFilesHandler == nil {
-		api.FilesListFilesHandler = files.ListFilesHandlerFunc(func(params files.ListFilesParams) middleware.Responder {
-			return middleware.NotImplemented("operation files.ListFilesHandlerFunc has not yet been implemented")
+	if api.TransferListFilesHandler == nil {
+		api.TransferListFilesHandler = transfer.ListFilesHandlerFunc(func(params transfer.ListFilesParams) middleware.Responder {
+			return middleware.NotImplemented("operation transfer.ListFilesHandlerFunc has not yet been implemented")
 		})
 	}
 
-	redisClient := data.BuildRedisClient(c.Config.Redis)
-	dbClient := data.BuildDBClient(c.Config.Database)
-	dataAccess := data.Wrapper{Cache: redisClient, Database: dbClient}
+	redisClient := data.NewRedisCache(c.Config.Redis)
+	dbClient := data.NewDatabaseClient(c.Config.Database)
+	dataAccess := data.SyncheData{Cache: redisClient, Database: dbClient}
 
-	api.FilesUploadChunkHandler = files.UploadChunkHandlerFunc(func(params files.UploadChunkParams) middleware.Responder {
+	api.TransferUploadChunkHandler = transfer.UploadChunkHandlerFunc(func(params transfer.UploadChunkParams) middleware.Responder {
 		return handlers.UploadChunkHandler(params, dataAccess)
 	})
 
-	api.FilesNewUploadHandler = files.NewUploadHandlerFunc(func(params files.NewUploadParams) middleware.Responder {
+	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(func(params transfer.NewUploadParams) middleware.Responder {
 		return handlers.NewUploadFileHandler(params, dataAccess)
 	})
 	// 	============= End Route Handlers =============

@@ -19,29 +19,14 @@ info:
 
 # tags are used for organizing operations
 tags:
-- name: files
-  description: File manangement calls
-- name: testing
-  description: Endpoints for testing purposes during development
+  - name: transfer
+    description: File transfer requests
 
 paths:
-  /check:
-    get:
-      operationId: checkGet
-      tags:
-        - testing
-      produces:
-        - application/json
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/Message'
-
   /upload/new:
     post:
       tags:
-        - files
+        - transfer
       summary: requests to initiate a new file upload
       operationId: newUpload
       description: To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
@@ -72,35 +57,35 @@ paths:
   /upload/chunk:
     post:
       tags:
-      - files
+        - transfer
       summary: adds an inventory item
       operationId: uploadChunk
       description: Uploads a new chunk to the Synche server
       consumes:
-      - multipart/form-data
+        - multipart/form-data
       produces:
-      - application/json
+        - application/json
       parameters:
-      - in: formData
-        name: chunkData
-        type: file
-        required: true
-        description: Chunk file data
-      - in: formData
-        name: chunkHash
-        type: string
-        required: true
-        description: The file hash of the chunk
-      - in: formData
-        name: chunkNumber
-        type: integer
-        required: true
-        description: The position index of the chunk in the file the chunk is from
-      - in: formData
-        name: uploadRequestId
-        type: string
-        required: true
-        description: The identifier for the composite file upload request
+        - in: formData
+          name: chunkData
+          type: file
+          required: true
+          description: Chunk file data
+        - in: formData
+          name: chunkHash
+          type: string
+          required: true
+          description: The file hash of the chunk
+        - in: formData
+          name: chunkNumber
+          type: integer
+          required: true
+          description: The position index of the chunk in the file the chunk is from
+        - in: formData
+          name: uploadRequestId
+          type: string
+          required: true
+          description: The identifier for the composite file upload request
       responses:
         201:
           description: OK
@@ -122,7 +107,7 @@ paths:
   /list:
     get:
       tags:
-      - files
+        - transfer
       summary: lists the files on the server
       operationId: listFiles
       description: Queries the server for the files and their locations stored on the server
@@ -189,14 +174,14 @@ definitions:
   UploadedChunk:
     type: object
     properties:
-        hash:
-          type: string
-          description: The file hash of the chunk
-        directoryId:
-          $ref: '#/definitions/DirectoryId'
-        compositeFileId:
-          type: string
-          description: The id of the file this chunk is a part of
+      hash:
+        type: string
+        description: The file hash of the chunk
+      directoryId:
+        $ref: '#/definitions/DirectoryId'
+      compositeFileId:
+        type: string
+        description: The id of the file this chunk is a part of
 
   DirectoryId:
     type: string
@@ -223,18 +208,11 @@ definitions:
         type: array
         items:
           type: string
-        example: ['file1', 'file2', 'directory1/']
+        example: [ 'file1', 'file2', 'directory1/' ]
         description: the contents of the directory
 
   Error:
-    type: object
-    required:
-      - message
-    properties:
-      code:
-        type: integer
-      message:
-        type: string
+    type: string
 
   NotImplemented:
     type: string

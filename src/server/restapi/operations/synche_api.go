@@ -19,8 +19,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/testing"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 )
 
 // NewSyncheAPI creates a new Synche instance
@@ -46,17 +45,14 @@ func NewSyncheAPI(spec *loads.Document) *SyncheAPI {
 
 		JSONProducer: runtime.JSONProducer(),
 
-		TestingCheckGetHandler: testing.CheckGetHandlerFunc(func(params testing.CheckGetParams) middleware.Responder {
-			return middleware.NotImplemented("operation testing.CheckGet has not yet been implemented")
+		TransferListFilesHandler: transfer.ListFilesHandlerFunc(func(params transfer.ListFilesParams) middleware.Responder {
+			return middleware.NotImplemented("operation transfer.ListFiles has not yet been implemented")
 		}),
-		FilesListFilesHandler: files.ListFilesHandlerFunc(func(params files.ListFilesParams) middleware.Responder {
-			return middleware.NotImplemented("operation files.ListFiles has not yet been implemented")
+		TransferNewUploadHandler: transfer.NewUploadHandlerFunc(func(params transfer.NewUploadParams) middleware.Responder {
+			return middleware.NotImplemented("operation transfer.NewUpload has not yet been implemented")
 		}),
-		FilesNewUploadHandler: files.NewUploadHandlerFunc(func(params files.NewUploadParams) middleware.Responder {
-			return middleware.NotImplemented("operation files.NewUpload has not yet been implemented")
-		}),
-		FilesUploadChunkHandler: files.UploadChunkHandlerFunc(func(params files.UploadChunkParams) middleware.Responder {
-			return middleware.NotImplemented("operation files.UploadChunk has not yet been implemented")
+		TransferUploadChunkHandler: transfer.UploadChunkHandlerFunc(func(params transfer.UploadChunkParams) middleware.Responder {
+			return middleware.NotImplemented("operation transfer.UploadChunk has not yet been implemented")
 		}),
 	}
 }
@@ -97,14 +93,12 @@ type SyncheAPI struct {
 	//   - application/json
 	JSONProducer runtime.Producer
 
-	// TestingCheckGetHandler sets the operation handler for the check get operation
-	TestingCheckGetHandler testing.CheckGetHandler
-	// FilesListFilesHandler sets the operation handler for the list files operation
-	FilesListFilesHandler files.ListFilesHandler
-	// FilesNewUploadHandler sets the operation handler for the new upload operation
-	FilesNewUploadHandler files.NewUploadHandler
-	// FilesUploadChunkHandler sets the operation handler for the upload chunk operation
-	FilesUploadChunkHandler files.UploadChunkHandler
+	// TransferListFilesHandler sets the operation handler for the list files operation
+	TransferListFilesHandler transfer.ListFilesHandler
+	// TransferNewUploadHandler sets the operation handler for the new upload operation
+	TransferNewUploadHandler transfer.NewUploadHandler
+	// TransferUploadChunkHandler sets the operation handler for the upload chunk operation
+	TransferUploadChunkHandler transfer.UploadChunkHandler
 
 	// ServeError is called when an error is received, there is a default handler
 	// but you can set your own with this
@@ -185,17 +179,14 @@ func (o *SyncheAPI) Validate() error {
 		unregistered = append(unregistered, "JSONProducer")
 	}
 
-	if o.TestingCheckGetHandler == nil {
-		unregistered = append(unregistered, "testing.CheckGetHandler")
+	if o.TransferListFilesHandler == nil {
+		unregistered = append(unregistered, "transfer.ListFilesHandler")
 	}
-	if o.FilesListFilesHandler == nil {
-		unregistered = append(unregistered, "files.ListFilesHandler")
+	if o.TransferNewUploadHandler == nil {
+		unregistered = append(unregistered, "transfer.NewUploadHandler")
 	}
-	if o.FilesNewUploadHandler == nil {
-		unregistered = append(unregistered, "files.NewUploadHandler")
-	}
-	if o.FilesUploadChunkHandler == nil {
-		unregistered = append(unregistered, "files.UploadChunkHandler")
+	if o.TransferUploadChunkHandler == nil {
+		unregistered = append(unregistered, "transfer.UploadChunkHandler")
 	}
 
 	if len(unregistered) > 0 {
@@ -290,19 +281,15 @@ func (o *SyncheAPI) initHandlerCache() {
 	if o.handlers["GET"] == nil {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
-	o.handlers["GET"]["/check"] = testing.NewCheckGet(o.context, o.TestingCheckGetHandler)
-	if o.handlers["GET"] == nil {
-		o.handlers["GET"] = make(map[string]http.Handler)
-	}
-	o.handlers["GET"]["/list"] = files.NewListFiles(o.context, o.FilesListFilesHandler)
+	o.handlers["GET"]["/list"] = transfer.NewListFiles(o.context, o.TransferListFilesHandler)
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}
-	o.handlers["POST"]["/upload/new"] = files.NewNewUpload(o.context, o.FilesNewUploadHandler)
+	o.handlers["POST"]["/upload/new"] = transfer.NewNewUpload(o.context, o.TransferNewUploadHandler)
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}
-	o.handlers["POST"]["/upload/chunk"] = files.NewUploadChunk(o.context, o.FilesUploadChunkHandler)
+	o.handlers["POST"]["/upload/chunk"] = transfer.NewUploadChunk(o.context, o.TransferUploadChunkHandler)
 }
 
 // Serve creates a http handler to serve the API over HTTP
