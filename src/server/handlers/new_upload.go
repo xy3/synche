@@ -5,12 +5,12 @@ import (
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 	"os"
 	"path/filepath"
 )
 
-func NewUploadFileHandler(params files.NewUploadParams, dataAccess data.SyncheData) middleware.Responder {
+func NewUploadFileHandler(params transfer.NewUploadParams, syncheData data.SyncheData) middleware.Responder {
 	// TODO: Check the file info here e.g. verify the hash
 
 	// requestUuid := uuid.New().String() could use uuid?
@@ -21,18 +21,18 @@ func NewUploadFileHandler(params files.NewUploadParams, dataAccess data.SyncheDa
 	_ = os.MkdirAll(fileChunkDir, os.ModePerm)
 
 	// Store upload request ID, chunk directory, file name, file size, and number of chunks in the data
-	err := data.Database.InsertConnectionRequest(dataAccess.Database, uploadRequestId, fileChunkDir, filepath.Base(*params.FileInfo.Name), *params.FileInfo.Size, *params.FileInfo.Chunks)
+	err := syncheData.Database.InsertConnectionRequest(uploadRequestId, fileChunkDir, filepath.Base(*params.FileInfo.Name), *params.FileInfo.Size, *params.FileInfo.Chunks)
 	if err != nil {
-		return files.NewNewUploadBadRequest()
+		return transfer.NewNewUploadBadRequest()
 	}
 
-	err = dataAccess.Cache.SetNumberOfChunks(uploadRequestId, *params.FileInfo.Chunks)
+	err = syncheData.Cache.SetNumberOfChunks(uploadRequestId, *params.FileInfo.Chunks)
 	if err != nil {
-		return files.NewNewUploadBadRequest()
+		return transfer.NewNewUploadBadRequest()
 	}
 
 	contents := models.NewFileUploadRequestAccepted{
 		UploadRequestID: uploadRequestId,
 	}
-	return files.NewNewUploadOK().WithPayload(&contents)
+	return transfer.NewNewUploadOK().WithPayload(&contents)
 }

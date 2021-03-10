@@ -10,8 +10,7 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/testing"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/transfer"
 )
 
 // Default synche HTTP client.
@@ -56,8 +55,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *Synche {
 
 	cli := new(Synche)
 	cli.Transport = transport
-	cli.Files = files.New(transport, formats)
-	cli.Testing = testing.New(transport, formats)
+	cli.Transfer = transfer.New(transport, formats)
 	return cli
 }
 
@@ -102,9 +100,7 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // Synche is a client for synche
 type Synche struct {
-	Files files.ClientService
-
-	Testing testing.ClientService
+	Transfer transfer.ClientService
 
 	Transport runtime.ClientTransport
 }
@@ -112,6 +108,5 @@ type Synche struct {
 // SetTransport changes the transport on the client and all its subresources
 func (c *Synche) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
-	c.Files.SetTransport(transport)
-	c.Testing.SetTransport(transport)
+	c.Transfer.SetTransport(transport)
 }
