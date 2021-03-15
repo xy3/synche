@@ -3,9 +3,9 @@ package jobs
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -38,20 +38,20 @@ func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilePath stri
 	extension := filepath.Ext(fileName)
 	nameWithoutExtension := fileName[0:len(fileName)-len(extension)]
 	newFilePath := filepath.Join(filePath, fileName)
-	_, err := os.Stat(newFilePath)
+	_, err := files.Afs.Stat(newFilePath)
 
 	for counter := 1; err == nil; counter++ {
 		// Create unique filepath
 		newFileName := fmt.Sprintf("%s(%d)%s ", nameWithoutExtension, counter, extension)
 		newFilePath = filepath.Join(filePath, newFileName)
-		_, err = os.Stat(newFilePath)
+		_, err = files.Afs.Stat(newFilePath)
 	}
 
 	return newFilePath
 }
 
 func ReassembleFile(cache *data.Cache, chunkDir string, fileName string, uploadRequestId string) error {
-	chunkFileNames, err := ioutil.ReadDir(chunkDir)
+	chunkFileNames, err := files.Afs.ReadDir(chunkDir)
 	if err != nil {
 		return err
 	}
@@ -63,11 +63,12 @@ func ReassembleFile(cache *data.Cache, chunkDir string, fileName string, uploadR
 	reassembledFileLocation := filepath.Join(filePath, fileName)
 
 	// Rename file if there is a file name collision
-	if _, err := os.Stat(reassembledFileLocation); err == nil {
+	if _, err := files.Afs.Stat(reassembledFileLocation); err == nil {
 		reassembledFileLocation = CreateUniqueFilePath(filePath, fileName)
 	}
 
-	reassembledFile, err := os.OpenFile(reassembledFileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// Flags: o_append, o_create, o_wronly
+	reassembledFile, err := files.Afs.OpenFile(reassembledFileLocation, 0x400|0x40|0x1, 0644)
 	if err != nil {
 		return err
 	}
@@ -76,7 +77,7 @@ func ReassembleFile(cache *data.Cache, chunkDir string, fileName string, uploadR
 
 	for _, file := range chunkFileNames {
 		// Open chunk file and get data
-		fileData, err := ioutil.ReadFile(filepath.Join(chunkDir, file.Name()))
+		fileData, err := files.Afs.ReadFile(filepath.Join(chunkDir, file.Name()))
 		if err != nil {
 			return err
 		}
