@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
-	"os"
 	"path/filepath"
 )
 
@@ -18,7 +18,7 @@ func NewUploadFileHandler(params transfer.NewUploadParams, syncheData data.Synch
 
 	// Make a directory in .synche/data/received with the hash as the name
 	fileChunkDir := filepath.Join(c.Config.Server.UploadDir, uploadRequestId)
-	_ = os.MkdirAll(fileChunkDir, os.ModePerm)
+	_ = files.AppFS.MkdirAll(fileChunkDir, 0777)
 
 	// Store upload request ID, chunk directory, file name, file size, and number of chunks in the data
 	err := syncheData.Database.InsertConnectionRequest(uploadRequestId, fileChunkDir, filepath.Base(*params.FileInfo.Name), *params.FileInfo.Size, *params.FileInfo.Chunks)

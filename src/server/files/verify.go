@@ -3,11 +3,10 @@ package files
 import (
 	"encoding/hex"
 	"github.com/kalafut/imohash"
-	"os"
 )
 
 func VerifyChunk(chunkFilePath string) (bool, error) {
-	file, err := os.Open(chunkFilePath)
+	file, err := Afs.Open(chunkFilePath)
 	if err != nil {
 		return false, err
 	}
