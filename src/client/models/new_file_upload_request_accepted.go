@@ -18,7 +18,7 @@ import (
 type NewFileUploadRequestAccepted struct {
 
 	// upload request Id
-	UploadRequestID string `json:"uploadRequestId,omitempty"`
+	UploadRequestID int64 `json:"uploadRequestId,omitempty"`
 }
 
 // Validate validates this new file upload request accepted

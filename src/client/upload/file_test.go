@@ -25,7 +25,7 @@ func TestFileUpload_Upload(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			mockSplitter.On("NumChunks").Return(int64(1))
 			mockSplitter.On("Split", mock.Anything).Return(nil)
-			mockNewUploadRequester.On("CreateNewUpload", mock.Anything).Return("uploadRequestID", nil)
+			mockNewUploadRequester.On("CreateNewUpload", mock.Anything).Return(int64(0), nil)
 
 			err := fileUpload.AsyncUpload(mockSplitter)
 			require.Equal(t, tc.ExpectedError, err)

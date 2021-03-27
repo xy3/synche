@@ -6,33 +6,22 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/jobs"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
-	"io"
 	"path/filepath"
 )
 
 var (
+	badRequest    = transfer.NewNewUploadBadRequest()
+	fileConflict  = transfer.NewUploadChunkConflict()
 	uploadCounter = 0
 )
 
-func reassembleFile(db data.SyncheData, uploadRequestId string, directoryId string) error {
-	fileName, err := db.Database.ConnectionRequestFileName(uploadRequestId)
-	if err != nil {
-		return err
-	}
-	return jobs.ReassembleFile(db.Cache, directoryId, fileName, uploadRequestId)
-}
-
-func writeChunkFile(filename string, chunkData io.Reader) error {
-	return afero.WriteReader(files.AppFS, filename, chunkData)
-}
-
-func UploadChunkHandler(params transfer.UploadChunkParams, data data.SyncheData) middleware.Responder {
+func UploadChunkHandler(params transfer.UploadChunkParams, syncheData *data.SyncheData) middleware.Responder {
 	if params.ChunkData == nil {
 		return transfer.NewUploadChunkBadRequest().WithPayload("no chunk data received")
 	}
@@ -41,63 +30,82 @@ func UploadChunkHandler(params transfer.UploadChunkParams, data data.SyncheData)
 	namedFile, ok := params.ChunkData.(*runtime.File)
 	if ok {
 		log.WithFields(log.Fields{
-			"filename":          namedFile.Header.Filename,
-			"size":              namedFile.Header.Size,
-			"chunk hash":        params.ChunkHash,
-			"chunk number":      params.ChunkNumber,
-			"upload request id": params.UploadRequestID,
+			"Size":            namedFile.Header.Size,
+			"ChunkHash":       params.ChunkHash,
+			"ChunkNumber":     params.ChunkNumber,
+			"UploadRequestID": params.UploadRequestID,
 		}).Info("Received new chunk")
 	}
 
-	// TODO: Check here that the actual hash of the data matches the provided hash (check params.ChunkHash == real hash)
+	chunkBytes, err := afero.ReadAll(params.ChunkData)
+	if err != nil {
+		return badRequest.WithPayload("failed to read the chunk bytes")
+	}
 
-	directory := filepath.Join(c.Config.Server.UploadDir, params.UploadRequestID)
-	chunkFilename := filepath.Join(directory, fmt.Sprintf("%d_%s", params.ChunkNumber, params.ChunkHash))
+	if !files.ValidateChunkHash(params.ChunkHash, chunkBytes) {
+		return badRequest.WithPayload("chunk hash does not match its data")
+	}
 
+	// Todo: store this in the database (or redis?) as 'chunksUploaded'
 	uploadCounter++
 
-	err := writeChunkFile(chunkFilename, params.ChunkData)
-	if err != nil {
-		return transfer.NewUploadChunkConflict().WithPayload(models.Error(err.Error()))
+	var upload schema.Upload
+	tx := syncheData.DB.Joins("Directory").Joins("File")
+	if tx.First(&upload, params.UploadRequestID).Error != nil {
+		transfer.NewNewUploadBadRequest().WithPayload("failed to find a related upload request")
 	}
-	return storeChunkData(data, namedFile, params)
 
+	if err = writeChunkFile(chunkBytes, params.ChunkNumber, upload.Directory.Path, params.ChunkHash); err != nil {
+		return fileConflict.WithPayload(models.Error(err.Error()))
+	}
+
+	return storeChunkData(syncheData, namedFile, params, upload)
+}
+
+func writeChunkFile(chunkData []byte, chunkNumber int64, chunkDir, chunkHash string) error {
+	chunkFilename := filepath.Join(chunkDir, fmt.Sprintf("%d_%s", chunkNumber, chunkHash))
+	return files.Afs.WriteFile(chunkFilename, chunkData, 0644)
 }
 
 func storeChunkData(
-	data data.SyncheData,
-	file *runtime.File,
+	syncheData *data.SyncheData,
+	chunkFile *runtime.File,
 	params transfer.UploadChunkParams,
+	upload schema.Upload,
 ) middleware.Responder {
-	// Get directory ID from connection_request table
-	directoryId, err := data.Database.ChunkDirectory(params.UploadRequestID)
-	if err != nil {
-		return transfer.NewUploadChunkBadRequest().WithPayload("failed to find the chunk directory")
+	// Insert chunk info into data
+	newChunk := schema.FileChunk{
+		Chunk: schema.Chunk{
+			Hash: params.ChunkHash,
+			Size: chunkFile.Header.Size,
+		},
+		Number:      params.ChunkNumber,
+		DirectoryID: upload.DirectoryID,
+		FileID:      upload.FileID,
+		UploadID:    upload.ID,
 	}
 
-	// Insert chunk info into data
-	err = data.Database.InsertChunk(file.Header.Filename, file.Header.Size, params.ChunkHash, params.ChunkNumber, params.UploadRequestID, directoryId)
-	if err != nil {
-		return transfer.NewUploadChunkBadRequest().WithPayload("failed to add the chunk data to the database")
+	tx := syncheData.DB.Begin()
+
+	if tx.Create(&newChunk).Error != nil {
+		tx.Rollback()
+		return badRequest.WithPayload("failed to add the chunk data to the database")
 	}
+
+	tx.Commit()
 
 	// Reassemble file when uploadCounter indicates all chunks have been received
-	numberOfChunks, err := data.NumberOfChunks(params.UploadRequestID)
-	if err != nil {
-		return transfer.NewUploadChunkBadRequest().WithPayload("failed to find the number of chunks for this file")
-	}
-
-	if uploadCounter >= int(numberOfChunks) {
+	if uploadCounter >= int(upload.NumChunks) {
 		uploadCounter = 0
-		err = reassembleFile(data, params.UploadRequestID, directoryId)
+		err := jobs.ReassembleFile(syncheData.Cache, upload.Directory.Path, upload.File.Name, upload.ID)
 		if err != nil {
-			return transfer.NewUploadChunkBadRequest().WithPayload("failed to re-assemble the file")
+			return badRequest.WithPayload("failed to re-assemble the file")
 		}
 	}
 
 	return transfer.NewUploadChunkCreated().WithPayload(&models.UploadedChunk{
-		CompositeFileID: params.UploadRequestID,
-		DirectoryID:     models.DirectoryID(directoryId),
-		Hash:            params.ChunkHash,
+		DirectoryID: int64(upload.DirectoryID),
+		FileID:      int64(upload.FileID),
+		Hash:        params.ChunkHash,
 	})
 }

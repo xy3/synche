@@ -83,7 +83,7 @@ paths:
           description: The position index of the chunk in the file the chunk is from
         - in: formData
           name: uploadRequestId
-          type: string
+          type: integer
           required: true
           description: The identifier for the composite file upload request
       responses:
@@ -169,30 +169,25 @@ definitions:
     description: accept the new file upload request and return a UUID for the file
     properties:
       uploadRequestId:
-        type: string
+        type: integer
 
   UploadedChunk:
     type: object
     properties:
-      hash:
+      Hash:
         type: string
         description: The file hash of the chunk
-      directoryId:
-        $ref: '#/definitions/DirectoryId'
-      compositeFileId:
-        type: string
+      DirectoryID:
+        type: integer
+      FileID:
+        type: integer
         description: The id of the file this chunk is a part of
-
-  DirectoryId:
-    type: string
-    example: d701748f0851
-    description: the id of the directory to list
 
   DirectoryListRequest:
     type: object
     properties:
-      directoryId:
-        $ref: '#/definitions/DirectoryId'
+      DirectoryID:
+        type: integer
       limit:
         type: integer
         example: 10
@@ -202,9 +197,9 @@ definitions:
   DirectoryContents:
     type: object
     properties:
-      directoryId:
-        $ref: '#/definitions/DirectoryId'
-      listings:
+      DirectoryID:
+        type: integer
+      Listings:
         type: array
         items:
           type: string

@@ -8,7 +8,6 @@ package models
 import (
 	"context"
 
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -18,66 +17,21 @@ import (
 // swagger:model DirectoryContents
 type DirectoryContents struct {
 
-	// directory Id
-	DirectoryID DirectoryID `json:"directoryId,omitempty"`
+	// directory ID
+	DirectoryID int64 `json:"DirectoryID,omitempty"`
 
 	// the contents of the directory
 	// Example: ["file1","file2","directory1/"]
-	Listings []string `json:"listings"`
+	Listings []string `json:"Listings"`
 }
 
 // Validate validates this directory contents
 func (m *DirectoryContents) Validate(formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.validateDirectoryID(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
 	return nil
 }
 
-func (m *DirectoryContents) validateDirectoryID(formats strfmt.Registry) error {
-	if swag.IsZero(m.DirectoryID) { // not required
-		return nil
-	}
-
-	if err := m.DirectoryID.Validate(formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("directoryId")
-		}
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this directory contents based on the context it is used
+// ContextValidate validates this directory contents based on context it is used
 func (m *DirectoryContents) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateDirectoryID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *DirectoryContents) contextValidateDirectoryID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := m.DirectoryID.ContextValidate(ctx, formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("directoryId")
-		}
-		return err
-	}
-
 	return nil
 }
 

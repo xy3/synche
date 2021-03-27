@@ -2,27 +2,60 @@ package data
 
 import (
 	"github.com/gomodule/redigo/redis"
-	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
-type Cache struct {
-	// wrap redis connection and any other driver that may be needed
-	redis *redis.Pool
+//go:generate mockery --name=Cache --case underscore
+type Cache interface {
+	GetAll(key string) (interface{}, error)
+	SetAll(key string, value interface{}) (interface{}, error)
+	Delete(key string) (interface{}, error)
+	Ping() (interface{}, error)
+	Execute(commandName string, args ...interface{}) (interface{}, error)
 }
 
-func ping(c redis.Conn) error {
-	s, err := redis.String(c.Do("PING"))
-	if err != nil {
-		return err
+type RedisCache struct {
+	Pool *redis.Pool
+	UploadCache UploadCache
+}
+
+func NewRedisCache(redisCfg config.RedisConfig, uploadCache UploadCache) *RedisCache {
+	return &RedisCache{
+		Pool: NewRedisPool(redisCfg),
+		UploadCache: uploadCache,
 	}
-
-	log.Debugf("Cache PING response: %s", s)
-	return nil
 }
 
-func newPool(redisCfg config.RedisConfig) *redis.Pool {
-	return &redis.Pool{
+func (c *RedisCache) GetAll(key string) (interface{}, error) {
+	return c.Execute("HGETALL", key)
+}
+
+func (c *RedisCache) SetAll(key string, value interface{}) (interface{}, error) {
+	return c.Execute("HSET", redis.Args{}.Add(key).AddFlat(&value)...)
+}
+
+func (c *RedisCache) Delete(key string) (interface{}, error) {
+	return c.Execute("DEL", key)
+}
+
+func (c *RedisCache) Ping() (interface{}, error) {
+	return c.Execute("PING")
+}
+
+func (c *RedisCache) Execute(commandName string, args ...interface{}) (interface{}, error) {
+	conn := c.Pool.Get()
+	res, err := conn.Do(commandName, args...)
+	if errClose := conn.Close(); errClose != nil {
+		return res, errClose
+	}
+	return res, err
+}
+
+func NewRedisPool(redisCfg config.RedisConfig) *redis.Pool {
+	pool := &redis.Pool{
 		MaxIdle: 80,
 		MaxActive: 12000,
 		// Create and configure the connection
@@ -34,21 +67,18 @@ func newPool(redisCfg config.RedisConfig) *redis.Pool {
 			return c, err
 		},
 	}
+	cleanupHook(pool)
+	return pool
 }
 
-func NewRedisCache(redisCfg config.RedisConfig) *Cache {
-	// Pointer to redis.Pool
-	pool := newPool(redisCfg)
-
-	// Connection from the pool
-	conn := pool.Get()
-	defer conn.Close()
-
-	// Test connectivity
-	err := ping(conn)
-	if err != nil {
-		log.Errorf("Issue connecting to Redis: %v", err)
-	}
-
-	return &Cache{redis: pool}
+func cleanupHook(pool *redis.Pool) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGTERM)
+	signal.Notify(c, syscall.SIGKILL)
+	go func() {
+		<-c
+		_ = pool.Close()
+		os.Exit(0)
+	}()
 }

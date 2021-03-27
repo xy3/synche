@@ -61,7 +61,7 @@ type UploadChunkParams struct {
 	  Required: true
 	  In: formData
 	*/
-	UploadRequestID string
+	UploadRequestID int64
 }
 
 // BindRequest both binds and validates a request, it assumes that complex things implement a Validatable(strfmt.Registry) error interface
@@ -179,7 +179,12 @@ func (o *UploadChunkParams) bindUploadRequestID(rawData []string, hasKey bool, f
 	if err := validate.RequiredString("uploadRequestId", "formData", raw); err != nil {
 		return err
 	}
-	o.UploadRequestID = raw
+
+	value, err := swag.ConvertInt64(raw)
+	if err != nil {
+		return errors.InvalidType("uploadRequestId", "formData", "int64", raw)
+	}
+	o.UploadRequestID = value
 
 	return nil
 }

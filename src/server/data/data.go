@@ -1,35 +1,49 @@
 package data
 
 import (
-	"github.com/gomodule/redigo/redis"
 	log "github.com/sirupsen/logrus"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
+	"gorm.io/gorm"
 )
 
-type SyncheData struct {
-	Cache    *Cache
-	Database *Database
+type Wrapper interface {
 }
 
-func (d *SyncheData) NumberOfChunks(uploadRequestId string) (chunks int64, err error) {
-	// Check cache first
-	chunks, err = d.Cache.GetNumberOfChunks(uploadRequestId)
+type SyncheData struct {
+	Cache *RedisCache
+	DB    *gorm.DB
+}
 
-	// Get data from db if it wasn't in the cache
-	if err == redis.ErrNil {
-		log.Warnf("Upload request with ID: %v was not retreived from cache", uploadRequestId)
-		chunks, err = d.Database.NumberOfChunks(uploadRequestId)
-		if err != nil {
-			return 0, err
-		}
+func NewSyncheData(cache *RedisCache, db *gorm.DB) (*SyncheData, error) {
+	return &SyncheData{Cache: cache, DB: db}, nil
+}
 
-		// Add data to cache for future usage
-		err = d.Cache.SetNumberOfChunks(uploadRequestId, chunks)
-		if err != nil {
-			return 0, err
-		}
+func (d *SyncheData) MigrateAll() error {
+	return d.DB.AutoMigrate(
+		&schema.Chunk{},
+		&schema.File{},
+		&schema.FileChunk{},
+		&schema.Directory{},
+		&schema.Upload{},
+	)
+}
 
-		return chunks, nil
+func (d *SyncheData) GetNumChunks(uploadCache UploadCache, uploadId uint) (int64, error) {
+	upload, err := uploadCache.GetUpload(d.Cache, uploadId)
+	if err == nil {
+		return upload.NumChunks, nil
 	}
 
-	return
+	log.WithFields(log.Fields{"UploadID": uploadId}).Debug("Upload request was not retrieved from cache", uploadId)
+
+	res := d.DB.First(&upload, uploadId)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+
+	err = uploadCache.SetUpload(d.Cache, uploadId, upload)
+	if err != nil {
+		log.WithFields(log.Fields{"UploadID": uploadId}).Error("Failed to cache the number of chunks")
+	}
+	return upload.NumChunks, nil
 }

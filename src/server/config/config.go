@@ -51,7 +51,7 @@ func RequiredDirs() []string {
 	}
 }
 
-func ServerDefaults(syncheDir string) interface{} {
+func ServerDefaults(syncheDir string) Configuration {
 	storageDir := filepath.Join(syncheDir, "data")
 
 	defaultCfg := Configuration{
@@ -91,7 +91,9 @@ func InitConfig(cfgFile string) error {
 		return err
 	}
 
-	err = cfg.ReadOrCreate(ServerDefaults(cfg.Dir))
+	defaultCfg := ServerDefaults(cfg.Dir)
+	viper.SetDefault("config", defaultCfg)
+	err = cfg.ReadOrCreate(defaultCfg)
 	if err != nil {
 		return err
 	}

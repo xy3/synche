@@ -2,33 +2,55 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
+	log "github.com/sirupsen/logrus"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 	"path/filepath"
 )
 
-func NewUploadFileHandler(params transfer.NewUploadParams, syncheData data.SyncheData) middleware.Responder {
-	// TODO: Check the file info here e.g. verify the hash
-
-	// requestUuid := uuid.New().String() could use uuid?
-	uploadRequestId := *params.FileInfo.Hash // just use the file hash for the moment
-
-	// Make a directory in .synche/data/received with the hash as the name
-	fileChunkDir := filepath.Join(c.Config.Server.UploadDir, uploadRequestId)
-	_ = files.AppFS.MkdirAll(fileChunkDir, 0777)
-
-	// Store upload request ID, chunk directory, file name, file size, and number of chunks in the data
-	err := syncheData.Database.InsertConnectionRequest(uploadRequestId, fileChunkDir, filepath.Base(*params.FileInfo.Name), *params.FileInfo.Size, *params.FileInfo.Chunks)
+func NewUploadFileHandler(syncheData *data.SyncheData, params transfer.NewUploadParams) middleware.Responder {
+	// Make a directory in the upload dir with the hash as the name
+	fileChunkDir := filepath.Join(c.Config.Server.UploadDir, *params.FileInfo.Hash)
+	err := files.AppFS.MkdirAll(fileChunkDir, 0755)
 	if err != nil {
-		return transfer.NewNewUploadBadRequest().WithPayload("failed to add the upload request to the database")
+		return transfer.NewNewUploadBadRequest().WithPayload("failed to create a directory for the file")
 	}
 
-	_ = syncheData.Cache.SetNumberOfChunks(uploadRequestId, *params.FileInfo.Chunks)
+	fileDir := schema.Directory{
+		Path: fileChunkDir,
+	}
+
+	tx := syncheData.DB.Begin()
+	newUpload := schema.Upload{
+		Directory: fileDir,
+		File: schema.File{
+			Name:      *params.FileInfo.Name,
+			Size:      *params.FileInfo.Size,
+			Hash:      *params.FileInfo.Hash,
+			Directory: fileDir,
+		},
+		NumChunks: *params.FileInfo.Chunks,
+	}
+
+	tx.Create(&newUpload)
+
+	if tx.Error != nil {
+		tx.Rollback()
+		return transfer.NewNewUploadBadRequest().WithPayload("failed to add the file info to the database")
+	}
+
+	tx.Commit()
+
+	err = syncheData.Cache.UploadCache.SetUpload(syncheData.Cache, newUpload.ID, newUpload)
+	if err != nil {
+		log.WithError(err).Error("Failed to cache the upload data")
+	}
 
 	return transfer.NewNewUploadOK().WithPayload(&models.NewFileUploadRequestAccepted{
-		UploadRequestID: uploadRequestId,
+		UploadRequestID: int64(newUpload.ID),
 	})
 }

@@ -5,8 +5,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"path"
 	"time"
 )
@@ -40,7 +40,7 @@ type Uploader interface {
 type UploadJob struct {
 	chunkUploader upload.ChunkUploader
 	fileUploader  upload.FileUploader
-	fileHashFunc  data.FileHashFunc
+	fileHashFunc  files.FileHashFunc
 }
 
 func (u UploadJob) Run(filePath string) error {
@@ -61,7 +61,7 @@ func (u UploadJob) Run(filePath string) error {
 	return u.fileUploader.AsyncUpload(splitFile)
 }
 
-func NewUploadJob(newUploadRequester upload.NewUploadRequester, fileHashFunc data.FileHashFunc) *UploadJob {
+func NewUploadJob(newUploadRequester upload.NewUploadRequester, fileHashFunc files.FileHashFunc) *UploadJob {
 	chunkUploader := new(upload.ChunkUpload)
 	fileUploader := upload.NewFileUpload(chunkUploader, newUploadRequester)
 
@@ -73,7 +73,7 @@ func NewUploadJob(newUploadRequester upload.NewUploadRequester, fileHashFunc dat
 }
 
 func NewDefaultUploadJob() *UploadJob {
-	return NewUploadJob(upload.DefaultNewUploadRequester, data.DefaultFileHashFunc)
+	return NewUploadJob(upload.DefaultNewUploadRequester, files.HashFile)
 }
 
 func init() {
