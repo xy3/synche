@@ -113,7 +113,7 @@ func init() {
             "required": true
           },
           {
-            "type": "string",
+            "type": "integer",
             "description": "The identifier for the composite file upload request",
             "name": "uploadRequestId",
             "in": "formData",
@@ -199,10 +199,10 @@ func init() {
     "DirectoryContents": {
       "type": "object",
       "properties": {
-        "directoryId": {
-          "$ref": "#/definitions/DirectoryId"
+        "DirectoryID": {
+          "type": "integer"
         },
-        "listings": {
+        "Listings": {
           "description": "the contents of the directory",
           "type": "array",
           "items": {
@@ -216,16 +216,11 @@ func init() {
         }
       }
     },
-    "DirectoryId": {
-      "description": "the id of the directory to list",
-      "type": "string",
-      "example": "d701748f0851"
-    },
     "DirectoryListRequest": {
       "type": "object",
       "properties": {
-        "directoryId": {
-          "$ref": "#/definitions/DirectoryId"
+        "DirectoryID": {
+          "type": "integer"
         },
         "limit": {
           "description": "the limit of file results to return",
@@ -285,7 +280,7 @@ func init() {
       "type": "object",
       "properties": {
         "uploadRequestId": {
-          "type": "string"
+          "type": "integer"
         }
       }
     },
@@ -295,14 +290,14 @@ func init() {
     "UploadedChunk": {
       "type": "object",
       "properties": {
-        "compositeFileId": {
+        "DirectoryID": {
+          "type": "integer"
+        },
+        "FileID": {
           "description": "The id of the file this chunk is a part of",
-          "type": "string"
+          "type": "integer"
         },
-        "directoryId": {
-          "$ref": "#/definitions/DirectoryId"
-        },
-        "hash": {
+        "Hash": {
           "description": "The file hash of the chunk",
           "type": "string"
         }
@@ -412,7 +407,7 @@ func init() {
             "required": true
           },
           {
-            "type": "string",
+            "type": "integer",
             "description": "The identifier for the composite file upload request",
             "name": "uploadRequestId",
             "in": "formData",
@@ -498,10 +493,10 @@ func init() {
     "DirectoryContents": {
       "type": "object",
       "properties": {
-        "directoryId": {
-          "$ref": "#/definitions/DirectoryId"
+        "DirectoryID": {
+          "type": "integer"
         },
-        "listings": {
+        "Listings": {
           "description": "the contents of the directory",
           "type": "array",
           "items": {
@@ -515,16 +510,11 @@ func init() {
         }
       }
     },
-    "DirectoryId": {
-      "description": "the id of the directory to list",
-      "type": "string",
-      "example": "d701748f0851"
-    },
     "DirectoryListRequest": {
       "type": "object",
       "properties": {
-        "directoryId": {
-          "$ref": "#/definitions/DirectoryId"
+        "DirectoryID": {
+          "type": "integer"
         },
         "limit": {
           "description": "the limit of file results to return",
@@ -570,7 +560,7 @@ func init() {
       "type": "object",
       "properties": {
         "uploadRequestId": {
-          "type": "string"
+          "type": "integer"
         }
       }
     },
@@ -580,14 +570,14 @@ func init() {
     "UploadedChunk": {
       "type": "object",
       "properties": {
-        "compositeFileId": {
+        "DirectoryID": {
+          "type": "integer"
+        },
+        "FileID": {
           "description": "The id of the file this chunk is a part of",
-          "type": "string"
+          "type": "integer"
         },
-        "directoryId": {
-          "$ref": "#/definitions/DirectoryId"
-        },
-        "hash": {
+        "Hash": {
           "description": "The file hash of the chunk",
           "type": "string"
         }

@@ -1,16 +1,14 @@
 package data
 
+import "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
+
 type Chunk struct {
 	Hash  string
 	Num   int64
 	Bytes *[]byte
 }
 
-func NewChunkWithHash(hash string, num int64, bytes *[]byte) *Chunk {
-	return &Chunk{Hash: hash, Num: num, Bytes: bytes}
-}
-
 func NewChunk(num int64, bytes *[]byte) *Chunk {
-	return &Chunk{Hash: DefaultChunkHashFunc(*bytes), Num: num, Bytes: bytes}
+	return &Chunk{Hash: files.HashChunk(*bytes), Num: num, Bytes: bytes}
 }
 

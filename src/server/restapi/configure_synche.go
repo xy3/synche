@@ -13,6 +13,8 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -29,29 +31,38 @@ func OverrideFlags() {
 func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
-
-	// Create data with chunk table and connection_request table if they don't exist
-	err := data.CreateDatabase(c.Config.Database)
-	if err != nil {
-		log.WithError(err).Fatal("Database creation failed")
-	}
-
-	// Set your custom logger if needed. Default one is log.Printf
-	// Expected interface func(string, ...interface{})
 	api.Logger = log.Infof
-
 	api.UseSwaggerUI()
-	// To use redoc as the UI, uncomment the following line
-	// api.UseRedoc()
-
 	api.JSONConsumer = runtime.JSONConsumer()
 	api.MultipartformConsumer = runtime.DiscardConsumer
-
 	api.JSONProducer = runtime.JSONProducer()
+
+	// set up the Synche database with Redis and SQL
+	cache := data.NewRedisCache(c.Config.Redis, data.NewUploadCache())
+	db, err := gorm.Open(mysql.Open(data.NewDSN(c.Config.Database)), &gorm.Config{
+		PrepareStmt: true,
+	})
+	if err != nil {
+		log.Fatal("Failed to open gorm DB connection")
+	}
+	syncheData, err := data.NewSyncheData(cache, db)
+	if err != nil {
+		panic(err)
+	}
+
+	// Migrate the schema
+	err = syncheData.MigrateAll()
+	if err != nil {
+		log.WithError(err).Error("Failed to migrate database")
+	}
+
+	err = syncheData.Configure()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to configure the SQL database")
+	}
 
 	// You may change here the memory limit for this multipart form parser. Below is the default (32 MB).
 	// transfer.UploadFileMaxParseMemory = 32 << 20
-
 	// ============= Start Route Handlers =============
 	// TODO: Implement listing functionality
 	if api.TransferListFilesHandler == nil {
@@ -60,16 +71,12 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		})
 	}
 
-	redisClient := data.NewRedisCache(c.Config.Redis)
-	dbClient := data.NewDatabaseClient(c.Config.Database)
-	dataAccess := data.SyncheData{Cache: redisClient, Database: dbClient}
-
 	api.TransferUploadChunkHandler = transfer.UploadChunkHandlerFunc(func(params transfer.UploadChunkParams) middleware.Responder {
-		return handlers.UploadChunkHandler(params, dataAccess)
+		return handlers.UploadChunkHandler(params, syncheData)
 	})
 
 	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(func(params transfer.NewUploadParams) middleware.Responder {
-		return handlers.NewUploadFileHandler(params, dataAccess)
+		return handlers.NewUploadFileHandler(syncheData, params)
 	})
 	// 	============= End Route Handlers =============
 

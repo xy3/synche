@@ -13,7 +13,7 @@ import (
 //go:generate mockery --name=ChunkUploader --case underscore
 type ChunkUploader interface {
 	AsyncUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, uploadErrors chan error)
-	NewParams(chunk data.Chunk, requestID string) *transfer.UploadChunkParams
+	NewParams(chunk data.Chunk, requestID int64) *transfer.UploadChunkParams
 	SyncUpload(params *transfer.UploadChunkParams) error
 }
 
@@ -28,7 +28,7 @@ func (cu *ChunkUpload) SyncUpload(params *transfer.UploadChunkParams) error {
 	chunk := resp.Payload
 	log.WithFields(log.Fields{
 		"hash": chunk.Hash,
-		"file_id": chunk.CompositeFileID,
+		"file_id": chunk.FileID,
 		"directory_id": chunk.DirectoryID,
 	}).Debug("Successfully uploaded chunk")
 	return nil
@@ -48,18 +48,18 @@ func (cu *ChunkUpload) AsyncUpload(wg *sync.WaitGroup, params *transfer.UploadCh
 	chunk := resp.Payload
 	log.WithFields(log.Fields{
 		"hash":         chunk.Hash,
-		"file_id":      chunk.CompositeFileID,
+		"file_id":      chunk.FileID,
 		"directory_id": chunk.DirectoryID,
 	}).Debug("Successfully uploaded chunk")
 
 	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly
 }
 
-func (cu *ChunkUpload) NewParams(chunk data.Chunk, requestID string) *transfer.UploadChunkParams {
+func (cu *ChunkUpload) NewParams(chunk data.Chunk, uploadId int64) *transfer.UploadChunkParams {
 	readCloser := runtime.NamedReader(chunk.Hash, bytes.NewReader(*chunk.Bytes))
 	return transfer.NewUploadChunkParams().
 		WithChunkNumber(chunk.Num).
 		WithChunkHash(chunk.Hash).
-		WithUploadRequestID(requestID).
+		WithUploadRequestID(uploadId).
 		WithChunkData(readCloser)
 }

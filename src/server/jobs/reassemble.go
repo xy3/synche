@@ -3,7 +3,7 @@ package jobs
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"os"
@@ -36,7 +36,7 @@ func (nFile NumericalFilename) Less(i, j int) bool {
 
 func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilePath string) {
 	extension := filepath.Ext(fileName)
-	nameWithoutExtension := fileName[0:len(fileName)-len(extension)]
+	nameWithoutExtension := fileName[0 : len(fileName)-len(extension)]
 	newFilePath := filepath.Join(filePath, fileName)
 	_, err := files.Afs.Stat(newFilePath)
 
@@ -50,7 +50,7 @@ func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilePath stri
 	return newFilePath
 }
 
-func ReassembleFile(cache *data.Cache, chunkDir string, fileName string, uploadRequestId string) error {
+func ReassembleFile(cache *data.RedisCache, chunkDir, fileName string, uploadRequestId uint) error {
 	chunkFileNames, err := files.Afs.ReadDir(chunkDir)
 	if err != nil {
 		return err
@@ -63,12 +63,11 @@ func ReassembleFile(cache *data.Cache, chunkDir string, fileName string, uploadR
 	reassembledFileLocation := filepath.Join(filePath, fileName)
 
 	// Rename file if there is a file name collision
-	if _, err := files.Afs.Stat(reassembledFileLocation); err == nil {
+	if _, err = os.Stat(reassembledFileLocation); err == nil {
 		reassembledFileLocation = CreateUniqueFilePath(filePath, fileName)
 	}
 
-	// Flags: o_append, o_create, o_wronly
-	reassembledFile, err := files.Afs.OpenFile(reassembledFileLocation, 0x400|0x40|0x1, 0644)
+	reassembledFile, err := files.AppFS.OpenFile(reassembledFileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -89,9 +88,10 @@ func ReassembleFile(cache *data.Cache, chunkDir string, fileName string, uploadR
 	}
 
 	// Remove data from cache
-	if err = cache.DeleteKeyNumberOfChunks(uploadRequestId); err != nil{ return err }
+	if err = cache.UploadCache.DelUpload(cache, uploadRequestId); err != nil {
+		return err
+	}
 
-	log.Infof("File successfully uploaded.\n=========> Name: %s\n=========> Location: %s", fileName, reassembledFileLocation)
-
+	log.WithFields(log.Fields{"name": fileName, "location": reassembledFileLocation}).Info("File successfully uploaded")
 	return nil
 }

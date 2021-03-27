@@ -6,7 +6,6 @@ import (
 	"math"
 )
 
-//go:generate mockery --name=Splitter --case underscore
 type Splitter interface {
 	NumChunks() int64
 	NextChunk() ([]byte, error)

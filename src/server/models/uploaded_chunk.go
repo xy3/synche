@@ -8,7 +8,6 @@ package models
 import (
 	"context"
 
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
@@ -18,68 +17,23 @@ import (
 // swagger:model UploadedChunk
 type UploadedChunk struct {
 
-	// The id of the file this chunk is a part of
-	CompositeFileID string `json:"compositeFileId,omitempty"`
+	// directory ID
+	DirectoryID int64 `json:"DirectoryID,omitempty"`
 
-	// directory Id
-	DirectoryID DirectoryID `json:"directoryId,omitempty"`
+	// The id of the file this chunk is a part of
+	FileID int64 `json:"FileID,omitempty"`
 
 	// The file hash of the chunk
-	Hash string `json:"hash,omitempty"`
+	Hash string `json:"Hash,omitempty"`
 }
 
 // Validate validates this uploaded chunk
 func (m *UploadedChunk) Validate(formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.validateDirectoryID(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
 	return nil
 }
 
-func (m *UploadedChunk) validateDirectoryID(formats strfmt.Registry) error {
-	if swag.IsZero(m.DirectoryID) { // not required
-		return nil
-	}
-
-	if err := m.DirectoryID.Validate(formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("directoryId")
-		}
-		return err
-	}
-
-	return nil
-}
-
-// ContextValidate validate this uploaded chunk based on the context it is used
+// ContextValidate validates this uploaded chunk based on context it is used
 func (m *UploadedChunk) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
-
-	if err := m.contextValidateDirectoryID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (m *UploadedChunk) contextValidateDirectoryID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := m.DirectoryID.ContextValidate(ctx, formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("directoryId")
-		}
-		return err
-	}
-
 	return nil
 }
 

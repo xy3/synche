@@ -9,7 +9,7 @@ import (
 
 //go:generate mockery --name=NewUploadRequester --case underscore
 type NewUploadRequester interface {
-	CreateNewUpload(splitter data.Splitter) (uploadRequestID string, err error)
+	CreateNewUpload(splitter data.Splitter) (uploadRequestID int64, err error)
 	NewUpload(params *transfer.NewUploadParams) (accepted *models.NewFileUploadRequestAccepted, err error)
 	NewUploadParams(fileSize, numChunks int64, fileHash, fileName string,) *transfer.NewUploadParams
 }
@@ -18,7 +18,7 @@ type NewUploadRequest struct {}
 
 var DefaultNewUploadRequester = new(NewUploadRequest)
 
-func (nu *NewUploadRequest) CreateNewUpload(splitter data.Splitter) (uploadRequestID string, err error) {
+func (nu *NewUploadRequest) CreateNewUpload(splitter data.Splitter) (uploadRequestID int64, err error) {
 	params := nu.NewUploadParams(splitter.File().FileSize, splitter.NumChunks(), splitter.File().Hash, splitter.File().Name)
 	requestAccepted, err := nu.NewUpload(params)
 	if err != nil {

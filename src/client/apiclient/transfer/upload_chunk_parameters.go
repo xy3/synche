@@ -82,7 +82,7 @@ type UploadChunkParams struct {
 
 	   The identifier for the composite file upload request
 	*/
-	UploadRequestID string
+	UploadRequestID int64
 
 	timeout    time.Duration
 	Context    context.Context
@@ -171,13 +171,13 @@ func (o *UploadChunkParams) SetChunkNumber(chunkNumber int64) {
 }
 
 // WithUploadRequestID adds the uploadRequestID to the upload chunk params
-func (o *UploadChunkParams) WithUploadRequestID(uploadRequestID string) *UploadChunkParams {
+func (o *UploadChunkParams) WithUploadRequestID(uploadRequestID int64) *UploadChunkParams {
 	o.SetUploadRequestID(uploadRequestID)
 	return o
 }
 
 // SetUploadRequestID adds the uploadRequestId to the upload chunk params
-func (o *UploadChunkParams) SetUploadRequestID(uploadRequestID string) {
+func (o *UploadChunkParams) SetUploadRequestID(uploadRequestID int64) {
 	o.UploadRequestID = uploadRequestID
 }
 
@@ -213,7 +213,7 @@ func (o *UploadChunkParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.R
 
 	// form param uploadRequestId
 	frUploadRequestID := o.UploadRequestID
-	fUploadRequestID := frUploadRequestID
+	fUploadRequestID := swag.FormatInt64(frUploadRequestID)
 	if fUploadRequestID != "" {
 		if err := r.SetFormParam("uploadRequestId", fUploadRequestID); err != nil {
 			return err

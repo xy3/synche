@@ -4,8 +4,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"testing"
 )
 
@@ -15,13 +15,13 @@ func TestChunkUpload_NewParams(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		Chunk           data.Chunk
-		UploadRequestID string
+		UploadRequestID int64
 		ChunkBytes      []byte
 		ExpectedError   error
 	}{
 		{
 			Chunk:           data.Chunk{Hash: "hash", Num: 1},
-			UploadRequestID: "reqId",
+			UploadRequestID: 1,
 			ChunkBytes:      []byte("test file content"),
 			ExpectedError:   nil,
 		},

@@ -1,18 +1,22 @@
-package data
+package files
 
 import (
+	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"github.com/kalafut/imohash"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/files"
 	"hash/crc32"
 )
 
 type ChunkHashFunc func(chunkBytes []byte) string
 type FileHashFunc func(filePath string) (string, error)
 
-var DefaultChunkHashFunc = CRC32Hash
-var DefaultFileHashFunc = ImoHash
+var HashChunk = MD5Hash
+var HashFile = ImoHash
+
+func MD5Hash(bytes []byte) string {
+	return fmt.Sprintf("%x", md5.Sum(bytes))
+}
 
 func CRC32Hash(bytes []byte) string {
 	checksum := crc32.ChecksumIEEE(bytes)
@@ -20,7 +24,7 @@ func CRC32Hash(bytes []byte) string {
 }
 
 func ImoHash(filePath string) (hash string, err error) {
-	fileData, err := files.Afs.ReadFile(filePath)
+	fileData, err := Afs.ReadFile(filePath)
 	if err != nil {
 		return hash, err
 	}
