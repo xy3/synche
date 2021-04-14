@@ -4,5 +4,5 @@ import "gorm.io/gorm"
 
 type Directory struct {
 	gorm.Model
-	Path string
+	Path string `gorm:"unique"`
 }

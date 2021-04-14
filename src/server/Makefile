@@ -1,11 +1,11 @@
 generate:
+    # important: the principal should be set to schema.User
 	swagger generate server \
 		 --name Synche \
-		 --spec api/openapi-spec/synche-server-api.yaml \
-		 --principal models.Message \
+		 --spec spec/synche-server-api.yaml \
+		 --principal gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema.User \
 		 --flag-strategy=pflag \
-		 --exclude-main \
-		 --with-flatten=remove-unused
+		 --exclude-main
 
 build:
 	go build -o ../../build

@@ -4,28 +4,8 @@ import (
 	"fmt"
 	"github.com/oleiade/reflections"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"strings"
 )
-
-func (cfg SyncheConfig) Update(currentCfg interface{}) error {
-	if !cfg.IsNew {
-		fmt.Print("Would you like to update the current config? [Y/n]: ")
-		var ans string
-		_, _ = fmt.Scanln(&ans)
-		if strings.ToLower(ans) == "n" {
-			return nil
-		}
-
-		err := cfg.Create(currentCfg)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Infof("Config file updated at: %s", viper.ConfigFileUsed())
-	return nil
-}
 
 func Setup(cfg interface{}) (interface{}, error) {
 	log.Info("Synche will now prompt you for each config value in the format: 'Field (default value)'")
@@ -55,11 +35,18 @@ func Setup(cfg interface{}) (interface{}, error) {
 			return nil, err
 		}
 
+
 		for _, fieldName := range fields {
+			// Skip if its a slice type
+			fieldType, err := reflections.GetFieldType(section, fieldName)
+			if err != nil || strings.Contains(fieldType, "[]") {
+				continue
+			}
+
 			fmt.Printf("\t > %s (%v): ", fieldName, values[fieldName])
 
 			var input string
-			_, err = fmt.Scanf("%s", &input)
+			_, err = fmt.Scanf("%s\n", &input)
 			if err != nil {
 				continue
 			}

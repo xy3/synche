@@ -8,7 +8,6 @@ import (
 )
 
 func TestNewDSN(t *testing.T) {
-	defaultCfg := config.ServerDefaults("synche")
 	tests := []struct {
 		name string
 		dbConfig config.DatabaseConfig
@@ -21,7 +20,7 @@ func TestNewDSN(t *testing.T) {
 		},
 		{
 			name: "dsn with default config",
-			dbConfig: defaultCfg.Database,
+			dbConfig: config.Config.Database,
 			wantDsn: "root:@tcp(127.0.0.1:3306)/synche?charset=utf8mb4&parseTime=True&loc=Local",
 		},
 	}

@@ -12,11 +12,15 @@ var (
 	textFile = "testdata/test_upload_file.txt"
 )
 
+func TestFileUpload(t *testing.T) {
+	// TODO: Add test cases.
+}
+
 func TestUploadCommand(t *testing.T) {
-	// Create a new mock FileUploader and return no error for any string input
-	fileUploader := new(mocks.Uploader)
-	fileUploader.On("Run", mock.AnythingOfType("string")).Return(nil)
-	uploadCmd := cmd.NewUploadCmd(fileUploader)
+	// Create a new mock FileUploadFunc and return no error for any string input
+	fileUploader := new(mocks.FileUploadFunc)
+	fileUploader.On("Execute", mock.AnythingOfType("string")).Return(nil)
+	uploadCmd := cmd.NewUploadCmd(fileUploader.Execute)
 
 	testCases := []struct {
 		Name     string

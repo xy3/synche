@@ -3,24 +3,33 @@ package cmd
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
+	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"path"
+	"path/filepath"
 	"time"
 )
 
-func NewUploadCmd(uploader Uploader) *cobra.Command {
+func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 	uploadCmd := &cobra.Command{
 		Use:   "upload [file path]",
 		Short: "Uploads a specified file to the server",
 		Long:  `Uploads a specified local file to the server using chunked uploading`,
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			err := apiclient.AuthenticateClient(filepath.Join(config.SyncheDir, "token.json"))
+			if err != nil {
+				log.WithError(err).Fatal("Failed to authenticate the client")
+			}
+
 			start := time.Now()
 			filePath := args[0]
-			err := uploader.Run(filePath)
+
+			err = fileUploadFunc(filePath)
 			if err != nil {
 				log.WithError(err).Fatal("Failed to upload the file")
 			}
@@ -28,63 +37,40 @@ func NewUploadCmd(uploader Uploader) *cobra.Command {
 			log.Info(elapsed)
 		},
 	}
+
 	uploadCmd.Flags().StringP("name", "n", "", "store the file on the server with this name instead")
+	uploadCmd.Flags().Int64VarP(&c.Config.Chunks.Size, "chunk-size", "s", 1024, "size in KB for each chunk")
+	uploadCmd.Flags().IntVarP(&c.Config.Chunks.Workers, "workers", "w", 10, "number of chunks to upload in parallel")
+
 	return uploadCmd
 }
 
-//go:generate mockery --name=Uploader --case underscore
-type Uploader interface {
-	Run(filePath string) error
-}
+//go:generate mockery --name=FileUploadFunc --case=underscore
+type FileUploadFunc func(filePath string) error
 
-type UploadJob struct {
-	chunkUploader upload.ChunkUploader
-	fileUploader  upload.FileUploader
-	fileHashFunc  files.FileHashFunc
-}
-
-func (u UploadJob) Run(filePath string) error {
+func FileUpload(filePath string) error {
 	file, err := files.AppFS.Open(filePath)
+
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
 	stat, err := file.Stat()
+
 	if err != nil {
 		return err
 	}
-	hash, err := u.fileHashFunc(filePath)
+	hash, err := files.HashFile(filePath)
+
 	if err != nil {
 		return err
 	}
-	splitFile := data.NewSplitFile(stat.Size(), viper.GetInt64("config.chunks.size"), filePath, path.Base(filePath), hash, file)
-	return u.fileUploader.AsyncUpload(splitFile)
-}
-
-func NewUploadJob(newUploadRequester upload.NewUploadRequester, fileHashFunc files.FileHashFunc) *UploadJob {
-	chunkUploader := new(upload.ChunkUpload)
-	fileUploader := upload.NewFileUpload(chunkUploader, newUploadRequester)
-
-	return &UploadJob{
-		chunkUploader: chunkUploader,
-		fileUploader:  fileUploader,
-		fileHashFunc:  fileHashFunc,
-	}
-}
-
-func NewDefaultUploadJob() *UploadJob {
-	return NewUploadJob(upload.DefaultNewUploadRequester, files.HashFile)
+	splitFile := data.NewSplitFile(stat.Size(), c.Config.Chunks.Size, filePath, path.Base(filePath), hash, file)
+	return upload.AsyncUpload(splitFile, upload.NewUpload, upload.AsyncChunkUpload)
 }
 
 func init() {
-	uploadCmd := NewUploadCmd(NewDefaultUploadJob())
+	uploadCmd := NewUploadCmd(FileUpload)
 	rootCmd.AddCommand(uploadCmd)
-	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp: true,
-	})
-	uploadCmd.Flags().Int64P("chunksize", "s", 1024, "size in KB for each chunk")
-	uploadCmd.Flags().IntP("workers", "w", 10, "number of chunks to upload in parallel")
-
-	_ = viper.BindPFlag("config.chunks.size", uploadCmd.Flags().Lookup("chunksize"))
-	_ = viper.BindPFlag("config.chunks.workers", uploadCmd.Flags().Lookup("workers"))
 }

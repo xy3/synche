@@ -6,6 +6,11 @@ src/.idea/
 mocks/
 speed_tests/
 
+src/server/restapi/operations
+src/server/models/
+src/client/models/
+src/client/apiclient/*/*
+
 # Ignore compiled C/C++ files.
 *.o
 

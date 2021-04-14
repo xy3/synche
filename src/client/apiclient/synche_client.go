@@ -10,7 +10,10 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/tokens"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/transfer"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/users"
 )
 
 // Default synche HTTP client.
@@ -19,7 +22,7 @@ var Default = NewHTTPClient(nil)
 const (
 	// DefaultHost is the default Host
 	// found in Meta (info) section of spec file
-	DefaultHost string = "localhost:8080"
+	DefaultHost string = "127.0.0.1:9449"
 	// DefaultBasePath is the default BasePath
 	// found in Meta (info) section of spec file
 	DefaultBasePath string = "/v1/api"
@@ -55,7 +58,10 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *Synche {
 
 	cli := new(Synche)
 	cli.Transport = transport
+	cli.Files = files.New(transport, formats)
+	cli.Tokens = tokens.New(transport, formats)
 	cli.Transfer = transfer.New(transport, formats)
+	cli.Users = users.New(transport, formats)
 	return cli
 }
 
@@ -100,7 +106,13 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // Synche is a client for synche
 type Synche struct {
+	Files files.ClientService
+
+	Tokens tokens.ClientService
+
 	Transfer transfer.ClientService
+
+	Users users.ClientService
 
 	Transport runtime.ClientTransport
 }
@@ -108,5 +120,8 @@ type Synche struct {
 // SetTransport changes the transport on the client and all its subresources
 func (c *Synche) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
+	c.Files.SetTransport(transport)
+	c.Tokens.SetTransport(transport)
 	c.Transfer.SetTransport(transport)
+	c.Users.SetTransport(transport)
 }

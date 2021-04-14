@@ -1,12 +1,41 @@
 package config
 
 import (
+	"github.com/fsnotify/fsnotify"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
 	"path/filepath"
 )
 
-var Config Configuration
+var Config = &Configuration{
+	Synche: SyncheConfig{
+		Dir:     config.SyncheDir,
+		Verbose: false,
+		Debug:   false,
+	},
+	Server: ServerConfig{
+		Port:       9449,
+		Host:       "127.0.0.1",
+		BasePath:   "/v1/api",
+		StorageDir: filepath.Join(config.SyncheDir, "data"),
+		UploadDir:  filepath.Join(config.SyncheDir, "data", "received"),
+	},
+	Database: DatabaseConfig{
+		Driver:   "mysql",
+		Name:     "synche",
+		Username: "root",
+		Password: "",
+		Protocol: "tcp",
+		Address:  "127.0.0.1:3306",
+	},
+	Redis: RedisConfig{
+		Protocol: "tcp",
+		Address:  "127.0.0.1:6379",
+		Password: "",
+		DB:       0,
+	},
+}
 
 type Configuration struct {
 	Synche   SyncheConfig
@@ -23,6 +52,8 @@ type SyncheConfig struct {
 
 type ServerConfig struct {
 	Port       int
+	Host       string
+	BasePath   string
 	UploadDir  string
 	StorageDir string
 }
@@ -51,49 +82,12 @@ func RequiredDirs() []string {
 	}
 }
 
-func ServerDefaults(syncheDir string) Configuration {
-	storageDir := filepath.Join(syncheDir, "data")
-
-	defaultCfg := Configuration{
-		Synche: SyncheConfig{
-			Dir:     syncheDir,
-			Verbose: false,
-			Debug:   false,
-		},
-		Server: ServerConfig{
-			Port:       8080,
-			StorageDir: storageDir,
-			UploadDir:  filepath.Join(storageDir, "received"),
-		},
-		Database: DatabaseConfig{
-			Driver:   "mysql",
-			Name:     "synche",
-			Username: "root",
-			Password: "",
-			Protocol: "tcp",
-			Address:  "127.0.0.1:3306",
-		},
-		Redis: RedisConfig{
-			Protocol: "tcp",
-			Address:  "127.0.0.1:6379",
-			Password: "",
-			DB:       0,
-		},
-	}
-
-	viper.SetDefault("config", defaultCfg)
-	return defaultCfg
+func init() {
+	viper.SetDefault("config", Config)
 }
 
 func InitConfig(cfgFile string) error {
-	cfg, err := config.New(cfgFile, "synche-server")
-	if err != nil {
-		return err
-	}
-
-	defaultCfg := ServerDefaults(cfg.Dir)
-	viper.SetDefault("config", defaultCfg)
-	err = cfg.ReadOrCreate(defaultCfg)
+	_, err := config.ReadOrCreate("synche-server", cfgFile, Config)
 	if err != nil {
 		return err
 	}
@@ -104,5 +98,9 @@ func InitConfig(cfgFile string) error {
 	}
 
 	viper.WatchConfig()
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		log.Info("Config Updated")
+		_ = viper.UnmarshalKey("config", &Config)
+	})
 	return nil
 }

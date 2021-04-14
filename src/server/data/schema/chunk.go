@@ -1,6 +1,8 @@
 package schema
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
 // Chunk is a file on the server that has a hash and size to compare it
 type Chunk struct {

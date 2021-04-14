@@ -2,22 +2,18 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"time"
 )
 
-func (d *SyncheData) Configure() error {
-	sqlDB, err := d.DB.DB()
+func Configure() error {
+	sqlDB, err := DB.DB()
 	if err != nil {
 		return err
 	}
-	return configureDB(sqlDB)
-}
 
-func configureDB(sqlDB *sql.DB) error {
 	// Recommended values for not starving a Database, may need to be reviewed
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetMaxIdleConns(10)

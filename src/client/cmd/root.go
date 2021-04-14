@@ -3,7 +3,7 @@ package cmd
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/setup"
@@ -24,37 +24,28 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.OnInitialize(func() {
-		err := c.InitConfig(cfgFile)
-		if err != nil {
-			log.WithError(err).Fatal("Could not initialize the config")
-		}
-
-		err = setup.Dirs(files.AppFS, c.RequiredDirs())
+		err := setup.Dirs(files.AppFS, c.RequiredDirs())
 		if err != nil {
 			log.WithError(err).Fatal("Could not set up the required directories")
 		}
 
-		err = c.ConfigureClient()
-		if err != nil {
-			log.WithError(err).Fatal("Failed to configure the Synche client")
-		}
+		apiclient.ConfigureClient(c.Config.Server.Host, c.Config.Server.BasePath)
 
 		if c.Config.Synche.Debug {
-			log.Infof("Verbose: true")
+			log.Debug("Debug mode")
 			log.SetLevel(log.DebugLevel)
 		}
 	})
 
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
+	cobra.CheckErr(rootCmd.Execute())
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche/synche-client.yaml)")
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "display verbose output (default is false)")
-	err := viper.BindPFlags(rootCmd.PersistentFlags())
+	// The config needs to be initialized here so that sub-command flags can override the values
+	err := c.InitConfig(cfgFile)
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal("Could not initialize the config")
 	}
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche/synche-client.yaml)")
+	rootCmd.PersistentFlags().BoolVarP(&c.Config.Synche.Verbose, "verbose", "v", false, "display verbose output (default is false)")
 }

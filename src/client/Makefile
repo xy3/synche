@@ -1,6 +1,6 @@
 generate:
 	swagger generate client \
-		--spec "../server/api/openapi-spec/synche-server-api.yaml" \
+		--spec "../server/spec/synche-server-api.yaml" \
 		-c apiclient
 
 build:
