@@ -1,15 +1,28 @@
 package config
 
 import (
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
 	"path"
 )
 
-var (
-	Config Configuration
-)
+var Config = Configuration{
+	Synche: SyncheConfig{
+		Dir:     config.SyncheDir,
+		DataDir: path.Join(config.SyncheDir, "data"),
+	},
+	Chunks: ChunksConfig{
+		Size:    1,
+		Workers: 10,
+	},
+	Server: ServerConfig{
+		Host:     apiclient.DefaultHost,
+		BasePath: apiclient.DefaultBasePath,
+		Https:    len(apiclient.DefaultSchemes) > 1,
+	},
+}
 
 type Configuration struct {
 	Synche SyncheConfig
@@ -20,14 +33,14 @@ type Configuration struct {
 type ServerConfig struct {
 	Host     string
 	BasePath string
-	Schemes  []string
+	Https    bool
 }
 
 type SyncheConfig struct {
-	Dir     string
-	DataDir string
-	Verbose bool
-	Debug   bool
+	Dir         string
+	DataDir     string
+	Verbose     bool
+	Debug       bool
 }
 
 type ChunksConfig struct {
@@ -42,38 +55,12 @@ func RequiredDirs() []string {
 	}
 }
 
-func ClientDefaults(syncheDir string) interface{} {
-	dataDir := path.Join(syncheDir, "data")
-
-	defaultCfg := Configuration{
-		Synche: SyncheConfig{
-			Dir:     syncheDir,
-			DataDir: dataDir,
-			Verbose: false,
-			Debug:   false,
-		},
-		Chunks: ChunksConfig{
-			Size:    1,
-			Workers: 10,
-		},
-		Server: ServerConfig{
-			Host:     apiclient.DefaultHost,
-			BasePath: apiclient.DefaultBasePath,
-			Schemes:  apiclient.DefaultSchemes,
-		},
-	}
-
-	viper.SetDefault("config", defaultCfg)
-	return defaultCfg
+func init() {
+	viper.SetDefault("config", &Config)
 }
 
 func InitConfig(cfgFile string) error {
-	cfg, err := config.New(cfgFile, "synche-client")
-	if err != nil {
-		return err
-	}
-
-	err = cfg.ReadOrCreate(ClientDefaults(cfg.Dir))
+	_, err := config.ReadOrCreate("synche-client", cfgFile, Config)
 	if err != nil {
 		return err
 	}
@@ -84,5 +71,8 @@ func InitConfig(cfgFile string) error {
 	}
 
 	viper.WatchConfig()
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		_ = viper.UnmarshalKey("config", &Config)
+	})
 	return nil
 }

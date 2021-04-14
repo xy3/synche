@@ -11,4 +11,3 @@ type Chunk struct {
 func NewChunk(num int64, bytes *[]byte) *Chunk {
 	return &Chunk{Hash: files.HashChunk(*bytes), Num: num, Bytes: bytes}
 }
-

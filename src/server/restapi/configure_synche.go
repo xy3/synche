@@ -8,28 +8,28 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/tokens"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
 	"net/http"
+
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 )
 
-//go:generate swagger generate server --target ../../server --name Synche --spec ../api/openapi-spec/synche-server-api.yaml --principal models.Message --flag-strategy=pflag --exclude-main
+//go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal models.User --exclude-main
 
 func configureFlags(api *operations.SyncheAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
 }
 
-func OverrideFlags() {
-	port = c.Config.Server.Port
-}
-
 func configureAPI(api *operations.SyncheAPI) http.Handler {
-	// configure the api here
 	api.ServeError = errors.ServeError
 	api.Logger = log.Infof
 	api.UseSwaggerUI()
@@ -37,53 +37,82 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.MultipartformConsumer = runtime.DiscardConsumer
 	api.JSONProducer = runtime.JSONProducer()
 
-	// set up the Synche database with Redis and SQL
-	cache := data.NewRedisCache(c.Config.Redis, data.NewUploadCache())
-	db, err := gorm.Open(mysql.Open(data.NewDSN(c.Config.Database)), &gorm.Config{
-		PrepareStmt: true,
+	err := data.InitSyncheData()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to start Synche Data requirements")
+	}
+
+	authService := auth.Service{
+		SecretKey:       "CHANGE_THIS_SECRET_KEY", // TODO: This should be configurable
+		Issuer:          "synche.auth.service",
+		ExpirationHours: 24,
+	}
+
+	// Applies when the "Bearer" header is set
+	api.AccessTokenAuth = func(token string) (*schema.User, error) {
+		log.Info(token)
+		claims, err := authService.ValidateAccessToken(token)
+		if err != nil {
+			return nil, errors.New(400, err.Error())
+		}
+
+		user, err := repo.GetUserByEmail(claims.Email)
+		if err != nil {
+			return nil, errors.New(404, "user credentials not found")
+		}
+		return user, nil
+	}
+
+	api.RefreshTokenAuth = func(token string) (*schema.User, error) {
+		claims, err := authService.ValidateRefreshToken(token)
+		if err != nil {
+			return nil, err
+		}
+		user, err := repo.GetUserByEmail(claims.Email)
+		if err != nil {
+			return nil, errors.New(404, "user credentials not found")
+		}
+
+		actualCustomKey := authService.GenerateCustomKey(user.Email, user.TokenHash)
+		if claims.CustomKey != actualCustomKey {
+			return nil, errors.New(400, "invalid token, authentication failed")
+		}
+
+		return user, nil
+	}
+
+	// Set your custom authorizer if needed. Default one is security.Authorized()
+	// api.APIAuthorizer = security.Authorized()
+	// You may change here the memory limit for this multipart form parser. Currently 50 MB.
+	transfer.UploadChunkMaxParseMemory = 50 << 20
+
+	api.UsersLoginHandler = users.LoginHandlerFunc(func(params users.LoginParams) middleware.Responder {
+		return handlers.Login(params, authService)
 	})
-	if err != nil {
-		log.Fatal("Failed to open gorm DB connection")
-	}
-	syncheData, err := data.NewSyncheData(cache, db)
-	if err != nil {
-		panic(err)
-	}
+	api.UsersRegisterHandler = users.RegisterHandlerFunc(handlers.Register)
+	api.UsersProfileHandler = users.ProfileHandlerFunc(handlers.Profile)
 
-	// Migrate the schema
-	err = syncheData.MigrateAll()
-	if err != nil {
-		log.WithError(err).Error("Failed to migrate database")
-	}
+	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFile)
+	api.FilesGetFileInfoHandler = files.GetFileInfoHandlerFunc(handlers.FileInfo)
+	api.FilesListHandler = files.ListHandlerFunc(handlers.ListFiles)
 
-	err = syncheData.Configure()
-	if err != nil {
-		log.WithError(err).Fatal("Failed to configure the SQL database")
-	}
+	api.TransferDownloadFileHandler = transfer.DownloadFileHandlerFunc(handlers.DownloadFile)
+	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(handlers.NewUpload)
+	api.TransferUploadChunkHandler = transfer.UploadChunkHandlerFunc(handlers.UploadChunk)
 
-	// You may change here the memory limit for this multipart form parser. Below is the default (32 MB).
-	// transfer.UploadFileMaxParseMemory = 32 << 20
-	// ============= Start Route Handlers =============
-	// TODO: Implement listing functionality
-	if api.TransferListFilesHandler == nil {
-		api.TransferListFilesHandler = transfer.ListFilesHandlerFunc(func(params transfer.ListFilesParams) middleware.Responder {
-			return middleware.NotImplemented("operation transfer.ListFilesHandlerFunc has not yet been implemented")
-		})
-	}
-
-	api.TransferUploadChunkHandler = transfer.UploadChunkHandlerFunc(func(params transfer.UploadChunkParams) middleware.Responder {
-		return handlers.UploadChunkHandler(params, syncheData)
+	api.TokensRefreshTokenHandler = tokens.RefreshTokenHandlerFunc(func(
+		params tokens.RefreshTokenParams,
+		user *schema.User,
+	) middleware.Responder {
+		token, err := authService.GenerateAccessToken(user.Email)
+		if err != nil {
+			return tokens.NewRefreshTokenDefault(500).WithPayload("could not generate a new access token")
+		}
+		return tokens.NewRefreshTokenOK().WithPayload(&models.AccessToken{AccessToken: token})
 	})
-
-	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(func(params transfer.NewUploadParams) middleware.Responder {
-		return handlers.NewUploadFileHandler(syncheData, params)
-	})
-	// 	============= End Route Handlers =============
 
 	api.PreServerShutdown = func() {}
-
 	api.ServerShutdown = func() {}
-
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
 }
 

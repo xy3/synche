@@ -50,7 +50,7 @@ func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilePath stri
 	return newFilePath
 }
 
-func ReassembleFile(cache *data.RedisCache, chunkDir, fileName string, uploadRequestId uint) error {
+func ReassembleFile(chunkDir, fileName string, uploadRequestId uint) error {
 	chunkFileNames, err := files.Afs.ReadDir(chunkDir)
 	if err != nil {
 		return err
@@ -87,10 +87,8 @@ func ReassembleFile(cache *data.RedisCache, chunkDir, fileName string, uploadReq
 		}
 	}
 
-	// Remove data from cache
-	if err = cache.UploadCache.DelUpload(cache, uploadRequestId); err != nil {
-		return err
-	}
+	// Remove the upload from the cache
+	data.Cache.Uploads.Delete(strconv.Itoa(int(uploadRequestId)))
 
 	log.WithFields(log.Fields{"name": fileName, "location": reassembledFileLocation}).Info("File successfully uploaded")
 	return nil

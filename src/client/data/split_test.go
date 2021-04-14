@@ -73,19 +73,19 @@ func TestSplitFile_NextChunk(t *testing.T) {
 
 func TestSplitFile_Split(t *testing.T) {
 	testCases := []struct {
-		Name          string
-		FileSize      int64
-		ChunkSize     int64
-		CurrentIndex  int64
-		FileBytes     []byte
+		Name              string
+		FileSize          int64
+		ChunkSize         int64
+		CurrentIndex      int64
+		FileBytes         []byte
 		ExpectedNumChunks int
-		ExpectedError error
+		ExpectedError     error
 	}{
 		{"empty file", 0, data.MB, 0, []byte{}, 0, nil},
 		{"1MB file, 1MB chunkSize", 4 * data.BYTE, data.MB, 0, []byte("test"), 1, nil},
 		{"current index at end", data.MB, data.MB, 1, []byte("test"), 0, nil},
 		{"broken io reader", data.MB, data.MB, 0, nil, 0, io.EOF},
-		{"5MB file, 1MB chunkSize", 5*data.MB, 1*data.MB, 0, make([]byte, (data.MB/data.BYTE) * 5), 5, nil},
+		{"5MB file, 1MB chunkSize", 5 * data.MB, 1 * data.MB, 0, make([]byte, (data.MB/data.BYTE)*5), 5, nil},
 	}
 	for _, tc := range testCases {
 		t.Run(
@@ -97,7 +97,7 @@ func TestSplitFile_Split(t *testing.T) {
 				splitFile.Reader = bytes.NewReader(tc.FileBytes)
 				count := 0
 				err := splitFile.Split(
-					func(chunk *data.Chunk) error {
+					func(chunk *data.Chunk, index int64) error {
 						count++
 						return nil
 					},

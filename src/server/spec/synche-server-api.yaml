@@ -1,0 +1,461 @@
+swagger: '2.0'
+
+host: 127.0.0.1:9449
+basePath: /v1/api
+schemes:
+  - http
+
+info:
+  description: Synche Server API
+  version: 1.0.0
+  title: Synche
+  # put the contact info for your development or API team
+  contact:
+    email: you@your-company.com
+
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+# tags are used for organizing operations
+tags:
+  - name: files
+  - name: transfer
+    description: File transfer requests
+  - name: users
+    description: User authorization
+
+securityDefinitions:
+  AccessToken:
+    type: apiKey
+    in: header
+    name: X-Token
+  RefreshToken:
+    type: apiKey
+    in: header
+    name: X-Refresh-Token
+
+# Set the default security for all requests
+security:
+  - AccessToken: [ ]
+
+paths:
+  /login:
+    post:
+      summary: user login
+      security: [ ]
+      tags:
+        - users
+      parameters:
+        - in: query
+          name: email
+          type: string
+          required: true
+        - in: query
+          name: password
+          type: string
+          required: true
+      operationId: login
+      responses:
+        200:
+          description: logged in
+          schema:
+            $ref: '#/definitions/AccessAndRefreshToken'
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /register:
+    post:
+      summary: register user
+      operationId: register
+      security: [ ]
+      tags:
+        - users
+      parameters:
+        - in: query
+          name: email
+          type: string
+          required: true
+        - in: query
+          name: password
+          type: string
+          required: true
+        - in: query
+          name: name
+          type: string
+          required: false
+      responses:
+        200:
+          description: registered successfully
+          schema:
+            $ref: '#/definitions/User'
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /token/refresh:
+    post:
+      operationId: refreshToken
+      security:
+        - RefreshToken: [ ]
+      tags:
+        - tokens
+      responses:
+        200:
+          description: token refreshed successfully
+          schema:
+            $ref: '#/definitions/AccessToken'
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+
+  /user:
+    get:
+      tags:
+        - users
+      operationId: profile
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/User'
+        default:
+          description: error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /upload/new:
+    post:
+      tags:
+        - transfer
+      summary: requests to initiate a new file upload
+      operationId: newUpload
+      description: To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: uploadInfo
+          schema:
+            $ref: '#/definitions/NewFileUpload'
+          required: true
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Upload'
+        401:
+          description: Unauthorized
+        501:
+          description: not implemented
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+
+  /upload/chunk:
+    post:
+      tags:
+        - transfer
+      summary: adds an inventory item
+      operationId: uploadChunk
+      description: Uploads a new chunk to the Synche server
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: chunkData
+          type: file
+          required: true
+          description: Chunk file data
+        - in: formData
+          name: chunkHash
+          type: string
+          required: true
+          description: The file hash of the chunk
+        - in: formData
+          name: chunkNumber
+          type: integer
+          required: true
+          description: The position index of the chunk in the file the chunk is from
+        - in: formData
+          name: uploadID
+          type: integer
+          format: uint
+          required: true
+          description: The identifier for the composite file upload request
+      responses:
+        201:
+          description: OK
+          schema:
+            $ref: '#/definitions/FileChunk'
+        400:
+          description: bad request
+          schema:
+            $ref: '#/definitions/Error'
+        409:
+          description: the file already exists or cannot be written to
+          schema:
+            $ref: '#/definitions/Error'
+        401:
+          description: Unauthorized
+        501:
+          description: not implemented
+
+  /list/{directoryID}:
+    get:
+      tags:
+        - files
+      summary: lists the files on the server
+      operationId: list
+      description: Queries the server for the files and their locations stored on the server
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: directoryID
+          type: integer
+          required: true
+        - in: query
+          name: limit
+          type: integer
+          default: 100
+          required: false
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/DirectoryContents'
+        501:
+          description: not implemented
+
+  /download/{fileID}:
+    parameters:
+      - in: path
+        name: fileID
+        type: integer
+        required: true
+    get:
+      operationId: downloadFile
+      tags:
+        - transfer
+      responses:
+        200:
+          description: OK
+          schema:
+            type: string
+            format: binary
+        403:
+          description: Forbidden
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+
+  /files/{fileID}:
+    parameters:
+      - in: path
+        name: fileID
+        type: integer
+        required: true
+    get:
+      operationId: getFileInfo
+      tags:
+        - files
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+    delete:
+      tags:
+        - files
+      operationId: deleteFile
+      responses:
+        201:
+          description: Deleted
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+
+definitions:
+  User:
+    type: object
+    required:
+      - id
+      - email
+      - password
+      - name
+      - picture
+      - role
+    properties:
+      id:
+        type: integer
+        format: uint
+      email:
+        type: string
+      emailVerified:
+        type: boolean
+      name:
+        type: string
+      password:
+        type: string
+      picture:
+        type: string
+      role:
+        type: string
+        enum:
+          - member
+          - admin
+
+  AccessToken:
+    type: object
+    properties:
+      accessToken:
+        type: string
+
+  AccessAndRefreshToken:
+    type: object
+    properties:
+      accessToken:
+        type: string
+      accessTokenExpiry:
+        description: the unix timestamp expiry of the access token
+        type: integer
+        format: int64
+      refreshToken:
+        type: string
+
+  Upload:
+    type: object
+    properties:
+      ID:
+        type: integer
+        format: uint
+      DirectoryID:
+        type: integer
+        format: uint
+      FileID:
+        type: integer
+        format: uint
+      NumChunks:
+        type: integer
+        format: int64
+
+  Chunk:
+    type: object
+    properties:
+      ID:
+        type: integer
+        format: uint
+      Hash:
+        type: string
+      Size:
+        type: integer
+        format: int64
+
+  FileChunk:
+    type: object
+    properties:
+      ID:
+        type: integer
+        format: uint
+      Number:
+        type: integer
+        description: the position of the chunk in the file
+      Chunk:
+        type: object
+        $ref: '#/definitions/Chunk'
+      DirectoryID:
+        type: integer
+        format: uint
+      FileID:
+        type: integer
+        format: uint
+      UploadID:
+        type: integer
+        format: uint
+
+  NewFileUpload:
+    type: object
+    description: required information about a file to intiate a multipart upload
+    required:
+      - FileName
+      - FileSize
+      - FileHash
+      - NumChunks
+    properties:
+      FileName:
+        type: string
+        description: the original name of the file
+      FileSize:
+        type: integer
+        description: the size of the file in bits
+      FileHash:
+        type: string
+        description: the hash of the entire file
+      NumChunks:
+        type: integer
+        description: the number of chunks the server should expect
+
+  File:
+    type: object
+    required:
+      - ID
+      - Name
+      - Size
+      - Hash
+      - DirectoryID
+    properties:
+      ID:
+        type: integer
+        format: uint
+      Name:
+        type: string
+      Size:
+        type: integer
+        format: int64
+      Hash:
+        type: string
+      DirectoryID:
+        type: integer
+        format: uint
+
+  Directory:
+    type: object
+    properties:
+      ID:
+        type: integer
+        format: uint
+      Path:
+        type: string
+
+  DirectoryContents:
+    type: object
+    properties:
+      Directory:
+        type: object
+        $ref: '#/definitions/Directory'
+      Contents:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/File'
+
+  Error:
+    type: string

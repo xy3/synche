@@ -7,49 +7,33 @@ import (
 	"path/filepath"
 )
 
-// type SyncheConfigManager interface {
-// 	Read() error
-// 	ReadOrCreate(config interface{}) error
-// 	Create(config interface{}) error
-// 	Write(config interface{}) error
-// }
+var (
+	HomeDir   string
+	SyncheDir string
+)
 
-var config SyncheConfig
-
-func Config() SyncheConfig {
-	return config
-}
-
-type SyncheConfig struct {
-	Home  string
-	Dir   string
-	Path  string
-	Name  string
-	IsNew bool
-}
-
-func New(path string, name string) (*SyncheConfig, error) {
+func init() {
 	home, err := homedir.Dir()
 	if err != nil {
-		return nil, err
+		log.WithError(err).Fatal("Could not retrieve the home directory location")
+		return
 	}
-	syncheDir := filepath.Join(home, ".synche")
-	config = SyncheConfig{Home: home, Dir: syncheDir, Path: path, Name: name, IsNew: false}
-	return &config, nil
+	HomeDir = home
+	SyncheDir = filepath.Join(HomeDir, ".synche")
 }
 
-func (cfg SyncheConfig) Read() error {
-	viper.SetConfigName(cfg.Name)
+func Read(name string, path string) error {
+	viper.SetConfigName(name)
 	viper.SetConfigType("yaml")
 
 	// Set config file locations
-	if cfg.Path != "" {
+	if path != "" {
 		// Use config file from the command line flag.
-		viper.SetConfigFile(cfg.Path)
+		viper.SetConfigFile(path)
 	} else {
 		// cfgFile not set, scan usual directories for existing config
-		viper.AddConfigPath(cfg.Dir)
-		viper.AddConfigPath(cfg.Home)
+		viper.AddConfigPath(SyncheDir)
+		viper.AddConfigPath(HomeDir)
 		viper.AddConfigPath(".")
 	}
 
@@ -64,17 +48,11 @@ func (cfg SyncheConfig) Read() error {
 	return nil
 }
 
-func (cfg *SyncheConfig) ReadOrCreate(defaultCfg interface{}) error {
-	err := cfg.Read()
+func ReadOrCreate(name, path string, defaultCfg interface{}) (created bool, err error) {
+	err = Read(name, path)
 	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 		log.Warn("No config file found")
-		err = cfg.Create(defaultCfg)
-		if err != nil {
-			return err
-		}
-		cfg.IsNew = true
-	} else {
-		return err
+		return true, SetupAndWrite(name, path, defaultCfg)
 	}
-	return nil
+	return false, err
 }

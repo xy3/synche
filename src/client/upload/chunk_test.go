@@ -15,7 +15,7 @@ func TestChunkUpload_NewParams(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		Chunk           data.Chunk
-		UploadRequestID int64
+		UploadRequestID uint64
 		ChunkBytes      []byte
 		ExpectedError   error
 	}{
@@ -29,11 +29,10 @@ func TestChunkUpload_NewParams(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(
 			tc.Name, func(t *testing.T) {
-				chunkUpload := new(upload.ChunkUpload)
 				tc.Chunk.Bytes = &tc.ChunkBytes
-				params := chunkUpload.NewParams(tc.Chunk, tc.UploadRequestID)
+				params := upload.NewChunkUploadParams(tc.Chunk, tc.UploadRequestID)
 				if tc.ExpectedError == nil {
-					require.Equal(t, tc.UploadRequestID, params.UploadRequestID)
+					require.Equal(t, tc.UploadRequestID, params.UploadID)
 					require.Equal(t, tc.Chunk.Num, params.ChunkNumber)
 					require.Equal(t, tc.Chunk.Hash, params.ChunkHash)
 					paramData := make([]byte, len(tc.ChunkBytes))

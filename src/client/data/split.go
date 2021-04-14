@@ -6,10 +6,11 @@ import (
 	"math"
 )
 
+//go:generate mockery --name=Splitter --case=underscore
 type Splitter interface {
 	NumChunks() int64
 	NextChunk() ([]byte, error)
-	Split(handleChunk func(*Chunk) error) error
+	Split(func(*Chunk, int64) error) error
 	File() *SplitFile
 }
 
@@ -52,7 +53,7 @@ func (sf *SplitFile) NextChunk() ([]byte, error) {
 		return nil, nil
 	}
 	// Use ChunkSize only if it is smaller than the rest of the file
-	numChunkBytes := sf.FileSize - (sf.CurrentIndex * sf.ChunkSize)
+	numChunkBytes := sf.FileSize - (int64(sf.CurrentIndex) * sf.ChunkSize)
 	if sf.ChunkSize < numChunkBytes {
 		numChunkBytes = sf.ChunkSize
 	}
@@ -68,14 +69,14 @@ func (sf *SplitFile) NextChunk() ([]byte, error) {
 	return chunkBytes, nil
 }
 
-func (sf *SplitFile) Split(handleChunk func(*Chunk) error) error {
+func (sf *SplitFile) Split(handleChunk func(*Chunk, int64) error) error {
 	for sf.CurrentIndex < sf.NumChunks() {
 		chunkBytes, err := sf.NextChunk()
 		if err != nil {
 			return err
 		}
 		chunk := NewChunk(sf.CurrentIndex, &chunkBytes)
-		if err = handleChunk(chunk); err != nil {
+		if err = handleChunk(chunk, sf.CurrentIndex); err != nil {
 			return err
 		}
 	}

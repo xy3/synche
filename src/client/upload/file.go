@@ -2,69 +2,36 @@ package upload
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
+	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"sync"
 )
 
-//go:generate mockery --name=FileUploader --case underscore
-type FileUploader interface {
-	AsyncUpload(splitter data.Splitter) error
-	SyncUpload(splitter data.Splitter) error
-}
+//go:generate mockery --name=AsyncFileUploader --case underscore
+type AsyncFileUploader func(data.Splitter, NewUploadFunc, AsyncChunkUploader) error
 
-type FileUpload struct {
-	ChunkUploader      ChunkUploader
-	NewUploadRequester NewUploadRequester
-}
-
-func NewFileUpload(chunkUploader ChunkUploader, newUploadRequester NewUploadRequester) *FileUpload {
-	return &FileUpload{ChunkUploader: chunkUploader, NewUploadRequester: newUploadRequester}
-}
-
-func (fu *FileUpload) SyncUpload(splitter data.Splitter) error {
-	uploadRequestID, err := fu.NewUploadRequester.CreateNewUpload(splitter)
+func AsyncUpload(splitter data.Splitter, newUploadFunc NewUploadFunc, asyncChunkUploader AsyncChunkUploader) error {
+	upload, err := newUploadFunc(NewUploadParamsFromSplitter(splitter))
 	if err != nil {
 		return err
 	}
 
-	err = splitter.Split(
-		func(chunk *data.Chunk) error {
-			params := fu.ChunkUploader.NewParams(*chunk, uploadRequestID)
-			return fu.ChunkUploader.SyncUpload(params)
-		},
-	)
-	if err != nil {
-		return err
-	}
-	log.Infof("Finished uploading all %d chunks to the server", splitter.NumChunks())
-	return nil
-}
+	log.WithFields(log.Fields{"workers": c.Config.Chunks.Workers, "chunksize": c.Config.Chunks.Size}).Info("Chunk config")
+	log.Infof("%#v", upload)
 
-func (fu *FileUpload) AsyncUpload(splitter data.Splitter) error {
 	var wg sync.WaitGroup
 	uploadErrors := make(chan error)
-
-	uploadRequestID, err := fu.NewUploadRequester.CreateNewUpload(splitter)
-	if err != nil {
-		return err
-	}
-
-	workers := viper.GetInt("config.chunks.workers")
-	chunkSize := viper.GetInt("config.chunks.size")
-	log.WithFields(log.Fields{"workers": workers, "chunksize": chunkSize}).Info("Chunk config")
-
 	// The closure func here is called everytime a new chunk is read from the file
 	err = splitter.Split(
-		func(chunk *data.Chunk) error {
-			idx := splitter.File().CurrentIndex
-			if idx%int64(workers) == 0 {
-				log.Infof("%d - Waiting for %d workers...", idx, workers)
+		func(chunk *data.Chunk, index int64) error {
+			log.WithFields(log.Fields{"chunk": *chunk, "index": index}).Info("")
+			if index%int64(c.Config.Chunks.Workers) == 0 {
+				log.Infof("%d - Waiting for %d workers...", index, c.Config.Chunks.Workers)
 				wg.Wait()
 			}
-			params := fu.ChunkUploader.NewParams(*chunk, uploadRequestID)
+			params := NewChunkUploadParams(*chunk, upload.ID)
 			wg.Add(1)
-			go fu.ChunkUploader.AsyncUpload(&wg, params, uploadErrors)
+			go asyncChunkUploader(&wg, params, uploadErrors)
 			return nil
 		},
 	)
@@ -78,7 +45,7 @@ func (fu *FileUpload) AsyncUpload(splitter data.Splitter) error {
 	close(uploadErrors)
 
 	// Here we could attempt to cast the error as an UploadChunkBadRequest or other relevant error types
-	for err := range uploadErrors {
+	for err = range uploadErrors {
 		if err != nil {
 			log.Error(err)
 			return err

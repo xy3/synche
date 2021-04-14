@@ -34,10 +34,91 @@ func init() {
     },
     "version": "1.0.0"
   },
-  "host": "localhost:8080",
+  "host": "127.0.0.1:9449",
   "basePath": "/v1/api",
   "paths": {
-    "/list": {
+    "/download/{fileID}": {
+      "get": {
+        "tags": [
+          "transfer"
+        ],
+        "operationId": "downloadFile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "type": "integer",
+          "name": "fileID",
+          "in": "path",
+          "required": true
+        }
+      ]
+    },
+    "/files/{fileID}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "getFileInfo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/File"
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "deleteFile",
+        "responses": {
+          "201": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "type": "integer",
+          "name": "fileID",
+          "in": "path",
+          "required": true
+        }
+      ]
+    },
+    "/list/{directoryID}": {
       "get": {
         "description": "Queries the server for the files and their locations stored on the server",
         "consumes": [
@@ -47,17 +128,22 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "transfer"
+          "files"
         ],
         "summary": "lists the files on the server",
-        "operationId": "listFiles",
+        "operationId": "list",
         "parameters": [
           {
-            "name": "directory",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/DirectoryListRequest"
-            }
+            "type": "integer",
+            "name": "directoryID",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "default": 100,
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -68,9 +154,114 @@ func init() {
             }
           },
           "501": {
-            "description": "not implemented",
+            "description": "not implemented"
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "security": [],
+        "tags": [
+          "users"
+        ],
+        "summary": "user login",
+        "operationId": "login",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "email",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "password",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "logged in",
             "schema": {
-              "$ref": "#/definitions/NotImplemented"
+              "$ref": "#/definitions/AccessAndRefreshToken"
+            }
+          },
+          "default": {
+            "description": "error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/register": {
+      "post": {
+        "security": [],
+        "tags": [
+          "users"
+        ],
+        "summary": "register user",
+        "operationId": "register",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "email",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "password",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "registered successfully",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          },
+          "default": {
+            "description": "error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/token/refresh": {
+      "post": {
+        "security": [
+          {
+            "RefreshToken": []
+          }
+        ],
+        "tags": [
+          "tokens"
+        ],
+        "operationId": "refreshToken",
+        "responses": {
+          "200": {
+            "description": "token refreshed successfully",
+            "schema": {
+              "$ref": "#/definitions/AccessToken"
+            }
+          },
+          "default": {
+            "description": "Error",
+            "schema": {
+              "$ref": "#/definitions/Error"
             }
           }
         }
@@ -114,8 +305,9 @@ func init() {
           },
           {
             "type": "integer",
+            "format": "uint",
             "description": "The identifier for the composite file upload request",
-            "name": "uploadRequestId",
+            "name": "uploadID",
             "in": "formData",
             "required": true
           }
@@ -124,7 +316,7 @@ func init() {
           "201": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/UploadedChunk"
+              "$ref": "#/definitions/FileChunk"
             }
           },
           "400": {
@@ -133,6 +325,9 @@ func init() {
               "$ref": "#/definitions/Error"
             }
           },
+          "401": {
+            "description": "Unauthorized"
+          },
           "409": {
             "description": "the file already exists or cannot be written to",
             "schema": {
@@ -140,10 +335,7 @@ func init() {
             }
           },
           "501": {
-            "description": "not implemented",
-            "schema": {
-              "$ref": "#/definitions/NotImplemented"
-            }
+            "description": "not implemented"
           }
         }
       }
@@ -164,11 +356,11 @@ func init() {
         "operationId": "newUpload",
         "parameters": [
           {
-            "name": "fileInfo",
+            "name": "uploadInfo",
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/FileInfo"
+              "$ref": "#/definitions/NewFileUpload"
             }
           }
         ],
@@ -176,19 +368,41 @@ func init() {
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/NewFileUploadRequestAccepted"
+              "$ref": "#/definitions/Upload"
             }
           },
-          "400": {
-            "description": "bad request",
+          "401": {
+            "description": "Unauthorized"
+          },
+          "501": {
+            "description": "not implemented"
+          },
+          "default": {
+            "description": "Error",
             "schema": {
               "$ref": "#/definitions/Error"
             }
-          },
-          "501": {
-            "description": "not implemented",
+          }
+        }
+      }
+    },
+    "/user": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "profile",
+        "responses": {
+          "200": {
+            "description": "OK",
             "schema": {
-              "$ref": "#/definitions/NotImplemented"
+              "$ref": "#/definitions/User"
+            }
+          },
+          "default": {
+            "description": "error",
+            "schema": {
+              "$ref": "#/definitions/Error"
             }
           }
         }
@@ -196,118 +410,253 @@ func init() {
     }
   },
   "definitions": {
-    "DirectoryContents": {
+    "AccessAndRefreshToken": {
       "type": "object",
       "properties": {
-        "DirectoryID": {
-          "type": "integer"
+        "accessToken": {
+          "type": "string"
         },
-        "Listings": {
-          "description": "the contents of the directory",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "example": [
-            "file1",
-            "file2",
-            "directory1/"
-          ]
+        "accessTokenExpiry": {
+          "description": "the unix timestamp expiry of the access token",
+          "type": "integer",
+          "format": "int64"
+        },
+        "refreshToken": {
+          "type": "string"
         }
       }
     },
-    "DirectoryListRequest": {
+    "AccessToken": {
       "type": "object",
       "properties": {
-        "DirectoryID": {
-          "type": "integer"
+        "accessToken": {
+          "type": "string"
+        }
+      }
+    },
+    "Chunk": {
+      "type": "object",
+      "properties": {
+        "Hash": {
+          "type": "string"
         },
-        "limit": {
-          "description": "the limit of file results to return",
+        "ID": {
           "type": "integer",
-          "default": 500,
-          "example": 10
+          "format": "uint"
+        },
+        "Size": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "Directory": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Path": {
+          "type": "string"
+        }
+      }
+    },
+    "DirectoryContents": {
+      "type": "object",
+      "properties": {
+        "Contents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/File"
+          }
+        },
+        "Directory": {
+          "type": "object",
+          "$ref": "#/definitions/Directory"
         }
       }
     },
     "Error": {
       "type": "string"
     },
-    "FileInfo": {
+    "File": {
+      "type": "object",
+      "required": [
+        "ID",
+        "Name",
+        "Size",
+        "Hash",
+        "DirectoryID"
+      ],
+      "properties": {
+        "DirectoryID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Hash": {
+          "type": "string"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Size": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "FileChunk": {
+      "type": "object",
+      "properties": {
+        "Chunk": {
+          "type": "object",
+          "$ref": "#/definitions/Chunk"
+        },
+        "DirectoryID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "FileID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Number": {
+          "description": "the position of the chunk in the file",
+          "type": "integer"
+        },
+        "UploadID": {
+          "type": "integer",
+          "format": "uint"
+        }
+      }
+    },
+    "NewFileUpload": {
       "description": "required information about a file to intiate a multipart upload",
       "type": "object",
       "required": [
-        "name",
-        "size",
-        "hash",
-        "chunks"
+        "FileName",
+        "FileSize",
+        "FileHash",
+        "NumChunks"
       ],
       "properties": {
-        "chunks": {
-          "description": "the number of chunks the server should expect",
-          "type": "integer"
-        },
-        "hash": {
+        "FileHash": {
           "description": "the hash of the entire file",
           "type": "string"
         },
-        "name": {
+        "FileName": {
           "description": "the original name of the file",
           "type": "string"
         },
-        "size": {
+        "FileSize": {
           "description": "the size of the file in bits",
           "type": "integer"
-        }
-      }
-    },
-    "Message": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "type": "integer"
         },
-        "message": {
-          "type": "string"
-        },
-        "success": {
-          "type": "boolean"
-        }
-      }
-    },
-    "NewFileUploadRequestAccepted": {
-      "description": "accept the new file upload request and return a UUID for the file",
-      "type": "object",
-      "properties": {
-        "uploadRequestId": {
+        "NumChunks": {
+          "description": "the number of chunks the server should expect",
           "type": "integer"
         }
       }
     },
-    "NotImplemented": {
-      "type": "string"
-    },
-    "UploadedChunk": {
+    "Upload": {
       "type": "object",
       "properties": {
         "DirectoryID": {
-          "type": "integer"
+          "type": "integer",
+          "format": "uint"
         },
         "FileID": {
-          "description": "The id of the file this chunk is a part of",
-          "type": "integer"
+          "type": "integer",
+          "format": "uint"
         },
-        "Hash": {
-          "description": "The file hash of the chunk",
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "NumChunks": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "User": {
+      "type": "object",
+      "required": [
+        "id",
+        "email",
+        "password",
+        "name",
+        "picture",
+        "role"
+      ],
+      "properties": {
+        "email": {
           "type": "string"
+        },
+        "emailVerified": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "name": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "member",
+            "admin"
+          ]
         }
       }
     }
   },
+  "securityDefinitions": {
+    "AccessToken": {
+      "type": "apiKey",
+      "name": "X-Token",
+      "in": "header"
+    },
+    "RefreshToken": {
+      "type": "apiKey",
+      "name": "X-Refresh-Token",
+      "in": "header"
+    }
+  },
+  "security": [
+    {
+      "AccessToken": []
+    }
+  ],
   "tags": [
+    {
+      "name": "files"
+    },
     {
       "description": "File transfer requests",
       "name": "transfer"
+    },
+    {
+      "description": "User authorization",
+      "name": "users"
     }
   ]
 }`))
@@ -328,10 +677,91 @@ func init() {
     },
     "version": "1.0.0"
   },
-  "host": "localhost:8080",
+  "host": "127.0.0.1:9449",
   "basePath": "/v1/api",
   "paths": {
-    "/list": {
+    "/download/{fileID}": {
+      "get": {
+        "tags": [
+          "transfer"
+        ],
+        "operationId": "downloadFile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "type": "integer",
+          "name": "fileID",
+          "in": "path",
+          "required": true
+        }
+      ]
+    },
+    "/files/{fileID}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "getFileInfo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/File"
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "files"
+        ],
+        "operationId": "deleteFile",
+        "responses": {
+          "201": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "type": "integer",
+          "name": "fileID",
+          "in": "path",
+          "required": true
+        }
+      ]
+    },
+    "/list/{directoryID}": {
       "get": {
         "description": "Queries the server for the files and their locations stored on the server",
         "consumes": [
@@ -341,17 +771,22 @@ func init() {
           "application/json"
         ],
         "tags": [
-          "transfer"
+          "files"
         ],
         "summary": "lists the files on the server",
-        "operationId": "listFiles",
+        "operationId": "list",
         "parameters": [
           {
-            "name": "directory",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/DirectoryListRequest"
-            }
+            "type": "integer",
+            "name": "directoryID",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "default": 100,
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -362,9 +797,114 @@ func init() {
             }
           },
           "501": {
-            "description": "not implemented",
+            "description": "not implemented"
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "security": [],
+        "tags": [
+          "users"
+        ],
+        "summary": "user login",
+        "operationId": "login",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "email",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "password",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "logged in",
             "schema": {
-              "$ref": "#/definitions/NotImplemented"
+              "$ref": "#/definitions/AccessAndRefreshToken"
+            }
+          },
+          "default": {
+            "description": "error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/register": {
+      "post": {
+        "security": [],
+        "tags": [
+          "users"
+        ],
+        "summary": "register user",
+        "operationId": "register",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "email",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "password",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "registered successfully",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          },
+          "default": {
+            "description": "error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/token/refresh": {
+      "post": {
+        "security": [
+          {
+            "RefreshToken": []
+          }
+        ],
+        "tags": [
+          "tokens"
+        ],
+        "operationId": "refreshToken",
+        "responses": {
+          "200": {
+            "description": "token refreshed successfully",
+            "schema": {
+              "$ref": "#/definitions/AccessToken"
+            }
+          },
+          "default": {
+            "description": "Error",
+            "schema": {
+              "$ref": "#/definitions/Error"
             }
           }
         }
@@ -408,8 +948,9 @@ func init() {
           },
           {
             "type": "integer",
+            "format": "uint",
             "description": "The identifier for the composite file upload request",
-            "name": "uploadRequestId",
+            "name": "uploadID",
             "in": "formData",
             "required": true
           }
@@ -418,7 +959,7 @@ func init() {
           "201": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/UploadedChunk"
+              "$ref": "#/definitions/FileChunk"
             }
           },
           "400": {
@@ -427,6 +968,9 @@ func init() {
               "$ref": "#/definitions/Error"
             }
           },
+          "401": {
+            "description": "Unauthorized"
+          },
           "409": {
             "description": "the file already exists or cannot be written to",
             "schema": {
@@ -434,10 +978,7 @@ func init() {
             }
           },
           "501": {
-            "description": "not implemented",
-            "schema": {
-              "$ref": "#/definitions/NotImplemented"
-            }
+            "description": "not implemented"
           }
         }
       }
@@ -458,11 +999,11 @@ func init() {
         "operationId": "newUpload",
         "parameters": [
           {
-            "name": "fileInfo",
+            "name": "uploadInfo",
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/FileInfo"
+              "$ref": "#/definitions/NewFileUpload"
             }
           }
         ],
@@ -470,19 +1011,41 @@ func init() {
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/NewFileUploadRequestAccepted"
+              "$ref": "#/definitions/Upload"
             }
           },
-          "400": {
-            "description": "bad request",
+          "401": {
+            "description": "Unauthorized"
+          },
+          "501": {
+            "description": "not implemented"
+          },
+          "default": {
+            "description": "Error",
             "schema": {
               "$ref": "#/definitions/Error"
             }
-          },
-          "501": {
-            "description": "not implemented",
+          }
+        }
+      }
+    },
+    "/user": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "profile",
+        "responses": {
+          "200": {
+            "description": "OK",
             "schema": {
-              "$ref": "#/definitions/NotImplemented"
+              "$ref": "#/definitions/User"
+            }
+          },
+          "default": {
+            "description": "error",
+            "schema": {
+              "$ref": "#/definitions/Error"
             }
           }
         }
@@ -490,104 +1053,253 @@ func init() {
     }
   },
   "definitions": {
-    "DirectoryContents": {
+    "AccessAndRefreshToken": {
       "type": "object",
       "properties": {
-        "DirectoryID": {
-          "type": "integer"
+        "accessToken": {
+          "type": "string"
         },
-        "Listings": {
-          "description": "the contents of the directory",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "example": [
-            "file1",
-            "file2",
-            "directory1/"
-          ]
+        "accessTokenExpiry": {
+          "description": "the unix timestamp expiry of the access token",
+          "type": "integer",
+          "format": "int64"
+        },
+        "refreshToken": {
+          "type": "string"
         }
       }
     },
-    "DirectoryListRequest": {
+    "AccessToken": {
       "type": "object",
       "properties": {
-        "DirectoryID": {
-          "type": "integer"
+        "accessToken": {
+          "type": "string"
+        }
+      }
+    },
+    "Chunk": {
+      "type": "object",
+      "properties": {
+        "Hash": {
+          "type": "string"
         },
-        "limit": {
-          "description": "the limit of file results to return",
+        "ID": {
           "type": "integer",
-          "default": 500,
-          "example": 10
+          "format": "uint"
+        },
+        "Size": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "Directory": {
+      "type": "object",
+      "properties": {
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Path": {
+          "type": "string"
+        }
+      }
+    },
+    "DirectoryContents": {
+      "type": "object",
+      "properties": {
+        "Contents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/File"
+          }
+        },
+        "Directory": {
+          "type": "object",
+          "$ref": "#/definitions/Directory"
         }
       }
     },
     "Error": {
       "type": "string"
     },
-    "FileInfo": {
+    "File": {
+      "type": "object",
+      "required": [
+        "ID",
+        "Name",
+        "Size",
+        "Hash",
+        "DirectoryID"
+      ],
+      "properties": {
+        "DirectoryID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Hash": {
+          "type": "string"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Size": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "FileChunk": {
+      "type": "object",
+      "properties": {
+        "Chunk": {
+          "type": "object",
+          "$ref": "#/definitions/Chunk"
+        },
+        "DirectoryID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "FileID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "Number": {
+          "description": "the position of the chunk in the file",
+          "type": "integer"
+        },
+        "UploadID": {
+          "type": "integer",
+          "format": "uint"
+        }
+      }
+    },
+    "NewFileUpload": {
       "description": "required information about a file to intiate a multipart upload",
       "type": "object",
       "required": [
-        "name",
-        "size",
-        "hash",
-        "chunks"
+        "FileName",
+        "FileSize",
+        "FileHash",
+        "NumChunks"
       ],
       "properties": {
-        "chunks": {
-          "description": "the number of chunks the server should expect",
-          "type": "integer"
-        },
-        "hash": {
+        "FileHash": {
           "description": "the hash of the entire file",
           "type": "string"
         },
-        "name": {
+        "FileName": {
           "description": "the original name of the file",
           "type": "string"
         },
-        "size": {
+        "FileSize": {
           "description": "the size of the file in bits",
           "type": "integer"
-        }
-      }
-    },
-    "NewFileUploadRequestAccepted": {
-      "description": "accept the new file upload request and return a UUID for the file",
-      "type": "object",
-      "properties": {
-        "uploadRequestId": {
+        },
+        "NumChunks": {
+          "description": "the number of chunks the server should expect",
           "type": "integer"
         }
       }
     },
-    "NotImplemented": {
-      "type": "string"
-    },
-    "UploadedChunk": {
+    "Upload": {
       "type": "object",
       "properties": {
         "DirectoryID": {
-          "type": "integer"
+          "type": "integer",
+          "format": "uint"
         },
         "FileID": {
-          "description": "The id of the file this chunk is a part of",
-          "type": "integer"
+          "type": "integer",
+          "format": "uint"
         },
-        "Hash": {
-          "description": "The file hash of the chunk",
+        "ID": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "NumChunks": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "User": {
+      "type": "object",
+      "required": [
+        "id",
+        "email",
+        "password",
+        "name",
+        "picture",
+        "role"
+      ],
+      "properties": {
+        "email": {
           "type": "string"
+        },
+        "emailVerified": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint"
+        },
+        "name": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "member",
+            "admin"
+          ]
         }
       }
     }
   },
+  "securityDefinitions": {
+    "AccessToken": {
+      "type": "apiKey",
+      "name": "X-Token",
+      "in": "header"
+    },
+    "RefreshToken": {
+      "type": "apiKey",
+      "name": "X-Refresh-Token",
+      "in": "header"
+    }
+  },
+  "security": [
+    {
+      "AccessToken": []
+    }
+  ],
   "tags": [
+    {
+      "name": "files"
+    },
     {
       "description": "File transfer requests",
       "name": "transfer"
+    },
+    {
+      "description": "User authorization",
+      "name": "users"
     }
   ]
 }`))

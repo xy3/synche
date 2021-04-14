@@ -5,31 +5,31 @@ import (
 	"path/filepath"
 )
 
-func (cfg SyncheConfig) Create(config interface{}) error {
+func SetupAndWrite(name, path string, config interface{}) error {
 	newConfig, err := Setup(config)
 	if err != nil {
 		return err
 	}
 
-	if cfg.Path == "" {
-		cfg.Path = filepath.Join(cfg.Dir, cfg.Name+".yaml")
+	if path == "" {
+		path = filepath.Join(SyncheDir, name+".yaml")
 	}
 
-	err = cfg.Write(newConfig)
+	err = Write(path, newConfig)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (cfg SyncheConfig) Write(newConfig interface{}) error {
+func Write(path string, newConfig interface{}) error {
 	viper.Set("config", newConfig)
 
-	err := viper.WriteConfigAs(cfg.Path)
+	err := viper.WriteConfigAs(path)
 	if err != nil {
 		return err
 	}
 
-	viper.SetConfigFile(cfg.Path)
+	viper.SetConfigFile(path)
 	return nil
 }
