@@ -21,19 +21,6 @@ func MigrateAll() error {
 	)
 }
 
-// func GetUpload(uploadId uint) (upload *schema.Upload, err error) {
-// 	if res, found := Cache.Uploads.Get(strconv.Itoa(int(uploadId))); found {
-// 		return res.(*schema.Upload), nil
-// 	}
-// 	log.WithFields(log.Fields{"UploadID": uploadId}).Debug("Upload was not retrieved from cache", uploadId)
-// 	res := DB.First(&upload, uploadId)
-// 	if res.Error != nil {
-// 		return upload, res.Error
-// 	}
-// 	Cache.Uploads.Set(strconv.Itoa(int(uploadId)), &upload, cache.DefaultExpiration)
-// 	return upload, nil
-// }
-
 func InitDatabase() error {
 	// set up the Synche database with Redis and SQL
 	db, err := gorm.Open(mysql.Open(NewDSN(c.Config.Database)), &gorm.Config{
@@ -65,3 +52,16 @@ func InitSyncheData() error {
 
 	return nil
 }
+
+// func GetUpload(uploadId uint) (upload *schema.Upload, err error) {
+// 	if res, found := Cache.Uploads.Get(strconv.Itoa(int(uploadId))); found {
+// 		return res.(*schema.Upload), nil
+// 	}
+// 	log.WithFields(log.Fields{"UploadID": uploadId}).Debug("Upload was not retrieved from cache", uploadId)
+// 	res := DataBase.First(&upload, uploadId)
+// 	if res.Error != nil {
+// 		return upload, res.Error
+// 	}
+// 	Cache.Uploads.Set(strconv.Itoa(int(uploadId)), &upload, cache.DefaultExpiration)
+// 	return upload, nil
+

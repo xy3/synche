@@ -15,7 +15,7 @@ func TestCreateUniqueFilePath(t *testing.T) {
 	}{
 		{filePath: "data/", fileName: "test.mp4", result: "data/test.mp4"},
 	} {
-		if uniqueName := jobs.CreateUniqueFilePath(tt.filePath, tt.fileName); uniqueName != tt.result {
+		if _, uniqueName := jobs.CreateUniqueFilePath(tt.filePath, tt.fileName); uniqueName != tt.result {
 			require.Equal(t, tt.result, uniqueName)
 		}
 	}

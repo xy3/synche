@@ -11,7 +11,7 @@ func init() {
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List files on the server",
-	Long:  `<Long description here>`,
+	Long:  `Returns a list of the files in a specified location on the server`,
 	Run: func(cmd *cobra.Command, args []string) {
 		listJob()
 	},

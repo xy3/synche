@@ -40,6 +40,91 @@ security:
   - AccessToken: [ ]
 
 paths:
+  /download/{fileID}:
+    parameters:
+      - in: path
+        name: fileID
+        type: integer
+        required: true
+    get:
+      operationId: downloadFile
+      tags:
+        - transfer
+      responses:
+        200:
+          description: OK
+          schema:
+            type: string
+            format: binary
+        403:
+          description: Forbidden
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+
+  /files/{fileID}:
+    parameters:
+      - in: path
+        name: fileID
+        type: integer
+        required: true
+    get:
+      operationId: getFileInfo
+      tags:
+        - files
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+    delete:
+      tags:
+        - files
+      operationId: deleteFile
+      responses:
+        201:
+          description: Deleted
+          schema:
+            $ref: '#/definitions/FileDeleted'
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+
+  /list/{directoryID}:
+    get:
+      tags:
+        - files
+      summary: lists the files on the server
+      operationId: list
+      description: Queries the server for the files and their locations stored on the server
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: directoryID
+          type: integer
+          required: true
+        - in: query
+          name: limit
+          type: integer
+          default: 100
+          required: false
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/DirectoryContents'
+        501:
+          description: not implemented
+
   /login:
     post:
       summary: user login
@@ -128,37 +213,6 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
-  /upload/new:
-    post:
-      tags:
-        - transfer
-      summary: requests to initiate a new file upload
-      operationId: newUpload
-      description: To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          name: uploadInfo
-          schema:
-            $ref: '#/definitions/NewFileUpload'
-          required: true
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/Upload'
-        401:
-          description: Unauthorized
-        501:
-          description: not implemented
-        default:
-          description: Error
-          schema:
-            $ref: '#/definitions/Error'
-
   /upload/chunk:
     post:
       tags:
@@ -210,119 +264,38 @@ paths:
         501:
           description: not implemented
 
-  /list/{directoryID}:
-    get:
+  /upload/new:
+    post:
       tags:
-        - files
-      summary: lists the files on the server
-      operationId: list
-      description: Queries the server for the files and their locations stored on the server
+        - transfer
+      summary: requests to initiate a new file upload
+      operationId: newUpload
+      description: To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
-        - in: path
-          name: directoryID
-          type: integer
+        - in: body
+          name: uploadInfo
+          schema:
+            $ref: '#/definitions/NewFileUpload'
           required: true
-        - in: query
-          name: limit
-          type: integer
-          default: 100
-          required: false
       responses:
         200:
           description: OK
           schema:
-            $ref: '#/definitions/DirectoryContents'
+            $ref: '#/definitions/Upload'
+        401:
+          description: Unauthorized
         501:
           description: not implemented
-
-  /download/{fileID}:
-    parameters:
-      - in: path
-        name: fileID
-        type: integer
-        required: true
-    get:
-      operationId: downloadFile
-      tags:
-        - transfer
-      responses:
-        200:
-          description: OK
+        default:
+          description: Error
           schema:
-            type: string
-            format: binary
-        403:
-          description: Forbidden
-        401:
-          description: Unauthorized
-        404:
-          description: File not found
-
-  /files/{fileID}:
-    parameters:
-      - in: path
-        name: fileID
-        type: integer
-        required: true
-    get:
-      operationId: getFileInfo
-      tags:
-        - files
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/File'
-        401:
-          description: Unauthorized
-        404:
-          description: File not found
-    delete:
-      tags:
-        - files
-      operationId: deleteFile
-      responses:
-        201:
-          description: Deleted
-        401:
-          description: Unauthorized
-        404:
-          description: File not found
+            $ref: '#/definitions/Error'
 
 definitions:
-  User:
-    type: object
-    required:
-      - id
-      - email
-      - password
-      - name
-      - picture
-      - role
-    properties:
-      id:
-        type: integer
-        format: uint
-      email:
-        type: string
-      emailVerified:
-        type: boolean
-      name:
-        type: string
-      password:
-        type: string
-      picture:
-        type: string
-      role:
-        type: string
-        enum:
-          - member
-          - admin
-
   AccessToken:
     type: object
     properties:
@@ -341,22 +314,6 @@ definitions:
       refreshToken:
         type: string
 
-  Upload:
-    type: object
-    properties:
-      ID:
-        type: integer
-        format: uint
-      DirectoryID:
-        type: integer
-        format: uint
-      FileID:
-        type: integer
-        format: uint
-      NumChunks:
-        type: integer
-        format: int64
-
   Chunk:
     type: object
     properties:
@@ -368,6 +325,58 @@ definitions:
       Size:
         type: integer
         format: int64
+
+  Directory:
+    type: object
+    properties:
+      ID:
+        type: integer
+        format: uint
+      Path:
+        type: string
+
+  DirectoryContents:
+    type: object
+    properties:
+      Directory:
+        type: object
+        $ref: '#/definitions/Directory'
+      Contents:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/File'
+  Error:
+    type: string
+
+  File:
+    type: object
+    required:
+      - ID
+      - Name
+      - Size
+      - Hash
+      - DirectoryID
+    properties:
+      ID:
+        type: integer
+        format: uint
+      Name:
+        type: string
+      Size:
+        type: integer
+        format: int64
+      Hash:
+        type: string
+      DirectoryID:
+        type: integer
+        format: uint
+
+  FileDeleted:
+    type: object
+    properties:
+      FileID:
+        type: integer
 
   FileChunk:
     type: object
@@ -413,49 +422,47 @@ definitions:
         type: integer
         description: the number of chunks the server should expect
 
-  File:
+  Upload:
     type: object
-    required:
-      - ID
-      - Name
-      - Size
-      - Hash
-      - DirectoryID
     properties:
       ID:
         type: integer
         format: uint
-      Name:
-        type: string
-      Size:
-        type: integer
-        format: int64
-      Hash:
-        type: string
       DirectoryID:
         type: integer
         format: uint
-
-  Directory:
-    type: object
-    properties:
-      ID:
+      FileID:
         type: integer
         format: uint
-      Path:
-        type: string
+      NumChunks:
+        type: integer
+        format: int64
 
-  DirectoryContents:
+  User:
     type: object
+    required:
+      - id
+      - email
+      - password
+      - name
+      - picture
+      - role
     properties:
-      Directory:
-        type: object
-        $ref: '#/definitions/Directory'
-      Contents:
-        type: array
-        items:
-          type: object
-          $ref: '#/definitions/File'
-
-  Error:
-    type: string
+      id:
+        type: integer
+        format: uint
+      email:
+        type: string
+      emailVerified:
+        type: boolean
+      name:
+        type: string
+      password:
+        type: string
+      picture:
+        type: string
+      role:
+        type: string
+        enum:
+          - member
+          - admin

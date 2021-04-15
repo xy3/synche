@@ -6,6 +6,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,37 +35,39 @@ func (nFile NumericalFilename) Less(i, j int) bool {
 	return x < y
 }
 
-func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilePath string) {
+func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilename string, uniqueFilePath string) {
 	extension := filepath.Ext(fileName)
 	nameWithoutExtension := fileName[0 : len(fileName)-len(extension)]
+	var newFilename string
 	newFilePath := filepath.Join(filePath, fileName)
 	_, err := files.Afs.Stat(newFilePath)
 
 	for counter := 1; err == nil; counter++ {
 		// Create unique filepath
-		newFileName := fmt.Sprintf("%s(%d)%s ", nameWithoutExtension, counter, extension)
-		newFilePath = filepath.Join(filePath, newFileName)
+		newFilename = fmt.Sprintf("%s(%d)%s", nameWithoutExtension, counter, extension)
+		newFilePath = filepath.Join(filePath, newFilename)
 		_, err = files.Afs.Stat(newFilePath)
 	}
 
-	return newFilePath
+	return newFilename, newFilePath
 }
 
-func ReassembleFile(chunkDir, fileName string, uploadRequestId uint) error {
-	chunkFileNames, err := files.Afs.ReadDir(chunkDir)
+func ReassembleFile(chunkDir, filename string, uploadRequestId uint) error {
+	chunkFilenames, err := files.Afs.ReadDir(chunkDir)
 	if err != nil {
 		return err
 	}
 
 	// Sort files so that they are reassembled in the correct order
-	sort.Sort(NumericalFilename(chunkFileNames))
+	sort.Sort(NumericalFilename(chunkFilenames))
 
 	filePath := c.Config.Server.StorageDir
-	reassembledFileLocation := filepath.Join(filePath, fileName)
+	reassembledFileLocation := filepath.Join(filePath, filename)
 
 	// Rename file if there is a file name collision
 	if _, err = os.Stat(reassembledFileLocation); err == nil {
-		reassembledFileLocation = CreateUniqueFilePath(filePath, fileName)
+		filename, reassembledFileLocation = CreateUniqueFilePath(filePath, filename)
+		repo.UpdateFileName(uploadRequestId, filename)
 	}
 
 	reassembledFile, err := files.AppFS.OpenFile(reassembledFileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -74,7 +77,7 @@ func ReassembleFile(chunkDir, fileName string, uploadRequestId uint) error {
 
 	defer reassembledFile.Close()
 
-	for _, file := range chunkFileNames {
+	for _, file := range chunkFilenames {
 		// Open chunk file and get data
 		fileData, err := files.Afs.ReadFile(filepath.Join(chunkDir, file.Name()))
 		if err != nil {
@@ -90,6 +93,6 @@ func ReassembleFile(chunkDir, fileName string, uploadRequestId uint) error {
 	// Remove the upload from the cache
 	data.Cache.Uploads.Delete(strconv.Itoa(int(uploadRequestId)))
 
-	log.WithFields(log.Fields{"name": fileName, "location": reassembledFileLocation}).Info("File successfully uploaded")
+	log.WithFields(log.Fields{"name": filename, "location": reassembledFileLocation}).Info("File successfully uploaded")
 	return nil
 }

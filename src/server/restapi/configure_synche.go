@@ -110,6 +110,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		}
 		return tokens.NewRefreshTokenOK().WithPayload(&models.AccessToken{AccessToken: token})
 	})
+	// 	============= End Route Handlers =============
 
 	api.PreServerShutdown = func() {}
 	api.ServerShutdown = func() {}
