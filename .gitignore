@@ -8,6 +8,7 @@ speed_tests/
 
 src/server/restapi/operations
 src/server/models/
+src/server/restapi/embedded_spec.go
 src/client/models/
 src/client/apiclient/*/*
 

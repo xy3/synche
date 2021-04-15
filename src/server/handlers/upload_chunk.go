@@ -102,7 +102,9 @@ func storeChunkData(
 	// Reassemble file when uploadCounter indicates all chunks have been received
 	if uploadCounter >= int(upload.NumChunks) {
 		uploadCounter = 0
+
 		err := jobs.ReassembleFile(upload.Directory.Path, upload.File.Name, upload.ID)
+
 		if err != nil {
 			return badRequest.WithPayload("Failed to re-assemble the file")
 		}
