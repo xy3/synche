@@ -53,7 +53,7 @@ func getToken(tokenFile string) (*models.AccessAndRefreshToken, error) {
 
 func refreshAccessToken(refreshToken string) (*models.AccessToken, error) {
 	refreshTokenAuth := httptransport.APIKeyAuth("X-Refresh-Token", "header", refreshToken)
-	response, err := Client.Tokens.RefreshToken(new(tokens.RefreshTokenParams), refreshTokenAuth)
+	response, err := Client.Tokens.RefreshToken(&tokens.RefreshTokenParams{Context: context.Background()}, refreshTokenAuth)
 	if err != nil {
 		return nil, err
 	}

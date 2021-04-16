@@ -10,9 +10,8 @@ import (
 	"strconv"
 )
 
-func deleteJob(fileId int64) error {
+func deleteJob(fileId uint64) error {
 	if err := apiclient.AuthenticateClient(filepath.Join(config.SyncheDir, "token.json")); err != nil { return err }
-
 	requestAccepted, err := apiclient.Client.Files.DeleteFile(files.NewDeleteFileParams().WithFileID(fileId), apiclient.ClientAuth)
 	if err != nil {
 		return err
@@ -29,7 +28,7 @@ var deleteCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fileId, err := strconv.Atoi(args[0])
 		if err != nil { log.WithError(err).Fatal("Invalid file id") }
-		if err = deleteJob(int64(fileId)); err != nil { log.WithError(err).Fatal("Failed to delete file") }
+		if err = deleteJob(uint64(fileId)); err != nil { log.WithError(err).Fatal("Failed to delete file") }
 	},
 }
 

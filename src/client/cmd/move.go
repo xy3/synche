@@ -10,8 +10,8 @@ func init() {
 
 var moveCmd = &cobra.Command{
 	Use:   "move",
-	Short: "<Short description here>",
-	Long:  `<Long description here>`,
+	Short: "Move a file",
+	Long:  `<Move a file from one specified location to another using the file ID and directory IDs>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		moveJob()
 	},
