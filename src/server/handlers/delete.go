@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 )
 
-func deleteReassembledFile(fileId int64) error {
+func deleteReassembledFile(fileId uint64) error {
 	filePath := c.Config.Server.StorageDir
 	filename, err := repo.GetFilenameByFileId(fileId)
 	if err != nil {
@@ -24,7 +24,7 @@ func deleteReassembledFile(fileId int64) error {
 	return nil
 }
 
-func deleteFileDirAndChunks(fileId int64) error {
+func deleteFileDirAndChunks(fileId uint64) error {
 	dirPath, err := repo.GetDirPath(fileId)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func deleteFileDirAndChunks(fileId int64) error {
 	return nil
 }
 
-func isFileOwner(fileId int64, userId uint) (bool, error) {
+func isFileOwner(fileId uint64, userId uint) (bool, error) {
 	fileOwner, err := repo.GetFileOwnerByFileId(fileId)
 	if fileOwner == userId && err == nil {
 		return true, nil

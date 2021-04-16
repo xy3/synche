@@ -67,7 +67,7 @@ func ReassembleFile(chunkDir, filename string, uploadRequestId uint) error {
 	// Rename file if there is a file name collision
 	if _, err = os.Stat(reassembledFileLocation); err == nil {
 		filename, reassembledFileLocation = CreateUniqueFilePath(filePath, filename)
-		repo.UpdateFileName(uploadRequestId, filename)
+		repo.UpdateFileName(uint64(uploadRequestId), filename)
 	}
 
 	reassembledFile, err := files.AppFS.OpenFile(reassembledFileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)

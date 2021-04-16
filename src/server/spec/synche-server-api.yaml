@@ -68,6 +68,7 @@ paths:
       - in: path
         name: fileID
         type: integer
+        format: uint
         required: true
     get:
       operationId: getFileInfo
@@ -111,6 +112,7 @@ paths:
         - in: path
           name: directoryID
           type: integer
+          format: uint
           required: true
         - in: query
           name: limit
@@ -122,6 +124,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/DirectoryContents'
+        401:
+          description: Unauthorized
         501:
           description: not implemented
 
@@ -352,12 +356,17 @@ definitions:
   File:
     type: object
     required:
+      - DirectoryID
+      - Hash
       - ID
       - Name
       - Size
-      - Hash
-      - DirectoryID
     properties:
+      DirectoryID:
+        type: integer
+        format: uint
+      Hash:
+        type: string
       ID:
         type: integer
         format: uint
@@ -366,17 +375,13 @@ definitions:
       Size:
         type: integer
         format: int64
-      Hash:
-        type: string
-      DirectoryID:
-        type: integer
-        format: uint
 
   FileDeleted:
     type: object
     properties:
       FileID:
         type: integer
+        format: uint
 
   FileChunk:
     type: object
@@ -441,20 +446,20 @@ definitions:
   User:
     type: object
     required:
-      - id
       - email
-      - password
+      - id
       - name
+      - password
       - picture
       - role
     properties:
-      id:
-        type: integer
-        format: uint
       email:
         type: string
       emailVerified:
         type: boolean
+      id:
+        type: integer
+        format: uint
       name:
         type: string
       password:
