@@ -14,7 +14,7 @@ var Config = Configuration{
 		DataDir: path.Join(config.SyncheDir, "data"),
 	},
 	Chunks: ChunksConfig{
-		Size:    1,
+		SizeKB:  1024,
 		Workers: 10,
 	},
 	Server: ServerConfig{
@@ -44,7 +44,7 @@ type SyncheConfig struct {
 }
 
 type ChunksConfig struct {
-	Size    int64
+	SizeKB  int64
 	Workers int
 }
 

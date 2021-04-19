@@ -39,7 +39,7 @@ func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 	}
 
 	uploadCmd.Flags().StringP("name", "n", "", "store the file on the server with this name instead")
-	uploadCmd.Flags().Int64VarP(&c.Config.Chunks.Size, "chunk-size", "s", 1024, "size in KB for each chunk")
+	uploadCmd.Flags().Int64VarP(&c.Config.Chunks.SizeKB, "chunk-size", "s", 1024, "size in KB for each chunk")
 	uploadCmd.Flags().IntVarP(&c.Config.Chunks.Workers, "workers", "w", 10, "number of chunks to upload in parallel")
 
 	return uploadCmd
@@ -66,7 +66,7 @@ func FileUpload(filePath string) error {
 	if err != nil {
 		return err
 	}
-	splitFile := data.NewSplitFile(stat.Size(), c.Config.Chunks.Size, filePath, path.Base(filePath), hash, file)
+	splitFile := data.NewSplitFile(stat.Size(), c.Config.Chunks.SizeKB, filePath, path.Base(filePath), hash, file)
 	return upload.AsyncUpload(splitFile, upload.NewUpload, upload.AsyncChunkUpload)
 }
 
