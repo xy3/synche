@@ -20,7 +20,9 @@ func deleteReassembledFile(fileId uint64) error {
 	}
 
 	reassembledFileLocation := filepath.Join(filePath, filename)
-	if err := f.AppFS.Remove(reassembledFileLocation); err != nil { return err }
+	if err := f.AppFS.Remove(reassembledFileLocation); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -29,7 +31,9 @@ func deleteFileDirAndChunks(fileId uint64) error {
 	if err != nil {
 		return err
 	}
-	if err := f.Afs.RemoveAll(dirPath); err != nil { return err }
+	if err := f.Afs.RemoveAll(dirPath); err != nil {
+		return err
+	}
 	return nil
 }
 

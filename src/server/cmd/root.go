@@ -12,7 +12,7 @@ import (
 
 var (
 	ServerFlags *flag.FlagSet
-	cfgFile string
+	cfgFile     string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -29,16 +29,6 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.OnInitialize(func() {
-		err := c.InitConfig(cfgFile)
-		if err != nil {
-			log.WithError(err).Fatal("Failed to initialize config")
-		}
-
-		err = setup.Dirs(files.AppFS, c.RequiredDirs())
-		if err != nil {
-			log.WithError(err).Fatal("Could not set up the required directories")
-		}
-
 		if viper.GetBool("config.synche.debug") {
 			log.Infof("Debug: true")
 			log.SetLevel(log.DebugLevel)
@@ -49,9 +39,19 @@ func Execute() {
 }
 
 func init() {
+	err := setup.Dirs(files.AppFS, c.RequiredDirs())
+	if err != nil {
+		log.WithError(err).Fatal("Could not set up the required directories")
+	}
+
+	err = c.InitConfig(cfgFile)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to initialize config")
+	}
+
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche/synche-server.yaml)")
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "display debug output (default: false)")
-	err := viper.BindPFlag("config.synche.debug", rootCmd.PersistentFlags().Lookup("debug"))
+	err = viper.BindPFlag("config.synche.debug", rootCmd.PersistentFlags().Lookup("debug"))
 	if err != nil {
 		log.Fatal(err)
 	}

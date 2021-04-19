@@ -12,8 +12,8 @@ import (
 
 type dataSuite struct {
 	suite.Suite
-	DB        *gorm.DB
-	mockDB    sqlmock.Sqlmock
+	DB     *gorm.DB
+	mockDB sqlmock.Sqlmock
 }
 
 func (s *dataSuite) SetupSuite() {
@@ -28,7 +28,6 @@ func (s *dataSuite) SetupSuite() {
 
 	data.DB = s.DB
 }
-
 
 // Todo: Add migration test cases and configure the sqlmock to expect the queries
 func TestDataSuite(t *testing.T) {

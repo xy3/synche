@@ -9,19 +9,19 @@ import (
 
 func TestNewDSN(t *testing.T) {
 	tests := []struct {
-		name string
+		name     string
 		dbConfig config.DatabaseConfig
-		wantDsn string
+		wantDsn  string
 	}{
 		{
-			name: "dsn with empty config",
+			name:     "dsn with empty config",
 			dbConfig: config.DatabaseConfig{},
-			wantDsn: ":@()/?charset=utf8mb4&parseTime=True&loc=Local",
+			wantDsn:  ":@()/?charset=utf8mb4&parseTime=True&loc=Local",
 		},
 		{
-			name: "dsn with default config",
+			name:     "dsn with default config",
 			dbConfig: config.Config.Database,
-			wantDsn: "root:@tcp(127.0.0.1:3306)/synche?charset=utf8mb4&parseTime=True&loc=Local",
+			wantDsn:  "root:@tcp(127.0.0.1:3306)/synche?charset=utf8mb4&parseTime=True&loc=Local",
 		},
 	}
 	for _, tc := range tests {

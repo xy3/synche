@@ -9,8 +9,8 @@ type File struct {
 	Hash        string
 	DirectoryID uint
 	Directory   Directory
-	UserID uint
-	User   User
+	UserID      uint
+	User        User
 }
 
 func NewFile(name string, size int64, hash string, directoryID, userID uint) *File {

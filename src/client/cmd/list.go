@@ -21,7 +21,9 @@ func getFileNames(dirContents []*models.File) []string {
 }
 
 func listJob(dirId uint64) error {
-	if err := apiclient.AuthenticateClient(filepath.Join(config.SyncheDir, "token.json")); err != nil { return err }
+	if err := apiclient.AuthenticateClient(filepath.Join(config.SyncheDir, "token.json")); err != nil {
+		return err
+	}
 	requestAccepted, err := apiclient.Client.Files.List(files.NewListParams().WithDirectoryID(dirId), apiclient.ClientAuth)
 	if err != nil {
 		return err
@@ -36,8 +38,12 @@ var listCmd = &cobra.Command{
 	Long:  `Returns a list of the files in a specified location on the server`,
 	Run: func(cmd *cobra.Command, args []string) {
 		dirId, err := strconv.Atoi(args[0])
-		if err != nil { log.WithError(err).Fatal("Invalid directory id") }
-		if err = listJob(uint64(dirId)); err != nil {log.WithError(err).Fatal("Failed to retrieve directory contents")}
+		if err != nil {
+			log.WithError(err).Fatal("Invalid directory id")
+		}
+		if err = listJob(uint64(dirId)); err != nil {
+			log.WithError(err).Fatal("Failed to retrieve directory contents")
+		}
 	},
 }
 

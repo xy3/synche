@@ -13,6 +13,7 @@ import (
 
 //go:generate mockery --name=AsyncChunkUploader --case underscore
 type AsyncChunkUploader func(wg *sync.WaitGroup, params *transfer.UploadChunkParams, uploadErrors chan error)
+
 func AsyncChunkUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, uploadErrors chan error) {
 	defer wg.Done()
 

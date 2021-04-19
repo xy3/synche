@@ -3,14 +3,23 @@ package cmd_test
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
+	apiClientMocks "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/mocks"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/cmd"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/cmd/mocks"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
+	"os"
 	"testing"
 )
 
 var (
 	textFile = "testdata/test_upload_file.txt"
 )
+
+func TestMain(m *testing.M) {
+	config.TestMode = true
+	os.Exit(m.Run())
+}
 
 func TestFileUpload(t *testing.T) {
 	// TODO: Add test cases.
@@ -21,6 +30,10 @@ func TestUploadCommand(t *testing.T) {
 	fileUploader := new(mocks.FileUploadFunc)
 	fileUploader.On("Execute", mock.AnythingOfType("string")).Return(nil)
 	uploadCmd := cmd.NewUploadCmd(fileUploader.Execute)
+
+	mockAuth := new(apiClientMocks.AuthenticatorFunc)
+	mockAuth.On("Execute", mock.AnythingOfType("string")).Return(nil)
+	apiclient.Authenticator = mockAuth.Execute
 
 	testCases := []struct {
 		Name     string
@@ -35,6 +48,7 @@ func TestUploadCommand(t *testing.T) {
 			uploadCmd.SetArgs(tc.Args)
 			actual := uploadCmd.Execute()
 			assert.Equal(t, tc.Expected, actual)
+			mockAuth.AssertExpectations(t)
 		})
 	}
 }

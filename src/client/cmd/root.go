@@ -24,11 +24,6 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.OnInitialize(func() {
-		err := setup.Dirs(files.AppFS, c.RequiredDirs())
-		if err != nil {
-			log.WithError(err).Fatal("Could not set up the required directories")
-		}
-
 		apiclient.ConfigureClient(c.Config.Server.Host, c.Config.Server.BasePath)
 
 		if c.Config.Synche.Debug {
@@ -41,8 +36,12 @@ func Execute() {
 }
 
 func init() {
+	err := setup.Dirs(files.AppFS, c.RequiredDirs())
+	if err != nil {
+		log.WithError(err).Fatal("Could not set up the required directories")
+	}
 	// The config needs to be initialized here so that sub-command flags can override the values
-	err := c.InitConfig(cfgFile)
+	err = c.InitConfig(cfgFile)
 	if err != nil {
 		log.WithError(err).Fatal("Could not initialize the config")
 	}

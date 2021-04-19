@@ -64,4 +64,3 @@ func InitSyncheData() error {
 // 	}
 // 	Cache.Uploads.Set(strconv.Itoa(int(uploadId)), &upload, cache.DefaultExpiration)
 // 	return upload, nil
-

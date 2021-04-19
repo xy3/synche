@@ -14,7 +14,16 @@ variables:
 before_script:
   - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
   - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
-  - cd $GOPATH/src/$REPO_NAME
+  - curl -o /usr/local/bin/swagger -L'#' "https://github.com/go-swagger/go-swagger/releases/download/v0.27.0/swagger_linux_amd64"
+  - chmod +x /usr/local/bin/swagger
+  - go get github.com/vektra/mockery/v2/.../
+  - cd $GOPATH/src/$REPO_NAME/src
+  - swagger version
+  - echo "Running client make generate"
+  - make -C client generate
+  - echo "Running server make generate"
+  - make -C server generate
+  - go generate ./...
 
 stages:
   - test
@@ -31,7 +40,11 @@ format:
 compile:
   stage: build
   script:
-    - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/synche
+    # build the client
+    - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/synche_client client/main.go
+    # build the server
+    - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/synche_server server/main.go
   artifacts:
     paths:
-      - synche
+      - synche_client
+      - synche_server

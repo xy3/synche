@@ -12,4 +12,3 @@ func FileInfo(
 ) middleware.Responder {
 	return middleware.NotImplemented("operation files.GetFileInfo has not yet been implemented")
 }
-

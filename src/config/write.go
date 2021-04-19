@@ -15,8 +15,7 @@ func SetupAndWrite(name, path string, config interface{}) error {
 		path = filepath.Join(SyncheDir, name+".yaml")
 	}
 
-	err = Write(path, newConfig)
-	if err != nil {
+	if err = Write(path, newConfig); err != nil {
 		return err
 	}
 	return nil
@@ -25,8 +24,7 @@ func SetupAndWrite(name, path string, config interface{}) error {
 func Write(path string, newConfig interface{}) error {
 	viper.Set("config", newConfig)
 
-	err := viper.WriteConfigAs(path)
-	if err != nil {
+	if err := viper.WriteConfigAs(path); err != nil {
 		return err
 	}
 

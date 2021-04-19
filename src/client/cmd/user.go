@@ -22,7 +22,7 @@ var userCmd = &cobra.Command{
 		_, err := registerUser()
 		if err != nil {
 			registerError, ok := err.(*users.RegisterDefault)
-			if ok && registerError.Code() == 409{
+			if ok && registerError.Code() == 409 {
 				log.Error("A user already exists for that email")
 				return
 			}
@@ -66,7 +66,7 @@ func registerUser() (*models.User, error) {
 		Email:    email,
 		Name:     &name,
 		Password: password,
-		Context: context.Background(),
+		Context:  context.Background(),
 	})
 	if err != nil {
 		return nil, err
@@ -74,7 +74,6 @@ func registerUser() (*models.User, error) {
 
 	return resp.Payload, nil
 }
-
 
 func getUserPassword() (password string, err error) {
 	fmt.Println("Password:")

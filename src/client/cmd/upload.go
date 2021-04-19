@@ -21,7 +21,7 @@ func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 		Long:  `Uploads a specified local file to the server using chunked uploading`,
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			err := apiclient.AuthenticateClient(filepath.Join(config.SyncheDir, "token.json"))
+			err := apiclient.Authenticator(filepath.Join(config.SyncheDir, "token.json"))
 			if err != nil {
 				log.WithError(err).Fatal("Failed to authenticate the client")
 			}
