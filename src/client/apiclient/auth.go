@@ -16,7 +16,11 @@ import (
 	"time"
 )
 
+var Authenticator = AuthenticateClient
 var ClientAuth runtime.ClientAuthInfoWriter
+
+//go:generate mockery --name=AuthenticatorFunc --case=underscore
+type AuthenticatorFunc func(string) error
 
 func AuthenticateClient(tokenFile string) error {
 	token, err := getToken(tokenFile)

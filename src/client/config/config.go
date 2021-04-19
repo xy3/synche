@@ -37,10 +37,10 @@ type ServerConfig struct {
 }
 
 type SyncheConfig struct {
-	Dir         string
-	DataDir     string
-	Verbose     bool
-	Debug       bool
+	Dir     string
+	DataDir string
+	Verbose bool
+	Debug   bool
 }
 
 type ChunksConfig struct {
@@ -60,7 +60,7 @@ func init() {
 }
 
 func InitConfig(cfgFile string) error {
-	_, err := config.ReadOrCreate("synche-client", cfgFile, Config)
+	_, err := config.ReadOrCreate("synche-client", cfgFile, Config, Config)
 	if err != nil {
 		return err
 	}

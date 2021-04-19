@@ -87,7 +87,7 @@ func init() {
 }
 
 func InitConfig(cfgFile string) error {
-	_, err := config.ReadOrCreate("synche-server", cfgFile, Config)
+	_, err := config.ReadOrCreate("synche-server", cfgFile, Config, Config)
 	if err != nil {
 		return err
 	}

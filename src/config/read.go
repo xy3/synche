@@ -48,11 +48,30 @@ func Read(name string, path string) error {
 	return nil
 }
 
-func ReadOrCreate(name, path string, defaultCfg interface{}) (created bool, err error) {
+func ReadOrCreate(name, path string, defaultCfg, configStruct interface{}) (created bool, err error) {
 	err = Read(name, path)
 	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 		log.Warn("No config file found")
-		return true, SetupAndWrite(name, path, defaultCfg)
+
+		newConfig, err := Setup(defaultCfg)
+		if err != nil {
+			return false, err
+		}
+
+		if path == "" {
+			path = filepath.Join(SyncheDir, name+".yaml")
+		}
+
+		viper.Set("config", newConfig)
+		if err := viper.UnmarshalKey("config", &configStruct); err != nil {
+			return false, err
+		}
+
+		if err = Write(path, newConfig); err != nil {
+			return false, err
+		}
+
+		return true, nil
 	}
 	return false, err
 }

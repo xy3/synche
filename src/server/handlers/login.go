@@ -29,9 +29,9 @@ func Login(params users.LoginParams, authService auth.Service) middleware.Respon
 	}
 
 	return users.NewLoginOK().WithPayload(&models.AccessAndRefreshToken{
-		AccessToken:  accessToken,
+		AccessToken:       accessToken,
 		AccessTokenExpiry: time.Now().Local().Add(time.Hour * time.Duration(authService.ExpirationHours)).Unix(),
-		RefreshToken: refreshToken,
+		RefreshToken:      refreshToken,
 	})
 }
 

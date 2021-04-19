@@ -1,58 +1,49 @@
 package config
 
 import (
+	"errors"
 	"fmt"
-	"github.com/oleiade/reflections"
+	"github.com/fatih/structs"
 	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
-func Setup(cfg interface{}) (interface{}, error) {
+var TestMode bool
+
+func Setup(cfg interface{}) (map[string]interface{}, error) {
+	cfgMap := structs.Map(cfg)
+
+	if TestMode {
+		return cfgMap, nil
+	}
+
 	log.Info("Synche will now prompt you for each config value in the format: 'Field (default value)'")
 	log.Info("Leave the input blank (press enter) at any time to use the default/current value.")
 
-	configMap, err := reflections.Items(cfg)
-	if err != nil {
-		return cfg, err
-	}
-
-	sectionNames, err := reflections.Fields(cfg)
-	if err != nil {
-		return cfg, err
-	}
-
-	for _, sectionName := range sectionNames {
+	for sectionName, section := range cfgMap {
 		log.Infof("==== %s configuration ====\n", sectionName)
-		section := configMap[sectionName]
-		values, err := reflections.Items(section)
-		if err != nil {
-			return cfg, err
+
+		section, ok := section.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("config section cannot be converted to a map[string]interface{}")
 		}
 
-		// Get the field names to maintain the order
-		fields, err := reflections.Fields(section)
-		if err != nil {
-			return nil, err
-		}
-
-
-		for _, fieldName := range fields {
+		for fieldName, field := range section {
 			// Skip if its a slice type
-			fieldType, err := reflections.GetFieldType(section, fieldName)
-			if err != nil || strings.Contains(fieldType, "[]") {
+			fieldType := fmt.Sprintf("%T", field)
+			if strings.Contains(fieldType, "[]") {
 				continue
 			}
 
-			fmt.Printf("\t > %s (%v): ", fieldName, values[fieldName])
-
+			fmt.Printf("\t > %s (%v): ", fieldName, field)
 			var input string
-			_, err = fmt.Scanf("%s\n", &input)
-			if err != nil {
+			if _, err := fmt.Scanf("%s\n", &input); err != nil {
 				continue
 			}
-			values[fieldName] = input
+			section[fieldName] = input
 		}
-		configMap[sectionName] = values
+		cfgMap[sectionName] = section
 	}
-	return configMap, nil
+
+	return cfgMap, nil
 }

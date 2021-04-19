@@ -26,7 +26,7 @@ func GetDirPath(fileId uint64) (dirPath string, err error) {
 		return "", res.Error
 	}
 
-	return  directory.Path, nil
+	return directory.Path, nil
 }
 
 func GetDirOwnerByDirId(dirId uint64) (uint, error) {
@@ -37,5 +37,3 @@ func GetDirOwnerByDirId(dirId uint64) (uint, error) {
 	}
 	return file.UserID, nil
 }
-
-

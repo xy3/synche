@@ -16,7 +16,7 @@ func convertToFileModel(directoryContents []schema.File) ([]*models.File, error)
 	if err != nil {
 		return nil, err
 	}
-	return  contents, nil
+	return contents, nil
 }
 
 func isDirOwner(dirId uint64, userId uint) (bool, error) {
@@ -48,5 +48,3 @@ func ListFiles(
 	}
 	return files.NewListUnauthorized()
 }
-
-

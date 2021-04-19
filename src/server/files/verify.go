@@ -24,7 +24,6 @@ func VerifyChunk(chunkFilePath string) (bool, error) {
 	return filename == hashHex, nil
 }
 
-
 func VerifyComposite(filename string) (bool, error) {
 	// do something like "select * from data where file == filename
 	return false, nil

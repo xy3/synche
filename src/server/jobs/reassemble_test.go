@@ -8,10 +8,10 @@ import (
 
 // TODO: Write tests using tempDirs
 func TestCreateUniqueFilePath(t *testing.T) {
-	for  _, tt := range []struct {
+	for _, tt := range []struct {
 		filePath string
 		fileName string
-		result string
+		result   string
 	}{
 		{filePath: "data/", fileName: "test.mp4", result: "data/test.mp4"},
 	} {

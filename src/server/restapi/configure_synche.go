@@ -23,7 +23,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 )
 
-//go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal models.User --exclude-main
+//go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema.User --flag-strategy=pflag --exclude-main
 
 func configureFlags(api *operations.SyncheAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }

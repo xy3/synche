@@ -12,4 +12,3 @@ func Dirs(fs afero.Fs, dirs []string) error {
 	}
 	return nil
 }
-
