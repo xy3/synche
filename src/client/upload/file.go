@@ -16,7 +16,7 @@ func AsyncUpload(splitter data.Splitter, newUploadFunc NewUploadFunc, asyncChunk
 		return err
 	}
 
-	log.WithFields(log.Fields{"workers": c.Config.Chunks.Workers, "chunksize": c.Config.Chunks.Size}).Info("Chunk config")
+	log.WithFields(log.Fields{"workers": c.Config.Chunks.Workers, "chunksize": c.Config.Chunks.SizeKB}).Info("Chunk config")
 	log.Infof("%#v", upload)
 
 	var wg sync.WaitGroup

@@ -1,14 +1,16 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/users"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/models"
 	"golang.org/x/crypto/ssh/terminal"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -42,18 +44,19 @@ func init() {
 }
 
 func registerUser() (*models.User, error) {
+	scanner := bufio.NewScanner(os.Stdin)
+
 	if email == "" {
 		fmt.Println("Email address:")
-		_, err := fmt.Scanln(&email)
-		if err != nil {
-			return nil, err
+		if scanner.Scan() {
+			email = strings.TrimSpace(scanner.Text())
 		}
 	}
+
 	if name == "" {
 		fmt.Println("Your name:")
-		_, err := fmt.Scanln(&name)
-		if err != nil {
-			return nil, err
+		if scanner.Scan() {
+			name = strings.TrimSpace(scanner.Text())
 		}
 	}
 
@@ -89,8 +92,8 @@ func getUserPassword() (password string, err error) {
 	}
 
 	if string(passwordInput) != string(confirmPasswordInput) {
-		err = errors.New("passwords do not match")
-		return
+		log.Error("Passwords do not match")
+		return getUserPassword()
 	}
 
 	password = string(passwordInput)
