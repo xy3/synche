@@ -6,3 +6,4 @@ type Directory struct {
 	gorm.Model
 	Path string `gorm:"unique"`
 }
+

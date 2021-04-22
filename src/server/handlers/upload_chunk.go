@@ -53,12 +53,12 @@ func UploadChunk(
 	uploadCounter++
 
 	var upload schema.Upload
-	tx := data.DB.Joins("Directory").Joins("File")
+	tx := data.DB.Joins("ChunkDirectory").Joins("File")
 	if tx.First(&upload, params.UploadID).Error != nil {
 		badRequest.WithPayload("Failed to find a related upload request")
 	}
 
-	if err = writeChunkFile(chunkBytes, params.ChunkNumber, upload.Directory.Path, params.ChunkHash); err != nil {
+	if err = writeChunkFile(chunkBytes, params.ChunkNumber, upload.ChunkDirectory.Path, params.ChunkHash); err != nil {
 		return fileConflict.WithPayload(models.Error(err.Error()))
 	}
 
@@ -82,12 +82,12 @@ func storeChunkData(
 			Hash: params.ChunkHash,
 			Size: chunkFile.Header.Size,
 		},
-		DirectoryID: upload.DirectoryID,
-		Directory:   schema.Directory{},
-		FileID:      upload.FileID,
-		File:        schema.File{},
-		UploadID:    upload.ID,
-		Upload:      schema.Upload{},
+		ChunkDirectoryID: upload.ChunkDirectoryID,
+		ChunkDirectory:   schema.Directory{},
+		FileID:           upload.FileID,
+		File:             schema.File{},
+		UploadID:         upload.ID,
+		Upload:           schema.Upload{},
 	}
 
 	tx := data.DB.Begin()
@@ -103,7 +103,7 @@ func storeChunkData(
 	if uploadCounter >= int(upload.NumChunks) {
 		uploadCounter = 0
 
-		err := jobs.ReassembleFile(upload.Directory.Path, upload.File.Name, upload.ID)
+		err := jobs.ReassembleFile(upload.ChunkDirectory.Path, upload.File.Name, upload.ID)
 
 		if err != nil {
 			return badRequest.WithPayload("Failed to re-assemble the file")
@@ -116,10 +116,10 @@ func storeChunkData(
 			ID:   uint64(fileChunk.ID),
 			Size: fileChunk.Chunk.Size,
 		},
-		DirectoryID: uint64(upload.DirectoryID),
-		FileID:      uint64(upload.FileID),
-		ID:          uint64(fileChunk.ID),
-		Number:      fileChunk.Number,
-		UploadID:    uint64(fileChunk.UploadID),
+		ChunkDirectoryID: uint64(upload.ChunkDirectoryID),
+		FileID:           uint64(upload.FileID),
+		ID:               uint64(fileChunk.ID),
+		Number:           fileChunk.Number,
+		UploadID:         uint64(fileChunk.UploadID),
 	})
 }

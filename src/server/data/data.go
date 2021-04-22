@@ -6,6 +6,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var DB *gorm.DB
@@ -13,12 +14,22 @@ var DB *gorm.DB
 func MigrateAll() error {
 	return DB.AutoMigrate(
 		&schema.Chunk{},
+		&schema.Directory{},
 		&schema.File{},
 		&schema.FileChunk{},
 		&schema.Directory{},
 		&schema.Upload{},
 		&schema.User{},
 	)
+}
+
+func InsertDefaultStorageDirectory() error {
+	storageDirectory := schema.Directory{Path: c.Config.Server.StorageDir}
+	err := DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&storageDirectory)
+	if err != nil {
+		return err.Error
+	}
+	return nil
 }
 
 func InitDatabase() error {
@@ -30,6 +41,9 @@ func InitDatabase() error {
 		log.WithError(err).Error("Failed to open gorm DB connection")
 		return err
 	}
+
+	// initialise DB with default storage directory from config
+
 	DB = db
 	return nil
 }
