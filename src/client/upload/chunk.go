@@ -30,7 +30,7 @@ func AsyncChunkUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, up
 	log.WithFields(log.Fields{
 		"hash":         chunk.Chunk.Hash,
 		"file_id":      chunk.FileID,
-		"directory_id": chunk.DirectoryID,
+		"directory_id": chunk.ChunkDirectoryID,
 	}).Debug("Successfully uploaded chunk")
 
 	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly

@@ -26,8 +26,8 @@ func deleteReassembledFile(fileId uint64) error {
 	return nil
 }
 
-func deleteFileDirAndChunks(fileId uint64) error {
-	dirPath, err := repo.GetDirPath(fileId)
+func deleteChunkDir(fileId uint64) error {
+	dirPath, err := repo.GetChunkDirPath(fileId)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func DeleteFile(
 	fileId := params.FileID
 	// check if the user owns the file. this can adapted to check if the user is an admin either
 	if userPermission, err := isFileOwner(fileId, user.ID); userPermission == true && err == nil {
-		if err := deleteFileDirAndChunks(fileId); err != nil {
+		if err := deleteChunkDir(fileId); err != nil {
 			return files.NewDeleteFileNotFound()
 		}
 		if err := deleteReassembledFile(fileId); err != nil {

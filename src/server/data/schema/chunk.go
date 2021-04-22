@@ -14,13 +14,13 @@ type Chunk struct {
 // FileChunk refers to a chunk that makes up part of a file
 type FileChunk struct {
 	gorm.Model
-	Number      int64
-	ChunkID     uint
-	Chunk       Chunk
-	DirectoryID uint
-	Directory   Directory
-	FileID      uint
-	File        File
-	UploadID    uint
-	Upload      Upload
+	Number           int64
+	ChunkID          uint
+	Chunk            Chunk
+	ChunkDirectoryID uint
+	ChunkDirectory   Directory
+	FileID           uint
+	File             File
+	UploadID         uint
+	Upload           Upload
 }

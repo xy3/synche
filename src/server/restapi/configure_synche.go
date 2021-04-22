@@ -13,14 +13,14 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/tokens"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
-	"net/http"
-
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers/list"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/tokens"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
+	"net/http"
 )
 
 //go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema.User --flag-strategy=pflag --exclude-main
@@ -38,6 +38,11 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.JSONProducer = runtime.JSONProducer()
 
 	err := data.InitSyncheData()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to start Synche Data requirements")
+	}
+
+	err = data.InsertDefaultStorageDirectory()
 	if err != nil {
 		log.WithError(err).Fatal("Failed to start Synche Data requirements")
 	}
@@ -94,7 +99,9 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 
 	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFile)
 	api.FilesGetFileInfoHandler = files.GetFileInfoHandlerFunc(handlers.FileInfo)
-	api.FilesListHandler = files.ListHandlerFunc(handlers.ListFiles)
+
+	api.FilesListDPathHandler = files.ListDPathHandlerFunc(list.ByDirPath)
+	api.FilesListDIDHandler = files.ListDIDHandlerFunc(list.ByDID)
 
 	api.TransferDownloadFileHandler = transfer.DownloadFileHandlerFunc(handlers.DownloadFile)
 	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(handlers.NewUpload)

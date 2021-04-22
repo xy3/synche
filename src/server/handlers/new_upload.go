@@ -33,17 +33,18 @@ func NewUpload(
 	tx.Where(fileDir).FirstOrCreate(&fileDir)
 	if tx.Error != nil {
 		tx.Rollback()
-		return transfer.NewNewUploadDefault(500).WithPayload("Failed to  the chunk directory")
+		return transfer.NewNewUploadDefault(500).WithPayload("Failed to create the chunk directory")
 	}
 
 	newUpload := schema.Upload{
-		Directory: fileDir,
+		ChunkDirectory: fileDir,
 		File: schema.File{
-			Name:        *params.UploadInfo.FileName,
-			Size:        *params.UploadInfo.FileSize,
-			Hash:        *params.UploadInfo.FileHash,
-			DirectoryID: fileDir.ID,
-			UserID:      user.ID,
+			Name:               *params.UploadInfo.FileName,
+			Size:               *params.UploadInfo.FileSize,
+			Hash:               *params.UploadInfo.FileHash,
+			ChunkDirectoryID:   fileDir.ID,
+			StorageDirectoryID: uint(1), // default to home (config) storage directory
+			UserID:             user.ID,
 		},
 		NumChunks: *params.UploadInfo.NumChunks,
 	}
@@ -60,9 +61,9 @@ func NewUpload(
 	data.Cache.Uploads.Set(strconv.Itoa(int(newUpload.ID)), &newUpload, cache.DefaultExpiration)
 
 	return transfer.NewNewUploadOK().WithPayload(&models.Upload{
-		DirectoryID: uint64(newUpload.DirectoryID),
-		FileID:      uint64(newUpload.FileID),
-		ID:          uint64(newUpload.ID),
-		NumChunks:   newUpload.NumChunks,
+		ChunkDirectoryID: uint64(newUpload.ChunkDirectoryID),
+		FileID:           uint64(newUpload.FileID),
+		ID:               uint64(newUpload.ID),
+		NumChunks:        newUpload.NumChunks,
 	})
 }

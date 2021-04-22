@@ -97,13 +97,13 @@ paths:
         404:
           description: File not found
 
-  /list/{directoryID}:
+  /list/did/{directoryID}:
     get:
       tags:
         - files
-      summary: lists the files on the server
-      operationId: list
-      description: Queries the server for the files and their locations stored on the server
+      summary: lists the files in a directory on the server
+      operationId: listDID
+      description: Queries the server for the files in a directory specified by the directory's ID
       consumes:
         - application/json
       produces:
@@ -127,7 +127,46 @@ paths:
         401:
           description: Unauthorized
         501:
-          description: not implemented
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /list/dpath/{dirPath}:
+    get:
+      tags:
+        - files
+      summary: lists the files on the server
+      operationId: listDPath
+      description: Queries the server for the files and their locations stored on the server
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: dirPath
+          type: string
+          required: true
+        - in: query
+          name: limit
+          type: integer
+          default: 100
+          required: false
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/DirectoryContents'
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
 
   /login:
     post:
@@ -147,11 +186,11 @@ paths:
       operationId: login
       responses:
         200:
-          description: logged in
+          description: Logged in
           schema:
             $ref: '#/definitions/AccessAndRefreshToken'
         default:
-          description: error
+          description: Error
           schema:
             $ref: "#/definitions/Error"
 
@@ -177,11 +216,11 @@ paths:
           required: false
       responses:
         200:
-          description: registered successfully
+          description: Registered successfully
           schema:
             $ref: '#/definitions/User'
         default:
-          description: error
+          description: Error
           schema:
             $ref: "#/definitions/Error"
 
@@ -194,7 +233,7 @@ paths:
         - tokens
       responses:
         200:
-          description: token refreshed successfully
+          description: Token refreshed successfully
           schema:
             $ref: '#/definitions/AccessToken'
         default:
@@ -213,7 +252,7 @@ paths:
           schema:
             $ref: '#/definitions/User'
         default:
-          description: error
+          description: Error
           schema:
             $ref: "#/definitions/Error"
 
@@ -256,17 +295,17 @@ paths:
           schema:
             $ref: '#/definitions/FileChunk'
         400:
-          description: bad request
+          description: Bad request
           schema:
             $ref: '#/definitions/Error'
         409:
-          description: the file already exists or cannot be written to
+          description: The file already exists or cannot be written to
           schema:
             $ref: '#/definitions/Error'
         401:
           description: Unauthorized
         501:
-          description: not implemented
+          description: Not implemented
 
   /upload/new:
     post:
@@ -293,7 +332,7 @@ paths:
         401:
           description: Unauthorized
         501:
-          description: not implemented
+          description: Not implemented
         default:
           description: Error
           schema:
@@ -356,13 +395,13 @@ definitions:
   File:
     type: object
     required:
-      - DirectoryID
+      - StorageDirectoryID
       - Hash
       - ID
       - Name
       - Size
     properties:
-      DirectoryID:
+      StorageDirectoryID:
         type: integer
         format: uint
       Hash:
@@ -395,7 +434,7 @@ definitions:
       Chunk:
         type: object
         $ref: '#/definitions/Chunk'
-      DirectoryID:
+      ChunkDirectoryID:
         type: integer
         format: uint
       FileID:
@@ -433,7 +472,7 @@ definitions:
       ID:
         type: integer
         format: uint
-      DirectoryID:
+      ChunkDirectoryID:
         type: integer
         format: uint
       FileID:

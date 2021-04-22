@@ -1,4 +1,4 @@
-package handlers
+package list
 
 import (
 	"github.com/go-openapi/runtime/middleware"
@@ -20,31 +20,32 @@ func convertToFileModel(directoryContents []schema.File) ([]*models.File, error)
 }
 
 func isDirOwner(dirId uint64, userId uint) (bool, error) {
-	dirOwner, err := repo.GetDirOwnerByDirId(dirId)
+	dirOwner, err := repo.GetStorageDirOwnerByDirId(dirId)
 	if dirOwner == userId && err == nil {
 		return true, nil
 	}
 	return false, err
 }
 
-func ListFiles(
-	params files.ListParams,
+func ByDID(
+	params files.ListDIDParams,
 	user *schema.User,
 ) middleware.Responder {
 	dirId := params.DirectoryID
 	if userPermission, err := isDirOwner(dirId, user.ID); userPermission == true && err == nil {
-		contents, err := repo.GetDirContents(dirId)
+		contents, err := repo.GetStorageDirContents(dirId)
 		if err != nil {
-			return files.NewListUnauthorized()
+			return files.NewListDIDUnauthorized()
 		}
 
 		dirContents, err := convertToFileModel(contents)
 		if err != nil {
-			return files.NewListUnauthorized()
+			log.Info("HERE")
+			return files.NewListDIDUnauthorized()
 		}
 
 		log.Infof("Returning contents for directory with ID: %v", dirId)
-		return files.NewListOK().WithPayload(&models.DirectoryContents{Contents: dirContents})
+		return files.NewListDIDOK().WithPayload(&models.DirectoryContents{Contents: dirContents})
 	}
-	return files.NewListUnauthorized()
+	return files.NewListDIDUnauthorized()
 }
