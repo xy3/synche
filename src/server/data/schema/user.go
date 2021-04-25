@@ -8,11 +8,13 @@ import (
 	"regexp"
 )
 
+// User schema uses an email hash to have a set key length for finding a user by their email address
 type User struct {
 	gorm.Model
-	Email         string `gorm:"not null;uniqueIndex;size:256"`
+	Email         string `gorm:"not null"`
 	EmailVerified bool
-	Password      string
+	EmailHash     string `gorm:"not null;uniqueIndex;size:32"`
+	Password      string `gorm:"not null"`
 	Name          string
 	Picture       string
 	TokenHash     string `gorm:"not null;size:32"`

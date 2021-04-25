@@ -7,7 +7,7 @@ import (
 // Chunk is a file on the server that has a hash and size to compare it
 type Chunk struct {
 	gorm.Model
-	Hash string
+	Hash string `gorm:"uniqueIndex;size:32"`
 	Size int64
 }
 
@@ -18,7 +18,7 @@ type FileChunk struct {
 	ChunkID          uint
 	Chunk            Chunk
 	ChunkDirectoryID uint
-	ChunkDirectory   Directory
+	ChunkDirectory   ChunkDirectory
 	FileID           uint
 	File             File
 	UploadID         uint

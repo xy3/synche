@@ -27,7 +27,7 @@ func TestAsyncUpload(t *testing.T) {
 			mockNewUploadFunc.On("Execute", mock.Anything).Return(nil, nil)
 			mockChunkUploader := new(mocks.AsyncChunkUploader)
 
-			err := upload.AsyncUpload(mockSplitter, mockNewUploadFunc.Execute, mockChunkUploader.Execute)
+			err := upload.AsyncUpload(mockSplitter, 0, mockNewUploadFunc.Execute, mockChunkUploader.Execute)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AsyncUpload() error = %v, wantErr %v", err, tt.wantErr)
 			}

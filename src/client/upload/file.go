@@ -10,8 +10,8 @@ import (
 //go:generate mockery --name=AsyncFileUploader --case underscore
 type AsyncFileUploader func(data.Splitter, NewUploadFunc, AsyncChunkUploader) error
 
-func AsyncUpload(splitter data.Splitter, newUploadFunc NewUploadFunc, asyncChunkUploader AsyncChunkUploader) error {
-	upload, err := newUploadFunc(NewUploadParamsFromSplitter(splitter))
+func AsyncUpload(splitter data.Splitter, uploadDirID uint, newUploadFunc NewUploadFunc, asyncChunkUploader AsyncChunkUploader) error {
+	upload, err := newUploadFunc(NewUploadParamsFromSplitter(splitter, uploadDirID))
 	if err != nil {
 		return err
 	}

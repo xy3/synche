@@ -9,10 +9,13 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/upload"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
+	hash2 "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
 	"path"
 	"path/filepath"
 	"time"
 )
+
+var uploadDirID uint
 
 func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 	uploadCmd := &cobra.Command{
@@ -42,6 +45,8 @@ func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 	uploadCmd.Flags().Int64VarP(&c.Config.Chunks.SizeKB, "chunk-size", "s", 1024, "size in KB for each chunk")
 	uploadCmd.Flags().IntVarP(&c.Config.Chunks.Workers, "workers", "w", 10, "number of chunks to upload in parallel")
 
+	uploadCmd.Flags().UintVarP(&uploadDirID, "dir-id", "d", 0, "the ID of the directory to store the file in. default is your home directory on the server")
+
 	return uploadCmd
 }
 
@@ -61,13 +66,13 @@ func FileUpload(filePath string) error {
 	if err != nil {
 		return err
 	}
-	hash, err := files.HashFile(filePath)
+	hash, err := hash2.File(filePath)
 
 	if err != nil {
 		return err
 	}
 	splitFile := data.NewSplitFile(stat.Size(), c.Config.Chunks.SizeKB, filePath, path.Base(filePath), hash, file)
-	return upload.AsyncUpload(splitFile, upload.NewUpload, upload.AsyncChunkUpload)
+	return upload.AsyncUpload(splitFile, uploadDirID, upload.NewUpload, upload.AsyncChunkUpload)
 }
 
 func init() {

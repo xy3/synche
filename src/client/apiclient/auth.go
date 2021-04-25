@@ -27,30 +27,79 @@ func AuthenticateClient(tokenFile string) error {
 	if err != nil {
 		return err
 	}
+	if err = checkTokenWorks(token.AccessToken); err != nil {
+		log.Warn("Current access token is invalid. Please log in again:")
+		token, err = TerminalLogin()
+		if err != nil {
+			return err
+		}
+		if err = checkTokenWorks(token.AccessToken); err != nil {
+			return err
+		}
+		_ = saveToken(token, tokenFile)
+	}
 	ClientAuth = httptransport.APIKeyAuth("X-Token", "header", token.AccessToken)
-	log.Infof("Using access token: %s", token.AccessToken)
+	log.Debugf("Using access token: %s", token.AccessToken)
 	return nil
 }
 
+func Login(email, password string) (*models.AccessAndRefreshToken, error) {
+	resp, err := Client.Users.Login(&users.LoginParams{
+		Email:    email,
+		Password: password,
+		Context:  context.Background(),
+	})
+	if err != nil {
+		log.Warn("Login details are invalid")
+		return nil, err
+	}
+	log.Info("Logged in successfully")
+	return resp.GetPayload(), nil
+}
+
+func TerminalLogin() (*models.AccessAndRefreshToken, error) {
+	log.Info("Email: ")
+	var email string
+	_, _ = fmt.Scanln(&email)
+	log.Info("Password: ")
+	password, _ := terminal.ReadPassword(0)
+	return Login(email, string(password))
+}
+
+func checkTokenWorks(accessToken string) error {
+	tempAuth := httptransport.APIKeyAuth("X-Token", "header", accessToken)
+	_, err := Client.Users.Profile(&users.ProfileParams{Context: context.Background()}, tempAuth)
+	return err
+}
+
 func getToken(tokenFile string) (*models.AccessAndRefreshToken, error) {
+	saveNeeded := true
 	token, err := getSavedToken(tokenFile)
 	if err != nil {
-		token, err = getTokenFromWeb()
+		log.Info("No stored credentials found. Please login to authenticate this client:")
+		token, err = TerminalLogin()
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		saveNeeded = false
 	}
 	if token.AccessTokenExpiry < time.Now().Local().Unix() {
 		log.Debug("AccessToken expired, attempting to refresh")
 		accessToken, err := refreshAccessToken(token.RefreshToken)
 		if err != nil {
-			return token, err
+			log.Info("Token refresh failed - please log in or run the 'new user' command to create a new account.")
+			saveNeeded = true
+			token, err = TerminalLogin()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			token.AccessToken = accessToken.AccessToken
 		}
-		token.AccessToken = accessToken.AccessToken
 	}
-	err = saveToken(token, tokenFile)
-	if err != nil {
-		log.WithError(err).Warn("Failed to locally save the token file")
+	if saveNeeded {
+		_ = saveToken(token, tokenFile)
 	}
 	return token, nil
 }
@@ -75,31 +124,11 @@ func getSavedToken(tokenFile string) (*models.AccessAndRefreshToken, error) {
 	return tok, err
 }
 
-// Request a token from the web, then returns the retrieved token.
-func getTokenFromWeb() (*models.AccessAndRefreshToken, error) {
-	log.Info("No stored credentials found. Please login to authenticate this client.")
-	log.Info("Email: ")
-	var email string
-	_, _ = fmt.Scanln(&email)
-	log.Info("Password: ")
-	password, err := terminal.ReadPassword(0)
-
-	resp, err := Client.Users.Login(&users.LoginParams{
-		Email:    email,
-		Password: string(password),
-		Context:  context.Background(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	log.Info("Logged in successfully")
-	return resp.GetPayload(), nil
-}
-
 func saveToken(token *models.AccessAndRefreshToken, tokenFile string) error {
 	log.Infof("Saving credentials to: %s", tokenFile)
 	f, err := files.AppFS.OpenFile(tokenFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
+		log.WithError(err).Warn("Failed to locally save the token file")
 		return err
 	}
 	defer f.Close()

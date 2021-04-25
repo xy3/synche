@@ -31,6 +31,7 @@ var userCmd = &cobra.Command{
 			log.WithError(err).Error("Failed to register a new account")
 			return
 		}
+
 		log.Info("New account created successfully")
 	},
 }

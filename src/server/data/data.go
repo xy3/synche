@@ -6,7 +6,6 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 var DB *gorm.DB
@@ -14,22 +13,13 @@ var DB *gorm.DB
 func MigrateAll() error {
 	return DB.AutoMigrate(
 		&schema.Chunk{},
-		&schema.Directory{},
 		&schema.File{},
 		&schema.FileChunk{},
 		&schema.Directory{},
+		&schema.ChunkDirectory{},
 		&schema.Upload{},
 		&schema.User{},
 	)
-}
-
-func InsertDefaultStorageDirectory() error {
-	storageDirectory := schema.Directory{Path: c.Config.Server.StorageDir}
-	err := DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&storageDirectory)
-	if err != nil {
-		return err.Error
-	}
-	return nil
 }
 
 func InitDatabase() error {
@@ -37,13 +27,13 @@ func InitDatabase() error {
 	db, err := gorm.Open(mysql.Open(NewDSN(c.Config.Database)), &gorm.Config{
 		PrepareStmt: true,
 	})
+
 	if err != nil {
 		log.WithError(err).Error("Failed to open gorm DB connection")
 		return err
 	}
 
 	// initialise DB with default storage directory from config
-
 	DB = db
 	return nil
 }
@@ -66,15 +56,3 @@ func InitSyncheData() error {
 
 	return nil
 }
-
-// func GetUpload(uploadId uint) (upload *schema.Upload, err error) {
-// 	if res, found := Cache.Uploads.Get(strconv.Itoa(int(uploadId))); found {
-// 		return res.(*schema.Upload), nil
-// 	}
-// 	log.WithFields(log.Fields{"UploadID": uploadId}).Debug("Upload was not retrieved from cache", uploadId)
-// 	res := DataBase.First(&upload, uploadId)
-// 	if res.Error != nil {
-// 		return upload, res.Error
-// 	}
-// 	Cache.Uploads.Set(strconv.Itoa(int(uploadId)), &upload, cache.DefaultExpiration)
-// 	return upload, nil

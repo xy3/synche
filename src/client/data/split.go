@@ -53,7 +53,7 @@ func (sf *SplitFile) NextChunk() ([]byte, error) {
 		return nil, nil
 	}
 	// Use ChunkSize only if it is smaller than the rest of the file
-	numChunkBytes := sf.FileSize - (int64(sf.CurrentIndex) * sf.ChunkSize)
+	numChunkBytes := sf.FileSize - (sf.CurrentIndex * sf.ChunkSize)
 	if sf.ChunkSize < numChunkBytes {
 		numChunkBytes = sf.ChunkSize
 	}

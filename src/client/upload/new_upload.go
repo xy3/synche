@@ -18,17 +18,22 @@ func NewUpload(params *transfer.NewUploadParams) (*models.Upload, error) {
 	return newUpload.GetPayload(), nil
 }
 
-func NewUploadParams(fileSize, numChunks int64, fileHash, fileName string) *transfer.NewUploadParams {
+func NewUploadParams(
+	fileSize, numChunks int64,
+	fileHash, fileName string,
+	uploadDirID uint64,
+) *transfer.NewUploadParams {
 	return transfer.NewNewUploadParams().WithUploadInfo(
 		&models.NewFileUpload{
-			FileHash:  &fileHash,
-			FileName:  &fileName,
-			FileSize:  &fileSize,
-			NumChunks: &numChunks,
+			DirectoryID: uploadDirID,
+			FileHash:    &fileHash,
+			FileName:    &fileName,
+			FileSize:    &fileSize,
+			NumChunks:   &numChunks,
 		},
 	)
 }
 
-func NewUploadParamsFromSplitter(splitter data.Splitter) *transfer.NewUploadParams {
-	return NewUploadParams(splitter.File().FileSize, splitter.NumChunks(), splitter.File().Hash, splitter.File().Name)
+func NewUploadParamsFromSplitter(splitter data.Splitter, uploadDirID uint) *transfer.NewUploadParams {
+	return NewUploadParams(splitter.File().FileSize, splitter.NumChunks(), splitter.File().Hash, splitter.File().Name, uint64(uploadDirID))
 }
