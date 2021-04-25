@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/jobs"
@@ -45,7 +46,7 @@ func UploadChunk(
 		return badRequest.WithPayload("Failed to read the chunk bytes")
 	}
 
-	if !files.ValidateChunkHash(params.ChunkHash, chunkBytes) {
+	if !hash.ValidateChunkHash(params.ChunkHash, chunkBytes) {
 		return badRequest.WithPayload("chunk hash does not match its data")
 	}
 
@@ -75,35 +76,39 @@ func storeChunkData(
 	params transfer.UploadChunkParams,
 	upload schema.Upload,
 ) middleware.Responder {
+	db := data.DB.Begin()
+
+	chunk := schema.Chunk{
+		Hash: params.ChunkHash,
+		Size: chunkFile.Header.Size,
+	}
+
+	if db.Where(chunk).FirstOrCreate(&chunk).Error != nil {
+		db.Rollback()
+		return badRequest.WithPayload("failed to add the chunk data to the database")
+	}
+
 	// Insert chunk info into data
 	fileChunk := schema.FileChunk{
-		Number: params.ChunkNumber,
-		Chunk: schema.Chunk{
-			Hash: params.ChunkHash,
-			Size: chunkFile.Header.Size,
-		},
+		Number:           params.ChunkNumber,
+		ChunkID:          chunk.ID,
 		ChunkDirectoryID: upload.ChunkDirectoryID,
-		ChunkDirectory:   schema.Directory{},
 		FileID:           upload.FileID,
-		File:             schema.File{},
 		UploadID:         upload.ID,
-		Upload:           schema.Upload{},
 	}
 
-	tx := data.DB.Begin()
-
-	if tx.Create(&fileChunk).Error != nil {
-		tx.Rollback()
-		return badRequest.WithPayload("Failed to add the chunk data to the database")
+	if db.Create(&fileChunk).Error != nil {
+		db.Rollback()
+		return badRequest.WithPayload("failed to add the chunk data to the database")
 	}
 
-	tx.Commit()
+	db.Commit()
 
 	// Reassemble file when uploadCounter indicates all chunks have been received
 	if uploadCounter >= int(upload.NumChunks) {
 		uploadCounter = 0
 
-		err := jobs.ReassembleFile(upload.ChunkDirectory.Path, upload.File.Name, upload.ID)
+		err := jobs.ReassembleFile(upload.ID, upload.ChunkDirectory.Path, upload.File)
 
 		if err != nil {
 			return badRequest.WithPayload("Failed to re-assemble the file")

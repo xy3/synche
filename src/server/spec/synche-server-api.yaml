@@ -47,6 +47,8 @@ paths:
         type: integer
         required: true
     get:
+      produces:
+        - application/octet-stream
       operationId: downloadFile
       tags:
         - transfer
@@ -62,6 +64,10 @@ paths:
           description: Unauthorized
         404:
           description: File not found
+        default:
+          description: error
+          schema:
+            $ref: '#/definitions/Error'
 
   /files/{fileID}:
     parameters:
@@ -97,23 +103,94 @@ paths:
         404:
           description: File not found
 
-  /list/did/{directoryID}:
+  /directory:
+    put:
+      parameters:
+        - in: query
+          type: string
+          name: directoryName
+          required: true
+      tags:
+        - files
+      summary: add a new directory to your account
+      operationId: createDirectory
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Directory'
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /directory/{id}:
+    parameters:
+      - in: path
+        type: integer
+        format: uint
+        name: id
+        required: true
+    get:
+      tags:
+        - files
+      summary: get information about a certain directory
+      operationId: getDirectoryInfo
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Directory'
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+    delete:
+      tags:
+        - files
+      summary: remove a certain directory
+      operationId: deleteDirectory
+      responses:
+        200:
+          description: OK
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /list:
     get:
       tags:
         - files
       summary: lists the files in a directory on the server
-      operationId: listDID
+      operationId: listDirectory
       description: Queries the server for the files in a directory specified by the directory's ID
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
-        - in: path
+        - in: query
           name: directoryID
           type: integer
           format: uint
-          required: true
+          required: false
+        - in: query
+          name: directoryName
+          type: string
+          required: false
         - in: query
           name: limit
           type: integer
@@ -133,40 +210,6 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
-  /list/dpath/{dirPath}:
-    get:
-      tags:
-        - files
-      summary: lists the files on the server
-      operationId: listDPath
-      description: Queries the server for the files and their locations stored on the server
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: dirPath
-          type: string
-          required: true
-        - in: query
-          name: limit
-          type: integer
-          default: 100
-          required: false
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/DirectoryContents'
-        401:
-          description: Unauthorized
-        501:
-          description: Not implemented
-        default:
-          description: Error
-          schema:
-            $ref: "#/definitions/Error"
 
   /login:
     post:
@@ -375,20 +418,28 @@ definitions:
       ID:
         type: integer
         format: uint
-      Path:
+      Name:
         type: string
+      FileCount:
+        type: integer
+        format: uint
+        default: 0
 
+  # Currently directories cannot nest within other directories
   DirectoryContents:
     type: object
     properties:
-      Directory:
-        type: object
-        $ref: '#/definitions/Directory'
-      Contents:
+      Subdirectories:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/Directory'
+      Files:
         type: array
         items:
           type: object
           $ref: '#/definitions/File'
+
   Error:
     type: string
 
@@ -465,6 +516,9 @@ definitions:
       NumChunks:
         type: integer
         description: the number of chunks the server should expect
+      DirectoryID:
+        type: integer
+        format: uint
 
   Upload:
     type: object

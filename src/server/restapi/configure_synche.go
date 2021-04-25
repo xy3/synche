@@ -4,6 +4,7 @@ package restapi
 
 import (
 	"crypto/tls"
+	"fmt"
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
@@ -13,7 +14,6 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers/list"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
@@ -42,11 +42,6 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		log.WithError(err).Fatal("Failed to start Synche Data requirements")
 	}
 
-	err = data.InsertDefaultStorageDirectory()
-	if err != nil {
-		log.WithError(err).Fatal("Failed to start Synche Data requirements")
-	}
-
 	authService := auth.Service{
 		SecretKey:       "CHANGE_THIS_SECRET_KEY", // TODO: This should be configurable
 		Issuer:          "synche.auth.service",
@@ -55,15 +50,14 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 
 	// Applies when the "Bearer" header is set
 	api.AccessTokenAuth = func(token string) (*schema.User, error) {
-		log.Info(token)
 		claims, err := authService.ValidateAccessToken(token)
 		if err != nil {
-			return nil, errors.New(400, err.Error())
+			return nil, fmt.Errorf("brrr")
 		}
 
 		user, err := repo.GetUserByEmail(claims.Email)
 		if err != nil {
-			return nil, errors.New(404, "user credentials not found")
+			return nil, fmt.Errorf("user credentials not found")
 		}
 		return user, nil
 	}
@@ -71,7 +65,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.RefreshTokenAuth = func(token string) (*schema.User, error) {
 		claims, err := authService.ValidateRefreshToken(token)
 		if err != nil {
-			return nil, err
+			return nil, errors.New(400, "token could not be validated")
 		}
 		user, err := repo.GetUserByEmail(claims.Email)
 		if err != nil {
@@ -91,18 +85,24 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// You may change here the memory limit for this multipart form parser. Currently 50 MB.
 	transfer.UploadChunkMaxParseMemory = 50 << 20
 
+	// User handlers
 	api.UsersLoginHandler = users.LoginHandlerFunc(func(params users.LoginParams) middleware.Responder {
 		return handlers.Login(params, authService)
 	})
 	api.UsersRegisterHandler = users.RegisterHandlerFunc(handlers.Register)
 	api.UsersProfileHandler = users.ProfileHandlerFunc(handlers.Profile)
 
+	// File handlers
 	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFile)
 	api.FilesGetFileInfoHandler = files.GetFileInfoHandlerFunc(handlers.FileInfo)
 
-	api.FilesListDPathHandler = files.ListDPathHandlerFunc(list.ByDirPath)
-	api.FilesListDIDHandler = files.ListDIDHandlerFunc(list.ByDID)
+	// Directory handlers
+	api.FilesListDirectoryHandler = files.ListDirectoryHandlerFunc(handlers.ListDirectory)
+	api.FilesCreateDirectoryHandler = files.CreateDirectoryHandlerFunc(handlers.CreateDirectory)
+	api.FilesDeleteDirectoryHandler = files.DeleteDirectoryHandlerFunc(handlers.DeleteDirectory)
+	api.FilesGetDirectoryInfoHandler = files.GetDirectoryInfoHandlerFunc(handlers.DirectoryInfo)
 
+	// Transfer handlers
 	api.TransferDownloadFileHandler = transfer.DownloadFileHandlerFunc(handlers.DownloadFile)
 	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(handlers.NewUpload)
 	api.TransferUploadChunkHandler = transfer.UploadChunkHandlerFunc(handlers.UploadChunk)

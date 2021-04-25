@@ -3,7 +3,7 @@ package handlers
 import (
 	"github.com/go-openapi/runtime/middleware"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
@@ -36,15 +36,14 @@ func Login(params users.LoginParams, authService auth.Service) middleware.Respon
 }
 
 func login(email, password string) (*schema.User, error) {
-	var user schema.User
-	result := data.DB.Where(schema.User{Email: email}).First(&user)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	err := auth.CheckPassword(user.Password, password)
+	user, err := repo.GetUserByEmail(email)
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+
+	err = auth.CheckPassword(user.Password, password)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }

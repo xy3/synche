@@ -4,17 +4,14 @@ import "gorm.io/gorm"
 
 type File struct {
 	gorm.Model
-	Name               string
-	Size               int64
-	Hash               string
+	Name               string `gorm:"not null"`
+	Size               int64 `gorm:"not null"`
+	Hash               string `gorm:"index;size:32"`
 	ChunkDirectoryID   uint
-	ChunkDirectory     Directory
+	ChunkDirectory     ChunkDirectory
 	StorageDirectoryID uint
-	StorageDirectory   Directory
+	StorageDirectory   Directory `gorm:"constraint:OnDelete:CASCADE;"`
 	UserID             uint
 	User               User
-}
-
-func NewFile(name string, size int64, hash string, chunkDirectoryID uint, storageDirectoryID uint, userID uint) *File {
-	return &File{Name: name, Size: size, Hash: hash, ChunkDirectoryID: chunkDirectoryID, StorageDirectoryID: storageDirectoryID, UserID: userID}
+	Available          bool
 }

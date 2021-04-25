@@ -4,9 +4,10 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"os"
 	"path/filepath"
 	"sort"
@@ -52,7 +53,7 @@ func CreateUniqueFilePath(filePath string, fileName string) (uniqueFilename stri
 	return newFilename, newFilePath
 }
 
-func ReassembleFile(chunkDir, filename string, uploadRequestId uint) error {
+func ReassembleFile(uploadID uint, chunkDir string, file schema.File) error {
 	chunkFilenames, err := files.Afs.ReadDir(chunkDir)
 	if err != nil {
 		return err
@@ -61,13 +62,24 @@ func ReassembleFile(chunkDir, filename string, uploadRequestId uint) error {
 	// Sort files so that they are reassembled in the correct order
 	sort.Sort(NumericalFilename(chunkFilenames))
 
-	filePath := c.Config.Server.StorageDir
-	reassembledFileLocation := filepath.Join(filePath, filename)
+	storageDir, err := repo.GetStorageDirectoryForFileID(file.ID)
+	if err != nil {
+		return err
+	}
+
+	filename := file.Name
+	reassembledFileLocation := filepath.Join(storageDir.Path, filename)
 
 	// Rename file if there is a file name collision
-	if _, err = os.Stat(reassembledFileLocation); err == nil {
-		filename, reassembledFileLocation = CreateUniqueFilePath(filePath, filename)
-		repo.UpdateFileName(uint64(uploadRequestId), filename)
+	if _, err = files.Afs.Stat(reassembledFileLocation); err == nil {
+		existingFileHash, _ := hash.File(reassembledFileLocation)
+		if file.Hash != existingFileHash {
+			filename, reassembledFileLocation = CreateUniqueFilePath(storageDir.Path, filename)
+			err = repo.UpdateFilenameForUploadID(uploadID, filename)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	reassembledFile, err := files.AppFS.OpenFile(reassembledFileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -91,7 +103,7 @@ func ReassembleFile(chunkDir, filename string, uploadRequestId uint) error {
 	}
 
 	// Remove the upload from the cache
-	data.Cache.Uploads.Delete(strconv.Itoa(int(uploadRequestId)))
+	data.Cache.Uploads.Delete(strconv.Itoa(int(uploadID)))
 
 	log.WithFields(log.Fields{"name": filename, "location": reassembledFileLocation}).Info("File successfully uploaded")
 	return nil

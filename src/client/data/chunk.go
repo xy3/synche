@@ -1,6 +1,8 @@
 package data
 
-import "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
+import (
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
+)
 
 type Chunk struct {
 	Hash  string
@@ -9,5 +11,5 @@ type Chunk struct {
 }
 
 func NewChunk(num int64, bytes *[]byte) *Chunk {
-	return &Chunk{Hash: files.HashChunk(*bytes), Num: num, Bytes: bytes}
+	return &Chunk{Hash: hash.Chunk(*bytes), Num: num, Bytes: bytes}
 }

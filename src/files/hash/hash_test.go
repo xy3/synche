@@ -1,9 +1,10 @@
-package files_test
+package hash_test
 
 import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
 	"os"
 	"testing"
 )
@@ -21,7 +22,7 @@ func TestCRC32Hash(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			assert.Equal(t, tc.Expected, files.CRC32Hash(tc.Bytes))
+			assert.Equal(t, tc.Expected, hash.CRC32Hash(tc.Bytes))
 		})
 	}
 }
@@ -56,7 +57,7 @@ func TestImoHash(t *testing.T) {
 				t.Errorf("file \"%s\" does not exist.\n", fileName)
 			}
 
-			actual, err := files.ImoHash(fileName)
+			actual, err := hash.ImoHash(fileName)
 			if err != nil {
 				t.Errorf("Failed to hash the file: %v", err)
 			}

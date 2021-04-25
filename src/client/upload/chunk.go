@@ -9,6 +9,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/transfer"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
 	"sync"
+	"time"
 )
 
 //go:generate mockery --name=AsyncChunkUploader --case underscore
@@ -18,6 +19,13 @@ func AsyncChunkUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, up
 	defer wg.Done()
 
 	// TODO: Have a limit of errors before we consider it "not working"
+
+	// Should be configurable
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(10 * time.Second)
+		timeout <- true
+	}()
 
 	resp, err := apiclient.Client.Transfer.UploadChunk(params, apiclient.ClientAuth)
 	if err != nil {
