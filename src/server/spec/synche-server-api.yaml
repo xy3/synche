@@ -210,7 +210,6 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
-
   /login:
     post:
       summary: user login
@@ -236,6 +235,47 @@ paths:
           description: Error
           schema:
             $ref: "#/definitions/Error"
+
+  /move:
+    post:
+      tags:
+        - files
+      summary: move a file
+      operationId: moveFile
+      description: Requests to move a file specified by the file id and the path to the new file location
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: fileID
+          type: integer
+          format: uint
+          required: true
+        - in: query
+          name: directoryID
+          type: integer
+          format: uint
+          required: false
+        - in: query
+          name: directoryName
+          type: string
+          required: false
+
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
 
   /register:
     post:
@@ -466,13 +506,6 @@ definitions:
         type: integer
         format: int64
 
-  FileDeleted:
-    type: object
-    properties:
-      FileID:
-        type: integer
-        format: uint
-
   FileChunk:
     type: object
     properties:
@@ -492,6 +525,13 @@ definitions:
         type: integer
         format: uint
       UploadID:
+        type: integer
+        format: uint
+
+  FileDeleted:
+    type: object
+    properties:
+      FileID:
         type: integer
         format: uint
 

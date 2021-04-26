@@ -95,6 +95,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// File handlers
 	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFile)
 	api.FilesGetFileInfoHandler = files.GetFileInfoHandlerFunc(handlers.FileInfo)
+	api.FilesMoveFileHandler = files.MoveFileHandlerFunc(handlers.MoveFile)
 
 	// Directory handlers
 	api.FilesListDirectoryHandler = files.ListDirectoryHandlerFunc(handlers.ListDirectory)

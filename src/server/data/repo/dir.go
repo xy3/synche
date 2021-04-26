@@ -87,17 +87,40 @@ func GetDirContentsByName(scope scopes.Scope, name string) (*models.DirectoryCon
 	return &dirContents, nil
 }
 
-func GetChunkDirPath(fileId uint64) (string, error) {
-	var directory schema.Directory
-	tx := data.DB.Begin()
-	res := tx.Model(&schema.File{}).Joins("ChunkDirectory").
-		Where("files.id = ?", fileId).
-		Select("path").
-		Find(&directory)
-	if res.Error != nil {
-		return "", res.Error
+func GetDirPathByID (scope scopes.Scope, dirID uint) (string, error) {
+	directory, err := GetDirectoryByID(scope, dirID)
+	if err != nil {
+		return "", err
+	}
+	return directory.Path, nil
+}
+
+func GetChunkDirectoryByID (scope scopes.Scope, dirID uint) (*schema.ChunkDirectory, error) {
+	var directory schema.ChunkDirectory
+	if err := data.DB.Scopes(scope).First(&directory, dirID).Error; err != nil {
+		return nil, err
+	}
+	return &directory, nil
+}
+
+func GetChunkDirPathByFileID (scope scopes.Scope, fileID uint64) (string, error) {
+	file, err := GetFileSchemaByID(scope, fileID)
+
+	directory, err := GetChunkDirectoryByID(scope, file.ChunkDirectoryID)
+	if err != nil {
+		return "", err
 	}
 
+	return directory.Path, nil
+}
+
+func GetStorageDirectoryPathByFileID (scope scopes.Scope, fileID uint64) (string, error) {
+	file, err := GetFileSchemaByID(scope, fileID)
+	if err != nil {
+		return "", err
+	}
+
+	directory, err := GetDirectoryByID(scope, file.StorageDirectoryID)
 	return directory.Path, nil
 }
 
