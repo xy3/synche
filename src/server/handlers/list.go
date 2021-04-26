@@ -25,7 +25,10 @@ func listHome(user *schema.User) middleware.Responder {
 	return files.NewListDirectoryOK().WithPayload(homeDirContents)
 }
 
-func ListDirectory(params files.ListDirectoryParams, user *schema.User) middleware.Responder {
+func ListDirectory(
+	params files.ListDirectoryParams,
+	user *schema.User,
+	) middleware.Responder {
 	// List the home directory if either no parameters were provided, or if the name provided is "home"
 	if params.DirectoryID == nil && params.DirectoryName == nil {
 		return listHome(user)
