@@ -12,6 +12,11 @@ src/server/restapi/embedded_spec.go
 src/client/models/
 src/client/apiclient/*/*
 
+# GUI ignored files.
+.next/
+node_modules/
+.env
+
 # Ignore compiled C/C++ files.
 *.o
 
