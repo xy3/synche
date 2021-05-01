@@ -16,7 +16,11 @@ type Service struct {
 }
 
 type AccessTokenClaims struct {
+	UserID    uint
 	Email     string
+	Name      string
+	Picture   string
+	Role      string
 	TokenType string
 	jwt.StandardClaims
 }
@@ -29,9 +33,13 @@ type RefreshTokenClaims struct {
 }
 
 // GenerateAccessToken generates a jwt token
-func (auth *Service) GenerateAccessToken(email string) (signedToken string, err error) {
+func (auth *Service) GenerateAccessToken(id uint, email, name, picture, role string) (signedToken string, err error) {
 	claims := &AccessTokenClaims{
+		UserID:    id,
 		Email:     email,
+		Name:      name,
+		Picture:   picture,
+		Role:      role,
 		TokenType: "access",
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(auth.ExpirationHours)).Unix(),

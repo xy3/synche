@@ -2,21 +2,17 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	files2 "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/transfer"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"os"
-	"path/filepath"
 )
 
-var fileID uint64
-var filename string
-var output string
+var getFileID uint64
+var getFileOutput string
 
 func NewGetCmd() *cobra.Command {
 	var getCmd = &cobra.Command{
@@ -26,22 +22,18 @@ func NewGetCmd() *cobra.Command {
   synche get -i 2
   synche get -i 2 -o downloaded_file.jpg
 `,
+		PreRun: authenticateUserPreRun,
 		Run: func(cmd *cobra.Command, args []string) {
-			err := apiclient.Authenticator(filepath.Join(config.SyncheDir, "token.json"))
-			if err != nil {
-				log.WithError(err).Fatal("Failed to authenticate the client")
-			}
 			log.Info("Downloading...")
-			err = getFileJob(cmd)
-			if err != nil {
+			if err := getFileJob(cmd); err != nil {
 				log.WithError(err).Fatal("download failed")
 			}
 		},
 	}
 
-	getCmd.Flags().Uint64VarP(&fileID, "id", "i", 0, "ID of the file to download")
+	getCmd.Flags().Uint64VarP(&getFileID, "id", "i", 0, "ID of the file to download")
 	// getCmd.Flags().StringVarP(&filename, "name", "n", "", "name of the file to download")
-	getCmd.Flags().StringVarP(&output, "output", "o", "", "download location. either a full file path or directory")
+	getCmd.Flags().StringVarP(&getFileOutput, "output", "o", "", "download location. either a full file path or directory")
 	return getCmd
 }
 
@@ -52,7 +44,7 @@ func getFileJob(cmd *cobra.Command) error {
 
 	fileInfo, err := apiclient.Client.Files.GetFileInfo(
 		&files2.GetFileInfoParams{
-			FileID:  fileID,
+			FileID:  getFileID,
 			Context: context.Background(),
 		},
 		apiclient.ClientAuth,
@@ -61,13 +53,10 @@ func getFileJob(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	if fileInfo.Payload.ID == nil {
-		return fmt.Errorf("no file found for ID: %d", fileID)
-	}
 
-	var outputFile = *fileInfo.Payload.Name
-	if output != "" {
-		outputFile = output
+	var outputFile = fileInfo.Payload.Name
+	if getFileOutput != "" {
+		outputFile = getFileOutput
 	}
 	fileWriter, err := files.Afs.OpenFile(outputFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -77,7 +66,7 @@ func getFileJob(cmd *cobra.Command) error {
 	defer fileWriter.Close()
 
 	params := &transfer.DownloadFileParams{
-		FileID:  int64(fileID),
+		FileID:  int64(getFileID),
 		Context: context.Background(),
 	}
 

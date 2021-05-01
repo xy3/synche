@@ -19,7 +19,7 @@ func init() {
 		return
 	}
 	HomeDir = home
-	SyncheDir = filepath.Join(HomeDir, ".synche")
+	SyncheDir = filepath.Join(HomeDir, "synche")
 }
 
 func Read(name string, path string) error {

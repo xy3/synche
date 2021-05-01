@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -18,8 +19,8 @@ var Config = &Configuration{
 		Port:       9449,
 		Host:       "127.0.0.1",
 		BasePath:   "/v1/api",
-		StorageDir: filepath.Join(config.SyncheDir, "data"),
-		UploadDir:  filepath.Join(config.SyncheDir, "data", "received"),
+		StorageDir: filepath.Join(config.SyncheDir, "data", "storage"),
+		ChunkDir:   filepath.Join(config.SyncheDir, "data", "chunks"),
 	},
 	Database: DatabaseConfig{
 		Driver:   "mysql",
@@ -29,11 +30,14 @@ var Config = &Configuration{
 		Protocol: "tcp",
 		Address:  "127.0.0.1:3306",
 	},
-	Redis: RedisConfig{
-		Protocol: "tcp",
-		Address:  "127.0.0.1:6379",
-		Password: "",
-		DB:       0,
+	Ftp: FtpConfig{
+		Port:           2121,
+		KeyFile:        "",
+		Hostname:       "127.0.0.1",
+		CertFile:       "",
+		PublicIp:       "",
+		PassivePorts:   "52013-52114",
+		WelcomeMessage: "Welcome to the Synche FTP server",
 	},
 }
 
@@ -41,7 +45,7 @@ type Configuration struct {
 	Synche   SyncheConfig
 	Server   ServerConfig
 	Database DatabaseConfig
-	Redis    RedisConfig
+	Ftp      FtpConfig
 }
 
 type SyncheConfig struct {
@@ -54,7 +58,7 @@ type ServerConfig struct {
 	Port       int
 	Host       string
 	BasePath   string
-	UploadDir  string
+	ChunkDir   string
 	StorageDir string
 }
 
@@ -67,17 +71,30 @@ type DatabaseConfig struct {
 	Address  string
 }
 
-type RedisConfig struct {
-	Protocol string
-	Address  string
-	Password string
-	DB       int
+func (c *DatabaseConfig) DSN() string {
+	return fmt.Sprintf("%s:%s@%s(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		c.Username,
+		c.Password,
+		c.Protocol,
+		c.Address,
+		c.Name,
+	)
+}
+
+type FtpConfig struct {
+	Port           int
+	KeyFile        string
+	Hostname       string
+	CertFile       string
+	PublicIp       string
+	PassivePorts   string
+	WelcomeMessage string
 }
 
 func RequiredDirs() []string {
 	return []string{
 		Config.Synche.Dir,
-		Config.Server.UploadDir,
+		Config.Server.ChunkDir,
 		Config.Server.StorageDir,
 	}
 }

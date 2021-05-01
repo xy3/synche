@@ -43,3 +43,34 @@ func TestInitConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestNewDSN(t *testing.T) {
+	tests := []struct {
+		name     string
+		dbConfig DatabaseConfig
+		wantDsn  string
+	}{
+		{
+			name:     "dsn with empty config",
+			dbConfig: DatabaseConfig{},
+			wantDsn:  ":@()/?charset=utf8mb4&parseTime=True&loc=Local",
+		},
+		{
+			name:     "dsn with default config",
+			dbConfig: DatabaseConfig{
+				Name:     "synche",
+				Username: "root",
+				Password: "test123",
+				Protocol: "tcp",
+				Address:  "127.0.0.1:3306",
+			},
+			wantDsn:  "root:test123@tcp(127.0.0.1:3306)/synche?charset=utf8mb4&parseTime=True&loc=Local",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotDsn := tc.dbConfig.DSN()
+			require.Equal(t, tc.wantDsn, gotDsn)
+		})
+	}
+}

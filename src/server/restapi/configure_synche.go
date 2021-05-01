@@ -9,10 +9,9 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
@@ -23,7 +22,7 @@ import (
 	"net/http"
 )
 
-//go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema.User --flag-strategy=pflag --exclude-main
+// //go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema.User --flag-strategy=pflag --exclude-main
 
 func configureFlags(api *operations.SyncheAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
@@ -36,11 +35,6 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.JSONConsumer = runtime.JSONConsumer()
 	api.MultipartformConsumer = runtime.DiscardConsumer
 	api.JSONProducer = runtime.JSONProducer()
-
-	err := data.InitSyncheData()
-	if err != nil {
-		log.WithError(err).Fatal("Failed to start Synche Data requirements")
-	}
 
 	authService := auth.Service{
 		SecretKey:       "CHANGE_THIS_SECRET_KEY", // TODO: This should be configurable
@@ -95,13 +89,14 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	// File handlers
 	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFile)
 	api.FilesGetFileInfoHandler = files.GetFileInfoHandlerFunc(handlers.FileInfo)
-	api.FilesMoveFileHandler = files.MoveFileHandlerFunc(handlers.MoveFile)
+	api.FilesUpdateFileHandler = files.UpdateFileHandlerFunc(handlers.UpdateFile)
 
 	// Directory handlers
 	api.FilesListDirectoryHandler = files.ListDirectoryHandlerFunc(handlers.ListDirectory)
+	api.FilesListHomeDirectoryHandler = files.ListHomeDirectoryHandlerFunc(handlers.ListHomeDirectory)
 	api.FilesCreateDirectoryHandler = files.CreateDirectoryHandlerFunc(handlers.CreateDirectory)
 	api.FilesDeleteDirectoryHandler = files.DeleteDirectoryHandlerFunc(handlers.DeleteDirectory)
-	api.FilesGetDirectoryInfoHandler = files.GetDirectoryInfoHandlerFunc(handlers.DirectoryInfo)
+	// api.FilesGetDirectoryInfoHandler = files.GetDirectoryInfoHandlerFunc(handlers.DirectoryInfo)
 
 	// Transfer handlers
 	api.TransferDownloadFileHandler = transfer.DownloadFileHandlerFunc(handlers.DownloadFile)
@@ -112,7 +107,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		params tokens.RefreshTokenParams,
 		user *schema.User,
 	) middleware.Responder {
-		token, err := authService.GenerateAccessToken(user.Email)
+		token, err := authService.GenerateAccessToken(0, user.Email, "", "", "")
 		if err != nil {
 			return tokens.NewRefreshTokenDefault(500).WithPayload("could not generate a new access token")
 		}

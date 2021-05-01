@@ -15,7 +15,7 @@ func TestGenerateToken(t *testing.T) {
 		ExpirationHours: 24,
 	}
 
-	token, err := jwtWrapper.GenerateAccessToken("jwt@email.com")
+	token, err := jwtWrapper.GenerateAccessToken(0, "jwt@email.com", "", "", "")
 	assert.NoError(t, err)
 	generatedToken = token
 }

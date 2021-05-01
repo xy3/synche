@@ -1,0 +1,61 @@
+package repo
+
+import (
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
+	"gorm.io/gorm"
+)
+
+func GetHomeDirContents(user *schema.User) (*models.DirectoryContents, error) {
+	var (
+		err error
+		homeDir *schema.Directory
+	)
+	homeDir, err = GetHomeDir(user.ID)
+
+	if err != nil {
+		if err.Error() == "record not found" {
+			homeDir, err = SetupUserHomeDir(user)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	return GetDirContentsByID(homeDir.ID)
+}
+
+func GetDirContentsByID(dirID uint) (*models.DirectoryContents, error) {
+	contents := &models.DirectoryContents{}
+
+	tx := database.DB.Where("id = ?", dirID).First(&contents.CurrentDir)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	tx = database.DB.Where(&schema.Directory{ParentID: &dirID}).Find(&contents.SubDirectories)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	tx = database.DB.Where(&schema.File{DirectoryID: dirID}).Find(&contents.Files)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return contents, nil
+}
+
+func GetDirWithContentsFromPath(path string, db *gorm.DB) (*schema.Directory, error) {
+	pathHash := hash.PathHash(path)
+	directory := &schema.Directory{}
+	tx := db.Preload("Children").Preload("Files").Where(schema.Directory{PathHash: pathHash}).First(directory)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	return directory, nil
+}

@@ -6,8 +6,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,14 +37,10 @@ func removeDirByID(id uint64) (deleted bool, err error) {
 }
 
 var rmdirCmd = &cobra.Command{
-	Use:   "rmdir",
-	Short: "Removes a directory on the server",
+	Use:    "rmdir",
+	Short:  "Removes a directory on the server",
+	PreRun: authenticateUserPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := apiclient.Authenticator(filepath.Join(config.SyncheDir, "token.json"))
-		if err != nil {
-			log.WithError(err).Fatal("Failed to authenticate the client")
-		}
-
 		if rmDirID == 0 {
 			_ = cmd.Help()
 			return

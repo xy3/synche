@@ -2,22 +2,22 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
 	"time"
 )
 
 func Login(params users.LoginParams, authService auth.Service) middleware.Responder {
-	user, err := login(params.Email, params.Password)
+	user, err := LoginUser(params.Email, params.Password)
 	if err != nil {
 		return users.NewLoginDefault(401).WithPayload("invalid user credentials")
 	}
 
 	// Generate a new access token for the user
-	accessToken, err := authService.GenerateAccessToken(user.Email)
+	accessToken, err := authService.GenerateAccessToken(user.ID, user.Email, user.Name, user.Picture, user.Role)
 	if err != nil {
 		return users.NewLoginDefault(500).WithPayload("error signing the token")
 	}
@@ -35,7 +35,7 @@ func Login(params users.LoginParams, authService auth.Service) middleware.Respon
 	})
 }
 
-func login(email, password string) (*schema.User, error) {
+func LoginUser(email, password string) (*schema.User, error) {
 	user, err := repo.GetUserByEmail(email)
 	if err != nil {
 		return nil, err

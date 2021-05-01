@@ -7,6 +7,7 @@ import (
 	"github.com/kalafut/imohash"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"hash/crc32"
+	"strings"
 )
 
 type ChunkHashFunc func(chunkBytes []byte) string
@@ -21,6 +22,10 @@ func MD5Hash(bytes []byte) string {
 
 func MD5HashString(input string) string {
 	return MD5Hash([]byte(input))
+}
+
+func PathHash(path string) string {
+	return MD5HashString(strings.TrimRight(strings.TrimSpace(path), "/"))
 }
 
 func CRC32Hash(bytes []byte) string {
