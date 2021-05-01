@@ -6,7 +6,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/fatih/color v1.10.0 // indirect
+	github.com/fatih/color v1.10.0
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-openapi/analysis v0.20.1 // indirect
@@ -17,10 +17,12 @@ require (
 	github.com/go-openapi/strfmt v0.20.1
 	github.com/go-openapi/swag v0.19.15
 	github.com/go-openapi/validate v0.20.2
-	github.com/go-sql-driver/mysql v1.6.0
+	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/goftp/file-driver v0.0.0-20180502053751-5d604a0fc0c9 // indirect
+	github.com/goftp/server v0.0.0-20200708154336-f64f7c2d8a42
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/uuid v1.2.0 // indirect
-	github.com/jinzhu/copier v0.2.9
+	github.com/jlaffaye/ftp v0.0.0-20210307004419-5d4190119067 // indirect
 	github.com/kalafut/imohash v1.0.0
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

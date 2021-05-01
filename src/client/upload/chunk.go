@@ -36,22 +36,23 @@ func AsyncChunkUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, up
 
 	chunk := resp.Payload
 	log.WithFields(log.Fields{
-		"hash":         chunk.Chunk.Hash,
-		"file_id":      chunk.FileID,
-		"directory_id": chunk.ChunkDirectoryID,
+		"Hash":     chunk.Chunk.Hash,
+		"FileID":   chunk.FileID,
+		"ChunkNum": chunk.Number,
+		"ChunkID":  chunk.Chunk.ID,
 	}).Debug("Successfully uploaded chunk")
 
 	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly
 	return
 }
 
-func NewChunkUploadParams(chunk data.Chunk, uploadID uint64) *transfer.UploadChunkParams {
+func NewChunkUploadParams(chunk data.Chunk, fileID uint64) *transfer.UploadChunkParams {
 	chunkData := runtime.NamedReader(chunk.Hash, bytes.NewReader(*chunk.Bytes))
 	return &transfer.UploadChunkParams{
 		ChunkData:   chunkData,
 		ChunkHash:   chunk.Hash,
 		ChunkNumber: chunk.Num,
-		UploadID:    uploadID,
+		FileID:      fileID,
 		Context:     context.TODO(),
 	}
 }

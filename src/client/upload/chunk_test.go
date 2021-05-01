@@ -13,26 +13,26 @@ func TestChunkUpload_NewParams(t *testing.T) {
 	files.SetFileSystem(afero.NewMemMapFs())
 
 	testCases := []struct {
-		Name            string
-		Chunk           data.Chunk
-		UploadRequestID uint64
-		ChunkBytes      []byte
-		ExpectedError   error
+		Name          string
+		Chunk         data.Chunk
+		FileID        uint64
+		ChunkBytes    []byte
+		ExpectedError error
 	}{
 		{
-			Chunk:           data.Chunk{Hash: "hash", Num: 1},
-			UploadRequestID: 1,
-			ChunkBytes:      []byte("test file content"),
-			ExpectedError:   nil,
+			Chunk:         data.Chunk{Hash: "hash", Num: 1},
+			FileID:        1,
+			ChunkBytes:    []byte("test file content"),
+			ExpectedError: nil,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(
 			tc.Name, func(t *testing.T) {
 				tc.Chunk.Bytes = &tc.ChunkBytes
-				params := upload.NewChunkUploadParams(tc.Chunk, tc.UploadRequestID)
+				params := upload.NewChunkUploadParams(tc.Chunk, tc.FileID)
 				if tc.ExpectedError == nil {
-					require.Equal(t, tc.UploadRequestID, params.UploadID)
+					require.Equal(t, tc.FileID, params.FileID)
 					require.Equal(t, tc.Chunk.Num, params.ChunkNumber)
 					require.Equal(t, tc.Chunk.Hash, params.ChunkHash)
 					paramData := make([]byte, len(tc.ChunkBytes))

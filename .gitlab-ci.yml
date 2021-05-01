@@ -19,10 +19,8 @@ before_script:
   - go get github.com/vektra/mockery/v2/.../
   - cd $GOPATH/src/$REPO_NAME/src
   - swagger version
-  - echo "Running client make generate"
-  - make -C client generate
-  - echo "Running server make generate"
-  - make -C server generate
+  - echo "Running make generate"
+  - make generate
   - go generate ./...
 
 stages:
@@ -30,7 +28,7 @@ stages:
   - build
   - deploy
 
-format:
+format-test:
   stage: test
   script:
     - go fmt $(go list ./... | grep -v /vendor/)

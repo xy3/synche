@@ -2,45 +2,39 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/scopes"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
-	"strings"
 )
 
-func getDirContents(params files.ListDirectoryParams, user *schema.User) (*models.DirectoryContents, error) {
-	if params.DirectoryID != nil {
-		return repo.GetDirContentsByID(scopes.CurrentUser(user), uint(*params.DirectoryID))
-	}
-	return repo.GetDirContentsByName(scopes.CurrentUser(user), *params.DirectoryName)
-}
+func ListDirectory(params files.ListDirectoryParams, user *schema.User) middleware.Responder {
+	var (
+		err         error
+		directory   *schema.Directory
+		errNotFound = files.NewListDirectoryDefault(404).WithPayload("directory not found")
+	)
 
-func listHome(user *schema.User) middleware.Responder {
-	homeDirContents, err := repo.GetHomeDirContents(scopes.CurrentUser(user))
+	directory, err = repo.GetDirectoryByID(uint(params.ID))
 	if err != nil {
-		return files.NewListDirectoryDefault(500).WithPayload("could not list the home directory")
-	}
-	return files.NewListDirectoryOK().WithPayload(homeDirContents)
-}
-
-func ListDirectory(
-	params files.ListDirectoryParams,
-	user *schema.User,
-	) middleware.Responder {
-	// List the home directory if either no parameters were provided, or if the name provided is "home"
-	if params.DirectoryID == nil && params.DirectoryName == nil {
-		return listHome(user)
-	}
-	if params.DirectoryName != nil && strings.ToLower(*params.DirectoryName) == "home" {
-		return listHome(user)
+		return errNotFound
 	}
 
-	contents, err := getDirContents(params, user)
+	if directory.UserID != user.ID {
+		return files.NewListDirectoryUnauthorized()
+	}
+
+	contents, err := repo.GetDirContentsByID(uint(params.ID))
 	if err != nil {
-		return files.NewDeleteDirectoryDefault(404).WithPayload("directory not found")
+		return errNotFound
 	}
 
 	return files.NewListDirectoryOK().WithPayload(contents)
+}
+
+func ListHomeDirectory(_ files.ListHomeDirectoryParams, user *schema.User) middleware.Responder {
+	homeDirContents, err := repo.GetHomeDirContents(user)
+	if err != nil {
+		return files.NewListHomeDirectoryDefault(500).WithPayload("could not list the home directory")
+	}
+	return files.NewListHomeDirectoryOK().WithPayload(homeDirContents)
 }

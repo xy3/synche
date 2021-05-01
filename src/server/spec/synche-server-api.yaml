@@ -39,6 +39,11 @@ securityDefinitions:
 security:
   - AccessToken: [ ]
 
+consumes:
+  - application/json
+produces:
+  - application/json
+
 paths:
   /download/{fileID}:
     parameters:
@@ -94,25 +99,74 @@ paths:
         - files
       operationId: deleteFile
       responses:
-        201:
+        200:
           description: Deleted
+        default:
+          description: Error
           schema:
-            $ref: '#/definitions/FileDeleted'
+            $ref: '#/definitions/Error'
+    patch:
+      tags:
+        - files
+      summary: update a file
+      operationId: updateFile
+      description: Update a file
+      parameters:
+        - in: query
+          type: integer
+          format: uint
+          name: directoryID
+          required: false
+        - in: query
+          type: string
+          name: filename
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
         401:
           description: Unauthorized
-        404:
-          description: File not found
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
 
   /directory:
+    get:
+      tags:
+        - files
+      operationId: listHomeDirectory
+      summary: List the contents of the user's home (root) directory
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/DirectoryContents'
+        401:
+          description: Unauthorized
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
     put:
       parameters:
         - in: query
           type: string
           name: directoryName
           required: true
+          description: the name of the new directory
+        - in: query
+          type: integer
+          format: uint
+          name: parentDirectoryID
+          required: false
+          description: the ID of the parent directory, no ID means the directory is created the user's home directory
       tags:
         - files
-      summary: add a new directory to your account
+      summary: create a new directory
       operationId: createDirectory
       responses:
         200:
@@ -121,8 +175,6 @@ paths:
             $ref: '#/definitions/Directory'
         401:
           description: Unauthorized
-        501:
-          description: Not implemented
         default:
           description: Error
           schema:
@@ -138,17 +190,16 @@ paths:
     get:
       tags:
         - files
-      summary: get information about a certain directory
-      operationId: getDirectoryInfo
+      summary: lists the files in a directory on the server
+      operationId: listDirectory
+      description: Queries the server for the files in a directory specified by the directory's ID
       responses:
         200:
           description: OK
           schema:
-            $ref: '#/definitions/Directory'
+            $ref: '#/definitions/DirectoryContents'
         401:
           description: Unauthorized
-        501:
-          description: Not implemented
         default:
           description: Error
           schema:
@@ -170,45 +221,6 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
-  /list:
-    get:
-      tags:
-        - files
-      summary: lists the files in a directory on the server
-      operationId: listDirectory
-      description: Queries the server for the files in a directory specified by the directory's ID
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: query
-          name: directoryID
-          type: integer
-          format: uint
-          required: false
-        - in: query
-          name: directoryName
-          type: string
-          required: false
-        - in: query
-          name: limit
-          type: integer
-          default: 100
-          required: false
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/DirectoryContents'
-        401:
-          description: Unauthorized
-        501:
-          description: Not implemented
-        default:
-          description: Error
-          schema:
-            $ref: "#/definitions/Error"
 
   /login:
     post:
@@ -235,47 +247,6 @@ paths:
           description: Error
           schema:
             $ref: "#/definitions/Error"
-
-  /move:
-    post:
-      tags:
-        - files
-      summary: move a file
-      operationId: moveFile
-      description: Requests to move a file specified by the file id and the path to the new file location
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: query
-          name: fileID
-          type: integer
-          format: uint
-          required: true
-        - in: query
-          name: directoryID
-          type: integer
-          format: uint
-          required: false
-        - in: query
-          name: directoryName
-          type: string
-          required: false
-
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/File'
-        401:
-          description: Unauthorized
-        501:
-          description: Not implemented
-        default:
-          description: Error
-          schema:
-            $ref: '#/definitions/Error'
 
   /register:
     post:
@@ -367,28 +338,20 @@ paths:
           required: true
           description: The position index of the chunk in the file the chunk is from
         - in: formData
-          name: uploadID
+          name: fileID
           type: integer
           format: uint
           required: true
-          description: The identifier for the composite file upload request
+          description: The identifier for the composite file
       responses:
         201:
           description: OK
           schema:
             $ref: '#/definitions/FileChunk'
-        400:
-          description: Bad request
+        default:
+          description: Error
           schema:
             $ref: '#/definitions/Error'
-        409:
-          description: The file already exists or cannot be written to
-          schema:
-            $ref: '#/definitions/Error'
-        401:
-          description: Unauthorized
-        501:
-          description: Not implemented
 
   /upload/new:
     post:
@@ -397,21 +360,38 @@ paths:
       summary: requests to initiate a new file upload
       operationId: newUpload
       description: To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
-      consumes:
-        - application/json
-      produces:
-        - application/json
       parameters:
-        - in: body
-          name: uploadInfo
-          schema:
-            $ref: '#/definitions/NewFileUpload'
+        - in: query
+          name: fileName
           required: true
+          type: string
+          description: the original name of the file
+        - in: query
+          name: fileSize
+          required: true
+          type: integer
+          description: the size of the file in bits
+        - in: query
+          name: fileHash
+          required: true
+          type: string
+          description: the hash of the entire file
+        - in: query
+          name: numChunks
+          required: true
+          type: integer
+          description: the number of chunks the server should expect
+        - in: query
+          name: directoryID
+          required: false
+          type: integer
+          format: uint
+          description: the target storage directory for the file. Leave blank to upload to your home directory
       responses:
         200:
           description: OK
           schema:
-            $ref: '#/definitions/Upload'
+            $ref: '#/definitions/File'
         401:
           description: Unauthorized
         501:
@@ -460,51 +440,61 @@ definitions:
         format: uint
       Name:
         type: string
+      Path:
+        type: string
+      PathHash:
+        type: string
+      Size:
+        type: integer
+        format: int64
+      ParentDirectoryID:
+        type: integer
+        format: uint
       FileCount:
         type: integer
         format: uint
         default: 0
 
-  # Currently directories cannot nest within other directories
   DirectoryContents:
     type: object
     properties:
-      Subdirectories:
+      CurrentDir:
+        $ref: '#/definitions/Directory'
+      SubDirectories:
         type: array
         items:
-          type: object
           $ref: '#/definitions/Directory'
       Files:
         type: array
         items:
-          type: object
           $ref: '#/definitions/File'
 
   Error:
     type: string
+    example: error message
 
   File:
     type: object
-    required:
-      - StorageDirectoryID
-      - Hash
-      - ID
-      - Name
-      - Size
     properties:
-      StorageDirectoryID:
+      ID:
+        type: integer
+        format: uint
+      DirectoryID:
         type: integer
         format: uint
       Hash:
         type: string
-      ID:
-        type: integer
-        format: uint
       Name:
         type: string
       Size:
         type: integer
         format: int64
+      Available:
+        type: boolean
+      TotalChunks:
+        type: integer
+      ChunksReceived:
+        type: integer
 
   FileChunk:
     type: object
@@ -516,15 +506,8 @@ definitions:
         type: integer
         description: the position of the chunk in the file
       Chunk:
-        type: object
         $ref: '#/definitions/Chunk'
-      ChunkDirectoryID:
-        type: integer
-        format: uint
       FileID:
-        type: integer
-        format: uint
-      UploadID:
         type: integer
         format: uint
 
@@ -535,54 +518,12 @@ definitions:
         type: integer
         format: uint
 
-  NewFileUpload:
-    type: object
-    description: required information about a file to intiate a multipart upload
-    required:
-      - FileName
-      - FileSize
-      - FileHash
-      - NumChunks
-    properties:
-      FileName:
-        type: string
-        description: the original name of the file
-      FileSize:
-        type: integer
-        description: the size of the file in bits
-      FileHash:
-        type: string
-        description: the hash of the entire file
-      NumChunks:
-        type: integer
-        description: the number of chunks the server should expect
-      DirectoryID:
-        type: integer
-        format: uint
-
-  Upload:
-    type: object
-    properties:
-      ID:
-        type: integer
-        format: uint
-      ChunkDirectoryID:
-        type: integer
-        format: uint
-      FileID:
-        type: integer
-        format: uint
-      NumChunks:
-        type: integer
-        format: int64
-
   User:
     type: object
     required:
       - email
       - id
       - name
-      - password
       - picture
       - role
     properties:
@@ -594,8 +535,6 @@ definitions:
         type: integer
         format: uint
       name:
-        type: string
-      password:
         type: string
       picture:
         type: string

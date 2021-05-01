@@ -1,10 +1,10 @@
-package data_test
+package database_test
 
 import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"testing"
@@ -26,7 +26,7 @@ func (s *dataSuite) SetupSuite() {
 
 	require.NoError(s.T(), err)
 
-	data.DB = s.DB
+	database.DB = s.DB
 }
 
 // Todo: Add migration test cases and configure the sqlmock to expect the queries

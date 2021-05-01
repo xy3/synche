@@ -8,7 +8,7 @@ import (
 	"regexp"
 )
 
-// User schema uses an email hash to have a set key length for finding a user by their email address
+// User uses an email hash to have a set key length for finding a user by their email address
 type User struct {
 	gorm.Model
 	Email         string `gorm:"not null"`

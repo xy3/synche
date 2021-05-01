@@ -39,7 +39,7 @@ func AuthenticateClient(tokenFile string) error {
 		_ = saveToken(token, tokenFile)
 	}
 	ClientAuth = httptransport.APIKeyAuth("X-Token", "header", token.AccessToken)
-	log.Debugf("Using access token: %s", token.AccessToken)
+	// log.Debugf("Using access token: %s", token.AccessToken)
 	return nil
 }
 

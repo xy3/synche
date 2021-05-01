@@ -5,8 +5,10 @@ import (
 	"github.com/spf13/cobra"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/setup"
+	"path/filepath"
 )
 
 var cfgFile string
@@ -47,4 +49,11 @@ func init() {
 	}
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche/synche-client.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&c.Config.Synche.Verbose, "verbose", "v", false, "display verbose output (default is false)")
+}
+
+func authenticateUserPreRun(*cobra.Command, []string) {
+	err := apiclient.Authenticator(filepath.Join(config.SyncheDir, "token.json"))
+	if err != nil {
+		log.Fatal("Failed to authenticate the client")
+	}
 }

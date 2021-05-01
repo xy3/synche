@@ -3,68 +3,37 @@ package handlers
 import (
 	"fmt"
 	"github.com/go-openapi/runtime/middleware"
-	"github.com/patrickmn/go-cache"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
-	"path/filepath"
-	"strconv"
 )
 
-func NewUpload(
-	params transfer.NewUploadParams,
-	user *schema.User,
-) middleware.Responder {
-	// Make a directory in the upload dir with the hash as the name
-	fileChunkDir := filepath.Join(c.Config.Server.UploadDir, *params.UploadInfo.FileHash)
-	err := files.AppFS.MkdirAll(fileChunkDir, 0755)
-	if err != nil {
-		return transfer.NewNewUploadDefault(500).WithPayload("Failed to create a directory for the file")
+func convertFileToModelsFile(file schema.File) *models.File {
+	return &models.File{
+		ID:             uint64(file.ID),
+		ChunksReceived: file.ChunksReceived,
+		DirectoryID:    uint64(file.DirectoryID),
+		Hash:           file.Hash,
+		Name:           file.Name,
+		Size:           file.Size,
+		TotalChunks:    file.TotalChunks,
+		Available:      file.Available,
 	}
+}
 
-	db := data.DB.Begin()
+func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, user *schema.User) middleware.Responder {
+	db := database.DB.Begin()
 
-	chunkDir := schema.ChunkDirectory{
-		Path:   fileChunkDir,
-		UserID: user.ID,
-	}
-
-	if db.Where(chunkDir).FirstOrCreate(&chunkDir).Error != nil {
-		db.Rollback()
-		return transfer.NewNewUploadDefault(500).WithPayload("Failed to create the chunk directory")
-	}
-
-	var storageDirectoryID uint
-	if params.UploadInfo.DirectoryID != 0 {
-		storageDirectoryID = uint(params.UploadInfo.DirectoryID)
-	} else {
-		homeDir, err := repo.GetHomeDir(user)
-		if err != nil {
-			return nil
-		}
-		storageDirectoryID = homeDir.ID
-	}
-
+	// TODO: send the chunk size in the upload request
 	file := schema.File{
-		Name:               *params.UploadInfo.FileName,
-		Size:               *params.UploadInfo.FileSize,
-		Hash:               *params.UploadInfo.FileHash,
-		ChunkDirectoryID:   chunkDir.ID,
-		StorageDirectoryID: storageDirectoryID,
-		UserID:             user.ID,
-	}
-
-	// prevent users from uploading the same file twice
-	var fileWithSameHash schema.File
-	tx := db.Where(&schema.File{Hash: file.Hash, UserID: user.ID}).First(&fileWithSameHash)
-	if tx.RowsAffected > 0 {
-		db.Rollback()
-		msg := fmt.Sprintf("you already have this file stored in directory ID: %d", fileWithSameHash.StorageDirectoryID)
-		return transfer.NewNewUploadDefault(400).WithPayload(models.Error(msg))
+		Name:        params.FileName,
+		Size:        params.FileSize,
+		Hash:        params.FileHash,
+		DirectoryID: directoryID,
+		UserID:      user.ID,
+		TotalChunks: params.NumChunks,
 	}
 
 	if db.Create(&file).Error != nil {
@@ -72,26 +41,65 @@ func NewUpload(
 		return transfer.NewNewUploadDefault(500).WithPayload("failed to store the file data")
 	}
 
-	newUpload := schema.Upload{
-		ChunkDirectoryID: chunkDir.ID,
-		FileID:           file.ID,
-		NumChunks:        *params.UploadInfo.NumChunks,
-		UserID:           user.ID,
-	}
-
-	if db.Create(&newUpload).Error != nil {
-		db.Rollback()
-		return transfer.NewNewUploadDefault(500).WithPayload("Failed to add the file info to the database")
-	}
-
 	db.Commit()
 
-	data.Cache.Uploads.Set(strconv.Itoa(int(newUpload.ID)), &newUpload, cache.DefaultExpiration)
+	if err := repo.UpdateDirFileCount(directoryID); err != nil {
+		return transfer.NewNewUploadDefault(500).WithPayload("failed to update the directory file count")
+	}
 
-	return transfer.NewNewUploadOK().WithPayload(&models.Upload{
-		ChunkDirectoryID: uint64(newUpload.ChunkDirectoryID),
-		FileID:           uint64(newUpload.FileID),
-		ID:               uint64(newUpload.ID),
-		NumChunks:        newUpload.NumChunks,
-	})
+	return transfer.NewNewUploadOK().WithPayload(convertFileToModelsFile(file))
+}
+
+func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Responder {
+	var (
+		err         error
+		directoryID uint
+		directory   *schema.Directory
+	)
+
+	if params.DirectoryID != nil && *params.DirectoryID != 0 {
+		directoryID = uint(*params.DirectoryID)
+		directory, err = repo.GetDirectoryByID(directoryID)
+		if err != nil {
+			return transfer.NewNewUploadDefault(500).WithPayload("directory not found")
+		}
+	} else {
+		directory, err = repo.GetHomeDir(user.ID)
+		if err != nil {
+			return transfer.NewNewUploadDefault(500).WithPayload("home directory not found")
+		}
+		directoryID = directory.ID
+	}
+
+	// prevent users from uploading the same file twice
+	var prevFile schema.File
+	tx := database.DB.Joins("Upload").Where(&schema.File{
+		UserID: user.ID,
+		Hash:   params.FileHash,
+	}).First(&prevFile)
+
+	if tx.Error != nil {
+		return createNewUploadAndFile(directoryID, params, user)
+	}
+
+	msg := fmt.Sprintf("you already have this file stored in directory ID: %d", prevFile.DirectoryID)
+	errAlreadyExists := transfer.NewNewUploadDefault(400).WithPayload(models.Error(msg))
+
+	if err := prevFile.ValidateHash(database.DB); err == nil {
+		return errAlreadyExists
+	}
+
+	if prevFile.Available {
+		if err := prevFile.Delete(database.DB); err != nil {
+			return transfer.NewNewUploadDefault(500).WithPayload("failed to remove old invalid file")
+		}
+		if err := prevFile.Delete(database.DB); err != nil {
+			return transfer.NewNewUploadDefault(500).WithPayload("failed to remove old invalid upload")
+		}
+		return createNewUploadAndFile(directoryID, params, user)
+	}
+
+	// repo.UploadsCache.Set(strconv.Itoa(int(newUpload.ID)), &newUpload, cache.DefaultExpiration)
+
+	return transfer.NewNewUploadOK().WithPayload(convertFileToModelsFile(prevFile))
 }
