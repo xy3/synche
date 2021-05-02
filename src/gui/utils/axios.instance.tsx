@@ -1,6 +1,7 @@
 import axios from "axios";
 import cogoToast from "./cogoToast.instance";
 import Cookies from "js-cookie";
+import { isString } from "lodash";
 
 const instance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL,
@@ -11,16 +12,22 @@ const instance = axios.create({
 
 instance.interceptors.response.use((res) => {
   if (res.status !== 200) {
-    console.log(res.data);
-    cogoToast.error("There has been an error, please try again");
+    if (res.data.message) {
+      cogoToast.error(res.data.message);
+    } else if (isString(res.data)) {
+      cogoToast.error(res.data);
+    } else {
+      cogoToast.error("There has been an error, please try again");
+    }
   }
 
   return res;
 });
 
 instance.interceptors.request.use((req) => {
-  if (Cookies.get("token")) {
-    req.headers.Authorization = `Bearer ${Cookies.get("token")}`;
+  if (Cookies.get("accessToken") && Cookies.get("refreshToken")) {
+    req.headers["X-Token"] = Cookies.get("accessToken");
+    req.headers["X-Refresh-Token"] = Cookies.get("refreshToken");
   }
 
   return req;

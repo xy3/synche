@@ -43,6 +43,7 @@ func ReassembleFile(chunkDir string, file schema.File) error {
 		return err
 	}
 
+	filename = file.Name
 	reassembledFileLocation := filepath.Join(storageDir.Path, filename)
 
 	// Rename file if there is a file name collision

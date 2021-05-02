@@ -15,11 +15,12 @@ info:
 
   license:
     name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
 
 # tags are used for organizing operations
 tags:
   - name: files
+    description: File and directory endpoints
   - name: transfer
     description: File transfer requests
   - name: users
@@ -54,6 +55,7 @@ paths:
     get:
       produces:
         - application/octet-stream
+      summary: Download a file
       operationId: downloadFile
       tags:
         - transfer
@@ -94,6 +96,7 @@ paths:
           description: Unauthorized
         404:
           description: File not found
+      summary: Get file info
     delete:
       tags:
         - files
@@ -105,12 +108,13 @@ paths:
           description: Error
           schema:
             $ref: '#/definitions/Error'
+      summary: Delete a file
     patch:
       tags:
         - files
-      summary: update a file
+      summary: Update a file
       operationId: updateFile
-      description: Update a file
+      description: Update a files directory or filename
       parameters:
         - in: query
           type: integer
@@ -139,7 +143,8 @@ paths:
       tags:
         - files
       operationId: listHomeDirectory
-      summary: List the contents of the user's home (root) directory
+      summary: List home directory
+      description: List the contents of the user's home (root) directory
       responses:
         200:
           description: OK
@@ -166,7 +171,7 @@ paths:
           description: the ID of the parent directory, no ID means the directory is created the user's home directory
       tags:
         - files
-      summary: create a new directory
+      summary: Create a new directory
       operationId: createDirectory
       responses:
         200:
@@ -190,9 +195,8 @@ paths:
     get:
       tags:
         - files
-      summary: lists the files in a directory on the server
       operationId: listDirectory
-      description: Queries the server for the files in a directory specified by the directory's ID
+      description: Lists the files in a directory on the server specified by the directory's ID
       responses:
         200:
           description: OK
@@ -204,6 +208,7 @@ paths:
           description: Error
           schema:
             $ref: "#/definitions/Error"
+      summary: List directory
     delete:
       tags:
         - files
@@ -224,7 +229,7 @@ paths:
 
   /login:
     post:
-      summary: user login
+      summary: User login
       security: [ ]
       tags:
         - users
@@ -250,7 +255,7 @@ paths:
 
   /register:
     post:
-      summary: register user
+      summary: Register user
       operationId: register
       security: [ ]
       tags:
@@ -294,6 +299,7 @@ paths:
           description: Error
           schema:
             $ref: '#/definitions/Error'
+      summary: Refresh an Access token
 
   /user:
     get:
@@ -309,12 +315,13 @@ paths:
           description: Error
           schema:
             $ref: "#/definitions/Error"
+      summary: Get user info
 
   /upload/chunk:
     post:
       tags:
         - transfer
-      summary: adds an inventory item
+      summary: Upload a file chunk
       operationId: uploadChunk
       description: Uploads a new chunk to the Synche server
       consumes:
@@ -357,7 +364,7 @@ paths:
     post:
       tags:
         - transfer
-      summary: requests to initiate a new file upload
+      summary: Create a new file upload
       operationId: newUpload
       description: To upload a file to the server, a new upload request must be sent to this endpoint with the required information about the file
       parameters:
@@ -407,6 +414,7 @@ definitions:
     properties:
       accessToken:
         type: string
+    description: Access token to authenticate a user.
 
   AccessAndRefreshToken:
     type: object
@@ -419,6 +427,7 @@ definitions:
         format: int64
       refreshToken:
         type: string
+    description: Contains both the AccessToken and RefreshToken for a user.
 
   Chunk:
     type: object
@@ -431,6 +440,7 @@ definitions:
       Size:
         type: integer
         format: int64
+    description: A file chunk
 
   Directory:
     type: object
@@ -444,9 +454,6 @@ definitions:
         type: string
       PathHash:
         type: string
-      Size:
-        type: integer
-        format: int64
       ParentDirectoryID:
         type: integer
         format: uint
@@ -454,6 +461,7 @@ definitions:
         type: integer
         format: uint
         default: 0
+    description: Directory information
 
   DirectoryContents:
     type: object
@@ -468,10 +476,12 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/File'
+    description: The sub-directories and files within a directory
 
   Error:
     type: string
     example: error message
+    description: An error message from the server
 
   File:
     type: object
@@ -495,6 +505,7 @@ definitions:
         type: integer
       ChunksReceived:
         type: integer
+    description: File information
 
   FileChunk:
     type: object
@@ -510,13 +521,7 @@ definitions:
       FileID:
         type: integer
         format: uint
-
-  FileDeleted:
-    type: object
-    properties:
-      FileID:
-        type: integer
-        format: uint
+    description: A chunk with a reference to the file it is a part of
 
   User:
     type: object
@@ -543,3 +548,5 @@ definitions:
         enum:
           - member
           - admin
+    description: User profile information
+

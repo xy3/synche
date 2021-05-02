@@ -1,30 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
-import Breadcrumb from "../../../components/Breadcrumb";
-import Layout from "../../../components/Layout";
-import { isLoggedIn } from "../../../utils/isLoggedIn";
-import axios from "../../../utils/axios.instance";
-import cogoToast from "../../../utils/cogoToast.instance";
-import {
-  RiArrowLeftLine,
-  RiFileUploadLine,
-  RiFolderAddLine,
-} from "react-icons/ri";
-import NewFolderModal from "../../../components/Modals/NewFolderModal";
-import FileUploadModal from "../../../components/Modals/FileUploadModal";
-import DashboardFolders from "../../../components/Dashboard/DashboardFolders";
-import DashboardFiles from "../../../components/Dashboard/DashboardFiles";
-import { UserConsumer } from "../../../context/userContext";
-import {
-  ICurrentDirectory,
-  IDirectory,
-  IFile,
-} from "../../../utils/interfaces";
+import React, { useEffect, useState } from "react";
+import Breadcrumb from "../../components/Breadcrumb";
+import Layout from "../../components/Layout";
+import { isLoggedIn } from "../../utils/isLoggedIn";
+import axios from "../../utils/axios.instance";
+import cogoToast from "../../utils/cogoToast.instance";
+import { IFile, IDirectory, ICurrentDirectory } from "../../utils/interfaces";
+import DashboardFolders from "../../components/Dashboard/DashboardFolders";
+import DashboardFiles from "../../components/Dashboard/DashboardFiles";
+import NewFolderModal from "../../components/Modals/NewFolderModal";
+import FileUploadModal from "../../components/Modals/FileUploadModal";
+import { RiFileUploadLine, RiFolderAddLine } from "react-icons/ri";
+import { UserConsumer } from "../../context/userContext";
 
-interface ComponentProps {
-  folderId: string;
-}
-
-export default function SpecificFolder({ folderId }: ComponentProps) {
+export default function Dashboard() {
   const [files, setFiles] = useState<IFile[]>([]);
   const [directories, setDirectories] = useState<IDirectory[]>([]);
   const [currentDirectory, setCurrentDirectory] = useState<ICurrentDirectory>({
@@ -32,6 +20,7 @@ export default function SpecificFolder({ folderId }: ComponentProps) {
     Name: "Loading...",
     Path: "",
     PathHash: "",
+    ParentDirectoryID: -1,
   });
 
   const [newFolderModalVisible, setNewFolderModalVisible] = useState<boolean>(
@@ -43,12 +32,12 @@ export default function SpecificFolder({ folderId }: ComponentProps) {
 
   async function getDirectoryList() {
     try {
-      const res = await axios.get(`/directory/${folderId}`);
+      const res = await axios.get(`/directory`);
 
       if (res.status === 200) {
         setCurrentDirectory(res.data.CurrentDir);
-        setFiles(res.data.Files || []);
-        setDirectories(res.data.SubDirectories || []);
+        setFiles(res.data.Files);
+        setDirectories(res.data.SubDirectories);
       }
     } catch (err) {
       cogoToast.error("There has been an error, please try again");
@@ -88,33 +77,17 @@ export default function SpecificFolder({ folderId }: ComponentProps) {
 
         <div>
           <NewFolderModal
-            currentPathID={currentDirectory.ID}
             isOpen={newFolderModalVisible}
             onSubmit={onNewFolder}
             onGoBack={() => setNewFolderModalVisible(false)}
           />
           <FileUploadModal
-            currentPathID={currentDirectory.ID}
             isOpen={newUploadModalVisible}
             onSubmit={() => setNewUploadModalVisible(false)}
             onGoBack={() => setNewUploadModalVisible(false)}
           />
           <div className="my-8 w-full flex justify-end">
             <div className="w-full md:w-2/3 flex justify-end">
-              {currentDirectory.hasOwnProperty("ParentDirectoryID") ? (
-                <div className="w-1/3 px-2">
-                  <a
-                    href={`/dashboard/folder/${
-                      currentDirectory.ParentDirectoryID || ""
-                    }`}
-                    className="secondary-button flex justify-center items-center"
-                  >
-                    <RiArrowLeftLine className="icon" />
-                    <span>Go Back</span>
-                  </a>
-                </div>
-              ) : null}
-
               <div className="w-1/3 px-2">
                 <button
                   className="secondary-button flex justify-center items-center"
@@ -148,7 +121,7 @@ export default function SpecificFolder({ folderId }: ComponentProps) {
   );
 }
 
-export const getServerSideProps = async ({ req, params }) => {
+export const getServerSideProps = async ({ req }) => {
   if (!isLoggedIn(req.cookies.accessToken || "")) {
     return {
       redirect: {
@@ -158,11 +131,7 @@ export const getServerSideProps = async ({ req, params }) => {
     };
   }
 
-  const folderId = params.fid || "";
-
   return {
-    props: {
-      folderId: folderId,
-    },
+    props: {},
   };
 };

@@ -47,7 +47,8 @@ func startHttpServer(flags *flag.FlagSet, sig chan struct{}) error {
 	defer apiServer.Shutdown()
 
 	apiServer.ConfigureAPI()
-	if err := apiServer.Serve(); err != nil {
+	apiServer.Host = c.Config.Server.Host
+	if err = apiServer.Serve(); err != nil {
 		return err
 	}
 
@@ -135,6 +136,7 @@ func NewServeCmd() *cobra.Command {
 			signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 			<-quit
 			close(sig)
+			wg.Done()
 			wg.Wait()
 		},
 	}

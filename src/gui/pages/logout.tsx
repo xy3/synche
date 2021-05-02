@@ -4,7 +4,7 @@ import BareboneLayout from "../components/BareboneLayout";
 
 export default function Logout() {
   useEffect(() => {
-    Cookies.remove("token");
+    Cookies.remove("accessToken");
     Cookies.remove("refreshToken");
 
     setTimeout(() => {

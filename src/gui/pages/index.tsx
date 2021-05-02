@@ -30,12 +30,15 @@ export default function Index() {
                   </div>
                 </div>
               ) : (
-                <div className="my-16 w-full flex justify-center">
+                <div className="my-16 w-full flex flex-col items-center">
                   <div className="w-2/3 md:w-1/3">
                     <Link href="/signup">
                       <a className="primary-button block">Get Started</a>
                     </Link>
                   </div>
+                  <Link href="/login">
+                    <a className="mt-4 link">Already a user?</a>
+                  </Link>
                 </div>
               )
             }
