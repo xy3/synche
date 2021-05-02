@@ -32,9 +32,23 @@ func GetHomeDirContents(user *schema.User) (*models.DirectoryContents, error) {
 func GetDirContentsByID(dirID uint) (*models.DirectoryContents, error) {
 	contents := &models.DirectoryContents{}
 
-	tx := database.DB.Where("id = ?", dirID).First(&contents.CurrentDir)
+	directory := &schema.Directory{}
+
+	tx := database.DB.Where("id = ?", dirID).First(directory)
 	if tx.Error != nil {
 		return nil, tx.Error
+	}
+
+	contents.CurrentDir = &models.Directory{
+		FileCount: uint64(directory.FileCount),
+		ID:                uint64(directory.ID),
+		Name:              directory.Name,
+		Path:              directory.Path,
+		PathHash:          directory.PathHash,
+	}
+
+	if directory.ParentID != nil {
+		contents.CurrentDir.ParentDirectoryID = uint64(*directory.ParentID)
 	}
 
 	tx = database.DB.Where(&schema.Directory{ParentID: &dirID}).Find(&contents.SubDirectories)

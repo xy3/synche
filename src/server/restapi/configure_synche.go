@@ -8,6 +8,7 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
@@ -107,7 +108,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		params tokens.RefreshTokenParams,
 		user *schema.User,
 	) middleware.Responder {
-		token, err := authService.GenerateAccessToken(0, user.Email, "", "", "")
+		token, err := authService.GenerateAccessToken(user.ID, user.Email, user.Name, user.Picture, user.Role)
 		if err != nil {
 			return tokens.NewRefreshTokenDefault(500).WithPayload("could not generate a new access token")
 		}
@@ -141,5 +142,6 @@ func setupMiddlewares(handler http.Handler) http.Handler {
 // The middleware configuration happens before anything, this middleware also applies to serving the swagger.json document.
 // So this is a good place to plug in a panic handling middleware, logging and metrics.
 func setupGlobalMiddleware(handler http.Handler) http.Handler {
-	return handler
+	handlerCors := cors.AllowAll().Handler
+	return handlerCors(handler)
 }

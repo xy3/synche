@@ -17,11 +17,11 @@ type File struct {
 	gorm.Model
 	Name        string `gorm:"not null"`
 	Size        int64  `gorm:"not null"`
-	Hash        string `gorm:"index;size:32"`
+	Hash        string `gorm:"index;size:32;uniqueIndex:idx_user_file_hash"`
 	ChunkSize   int64
 	DirectoryID uint `gorm:"not null"`
 	Directory   *Directory
-	UserID      uint
+	UserID      uint `gorm:"uniqueIndex:idx_user_file_hash"`
 	User        User
 	Available   bool
 

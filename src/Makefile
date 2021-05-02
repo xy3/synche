@@ -17,7 +17,7 @@ generate:
 		-t client
 
 build:
-	go build -o $(build_dir)
+	go build -o $(build_dir) ./...
 
 upload:
 	make build

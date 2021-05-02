@@ -49,11 +49,16 @@ export default function Signup() {
             onSubmit={async (values) => {
               try {
                 setBtnDisabled(true);
-                const res = await axios.post(`/register`, {
-                  email: values.email,
-                  password: values.password,
-                  name: values.name,
-                });
+
+                const url = new URLSearchParams();
+
+                url.append("email", values.email);
+                url.append("password", values.password);
+                if (values.name) {
+                  url.append("name", values.name);
+                }
+
+                const res = await axios.post(`/register?${url.toString()}`);
 
                 setBtnDisabled(false);
 
@@ -131,7 +136,11 @@ export default function Signup() {
               </div>
 
               <div className="my-8">
-                <button className="primary-button" disabled={btnDisabled}>
+                <button
+                  className="primary-button"
+                  disabled={btnDisabled}
+                  type="submit"
+                >
                   Sign Up
                 </button>
                 <p className="my-2 text-gray-500 text-sm text-center">
@@ -150,7 +159,7 @@ export default function Signup() {
 }
 
 export const getServerSideProps = async ({ req }) => {
-  if (isLoggedIn(req.cookies.token || "")) {
+  if (isLoggedIn(req.cookies.accessToken || "")) {
     return {
       redirect: {
         permanent: false,

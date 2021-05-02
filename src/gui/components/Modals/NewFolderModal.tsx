@@ -6,12 +6,14 @@ import * as yup from "yup";
 import { RiFolderAddLine } from "react-icons/ri";
 
 interface ComponentProps {
+  currentPathID?: number;
   isOpen: boolean;
   onSubmit(): void;
   onGoBack(): void;
 }
 
 export default function NewFolderModal({
+  currentPathID,
   isOpen,
   onSubmit,
   onGoBack,
@@ -29,7 +31,19 @@ export default function NewFolderModal({
             initialValues={{ folderName: "" }}
             onSubmit={async (values) => {
               try {
-                onSubmit();
+                const url = new URLSearchParams();
+
+                url.append("directoryName", values.folderName);
+
+                if (currentPathID) {
+                  url.append("parentDirectoryID", currentPathID.toString());
+                }
+
+                const res = await axios.put(`/directory?${url.toString()}`);
+
+                if (res.status === 200) {
+                  onSubmit();
+                }
               } catch (err) {
                 cogoToast.error("There has been an error, please try again");
               }

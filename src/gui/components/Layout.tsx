@@ -1,7 +1,8 @@
 import Head from "next/head";
-import { ReactChild } from "react";
+import { ReactChild, useEffect } from "react";
 import Footer from "./Footer";
 import NavBar from "./NavBar";
+import Modal from "react-modal";
 
 interface ComponentProps {
   title?: string;
@@ -9,19 +10,23 @@ interface ComponentProps {
 }
 
 export default function Layout({ title, children }: ComponentProps) {
+  useEffect(() => {
+    Modal.setAppElement("body");
+  }, []);
+
   return (
     <>
       <Head>
         <link
           rel="icon"
           type="image/png"
-          href="favicon-32x32.png"
+          href="/favicon-32x32.png"
           sizes="32x32"
         />
         <link
           rel="icon"
           type="image/png"
-          href="favicon-16x16.png"
+          href="/favicon-16x16.png"
           sizes="16x16"
         />
 

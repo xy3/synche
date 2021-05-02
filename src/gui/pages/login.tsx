@@ -8,8 +8,11 @@ import Cookies from "js-cookie";
 import { RiLockLine } from "react-icons/ri";
 import { isLoggedIn } from "../utils/isLoggedIn";
 import Breadcrumb from "../components/Breadcrumb";
+import { useState } from "react";
 
 export default function Login() {
+  const [btnDisabled, setBtnDisabled] = useState<boolean>(false);
+
   const validationSchema = yup.object().shape({
     email: yup.string().required("Email is required"),
     password: yup.string().required("Password is required"),
@@ -35,14 +38,20 @@ export default function Login() {
             initialValues={{ email: "", password: "" }}
             onSubmit={async (values) => {
               try {
-                const res = await axios.post(`/login`, {
-                  email: values.email,
-                  password: values.password,
-                });
+                setBtnDisabled(true);
+
+                const url = new URLSearchParams();
+
+                url.append("email", values.email);
+                url.append("password", values.password);
+
+                const res = await axios.post(`/login?${url.toString()}`);
+
+                setBtnDisabled(false);
 
                 if (res.status === 200) {
-                  Cookies.set("token", res.data.accessToken || "test");
-                  Cookies.set("refreshToken", res.data.refreshToken || "test");
+                  Cookies.set("accessToken", res.data.accessToken);
+                  Cookies.set("refreshToken", res.data.refreshToken);
                   window.location.href = "/";
                 }
               } catch (err) {
@@ -82,7 +91,11 @@ export default function Login() {
               </div>
 
               <div className="my-8">
-                <button className="primary-button flex justify-center items-center">
+                <button
+                  className="primary-button flex justify-center items-center"
+                  type="submit"
+                  disabled={btnDisabled}
+                >
                   <RiLockLine className="icon" />
                   <span>Log In</span>
                 </button>
@@ -102,7 +115,7 @@ export default function Login() {
 }
 
 export const getServerSideProps = async ({ req }) => {
-  if (isLoggedIn(req.cookies.token || "")) {
+  if (isLoggedIn(req.cookies.accessToken || "")) {
     return {
       redirect: {
         permanent: false,

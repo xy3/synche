@@ -3,6 +3,6 @@ const dotenvLoad = require("dotenv-load");
 
 dotenvLoad();
 
-const withNextEnv = nextEnv({});
+const withNextEnv = nextEnv();
 
 module.exports = withNextEnv({});

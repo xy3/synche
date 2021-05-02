@@ -6,12 +6,14 @@ import * as yup from "yup";
 import { RiFolderAddLine } from "react-icons/ri";
 
 interface ComponentProps {
+  currentPathID?: number;
   isOpen: boolean;
   onSubmit(): void;
   onGoBack(): void;
 }
 
 export default function FileUploadModal({
+  currentPathID,
   isOpen,
   onSubmit,
   onGoBack,
@@ -23,7 +25,6 @@ export default function FileUploadModal({
         return value ? value.size <= 5242880 : false;
       })
       .required("File is required"),
-    folderId: yup.string().optional(),
   });
 
   return (
@@ -32,10 +33,29 @@ export default function FileUploadModal({
         <h1 className="title text-gray-300">File Upload</h1>
         <div className="my-8 p-4 bg-gray-800 shadow-sm">
           <Formik
-            initialValues={{ file: null, folderId: "" }}
+            initialValues={{ file: null }}
             onSubmit={async (values) => {
               try {
-                onSubmit();
+                const url = new URLSearchParams();
+
+                const file: File = values.file;
+
+                url.append("fileName", file.name);
+                url.append("fileSize", file.size.toString());
+                url.append("fileHash", "");
+                url.append("numChunks", "");
+
+                if (currentPathID) {
+                  url.append("directoryID", currentPathID.toString());
+                }
+
+                const res = await axios.delete(
+                  `/upload/new/?${url.toString()}`
+                );
+
+                if (res.status === 200) {
+                  onSubmit();
+                }
               } catch (err) {
                 cogoToast.error("There has been an error, please try again");
               }
@@ -63,22 +83,6 @@ export default function FileUploadModal({
                   />
                   <div className="mb-2 text-red-500 text-sm">
                     <ErrorMessage name="file" />
-                  </div>
-                </div>
-
-                <div className="my-4">
-                  <label className="block text-gray-400 text-sm">Folder</label>
-                  <Field
-                    as="select"
-                    className="select-inverted"
-                    name="folderId"
-                  >
-                    <option value="">No Folder</option>
-                    <option value="test">Test Folder</option>
-                  </Field>
-
-                  <div className="mb-2 text-red-500 text-sm">
-                    <ErrorMessage name="folderId" />
                   </div>
                 </div>
 

@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	badRequest   = transfer.NewUploadChunkDefault(400)
-	serverErr    = transfer.NewUploadChunkDefault(500)
-	fileConflict = transfer.NewUploadChunkDefault(409)
-	errNoData    = badRequest.WithPayload("no chunk data received")
-	chunksReceived int64
+	badRequest     = transfer.NewUploadChunkDefault(400)
+	serverErr      = transfer.NewUploadChunkDefault(500)
+	fileConflict   = transfer.NewUploadChunkDefault(409)
+	errNoData      = badRequest.WithPayload("no chunk data received")
+	chunksReceived = make(map[uint]int64)
 )
 
 func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middleware.Responder {
@@ -85,9 +85,9 @@ func storeChunkData(
 
 	// Insert chunk info into data
 	fileChunk := schema.FileChunk{
-		Number:   params.ChunkNumber,
-		ChunkID:  chunk.ID,
-		FileID:   file.ID,
+		Number:  params.ChunkNumber,
+		ChunkID: chunk.ID,
+		FileID:  file.ID,
 	}
 
 	if db.Where(fileChunk).FirstOrCreate(&fileChunk).Error != nil {
@@ -111,12 +111,13 @@ func storeChunkData(
 	// 	}
 	// }
 
-	chunksReceived += 1
+	chunksReceived[file.ID] += 1
 	// repo.UploadIdChunkCountCache.Set(strconv.Itoa(int(file.UploadID)), chunksReceived, cache.DefaultExpiration)
 	log.Infof("Chunks received is now at: %d", chunksReceived)
 
 	// Reassemble file when uploadCounter indicates all chunks have been received
-	if chunksReceived >= file.TotalChunks {
+	if chunksReceived[file.ID] >= file.TotalChunks {
+		delete(chunksReceived, file.ID)
 		log.Infof("Reassembling the file: %d", file.ID)
 		err := jobs.ReassembleFile(c.Config.Server.ChunkDir, file)
 		if err != nil {
@@ -130,8 +131,8 @@ func storeChunkData(
 			ID:   uint64(chunk.ID),
 			Size: chunk.Size,
 		},
-		FileID:   uint64(file.ID),
-		ID:       uint64(fileChunk.ID),
-		Number:   fileChunk.Number,
+		FileID: uint64(file.ID),
+		ID:     uint64(fileChunk.ID),
+		Number: fileChunk.Number,
 	})
 }

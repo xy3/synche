@@ -16,10 +16,15 @@ func tokenHash(password string) string {
 }
 
 func Register(params users.RegisterParams) middleware.Responder {
+	var name string
+	if params.Name != nil {
+		name = *params.Name
+	}
+
 	user := schema.User{
 		Email:     params.Email,
 		EmailHash: hash.MD5HashString(params.Email),
-		Name:      *params.Name,
+		Name:      name,
 		Password:  params.Password,
 		TokenHash: tokenHash(params.Password),
 	}
@@ -37,7 +42,7 @@ func Register(params users.RegisterParams) middleware.Responder {
 	db := database.DB.Begin()
 
 	// Check the database to see if a user already exists with this email
-	if db.Find(&schema.User{}, &schema.User{Email: user.Email}).RowsAffected > 0 {
+	if db.Where(&schema.User{Email: user.Email}).Find(&schema.User{}).RowsAffected > 0 {
 		return users.NewRegisterDefault(409).WithPayload("a user already exists for this email")
 	}
 
@@ -46,13 +51,12 @@ func Register(params users.RegisterParams) middleware.Responder {
 		return users.NewRegisterDefault(500).WithPayload("error creating the user")
 	}
 
+	db.Commit()
+
 	_, err = repo.SetupUserHomeDir(&user)
 	if err != nil {
-		db.Rollback()
 		return users.NewRegisterDefault(500).WithPayload("could not create the user's home directory")
 	}
-
-	db.Commit()
 
 	userId := uint64(user.ID)
 	return users.NewRegisterOK().WithPayload(&models.User{

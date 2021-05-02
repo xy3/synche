@@ -2,13 +2,8 @@ import { useState } from "react";
 import { RiAddLine, RiSubtractLine } from "react-icons/ri";
 import classNames from "classnames";
 import File from "./File/File";
-
-interface IFile {
-  id: string;
-  name: string;
-  lastDateModified: string;
-  saved: boolean;
-}
+import { IFile } from "../../utils/interfaces";
+import Skeleton from "../Skeleton";
 
 interface ComponentProps {
   files: Array<IFile>;
@@ -32,17 +27,13 @@ export default function DashboardFiles({ files }: ComponentProps) {
 
       <div className={contentClassName}>
         <div className="w-full flex flex-col">
-          {files.map((file) => {
-            return (
-              <File
-                key={file.id}
-                id={file.id}
-                name={file.name}
-                lastDateModified={file.lastDateModified}
-                saved={file.saved}
-              />
-            );
-          })}
+          {files.length > 0 ? (
+            files.map((file) => {
+              return <File key={file.ID} data={file} />;
+            })
+          ) : (
+            <Skeleton message="There are no files" />
+          )}
         </div>
       </div>
     </div>

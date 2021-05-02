@@ -29,6 +29,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml v1.9.0 // indirect
+	github.com/rs/cors v1.7.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.6.0

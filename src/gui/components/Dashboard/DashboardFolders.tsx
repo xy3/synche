@@ -2,19 +2,14 @@ import { useState } from "react";
 import { RiAddLine, RiSubtractLine } from "react-icons/ri";
 import Folder from "./Folder/Folder";
 import classNames from "classnames";
-
-interface IFolder {
-  id: string;
-  name: string;
-  lastDateModified: string;
-  saved: boolean;
-}
+import { IDirectory } from "../../utils/interfaces";
+import Skeleton from "../Skeleton";
 
 interface ComponentProps {
-  folders: Array<IFolder>;
+  directories: Array<IDirectory>;
 }
 
-export default function DashboardFolders({ folders }: ComponentProps) {
+export default function DashboardFolders({ directories }: ComponentProps) {
   const [expandedContent, setExpandedContent] = useState<boolean>(true);
   const contentClassName = classNames({
     hidden: !expandedContent,
@@ -24,7 +19,7 @@ export default function DashboardFolders({ folders }: ComponentProps) {
   return (
     <div className="my-8">
       <div className="w-full flex justify-between items-center">
-        <h2 className="subtitle">Folders ({folders.length})</h2>
+        <h2 className="subtitle">Folders ({directories.length})</h2>
         <button onClick={() => setExpandedContent(!expandedContent)}>
           {expandedContent ? <RiSubtractLine /> : <RiAddLine />}
         </button>
@@ -32,17 +27,13 @@ export default function DashboardFolders({ folders }: ComponentProps) {
 
       <div className={contentClassName}>
         <div className="w-full flex flex-col">
-          {folders.map((folder) => {
-            return (
-              <Folder
-                key={folder.id}
-                id={folder.id}
-                name={folder.name}
-                lastDateModified={folder.lastDateModified}
-                saved={folder.saved}
-              />
-            );
-          })}
+          {directories.length > 0 ? (
+            directories.map((folder) => {
+              return <Folder key={folder.ID} data={folder} />;
+            })
+          ) : (
+            <Skeleton message="There are no directories" />
+          )}
         </div>
       </div>
     </div>
