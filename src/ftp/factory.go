@@ -7,7 +7,7 @@ import (
 )
 
 // Factory is an FTP driver factory, it is used to generate a driver when a new connection comes
-type Factory struct{
+type Factory struct {
 	Logger *log.Logger
 }
 

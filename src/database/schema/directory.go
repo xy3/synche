@@ -13,9 +13,9 @@ var (
 
 type Directory struct {
 	gorm.Model
-	Name      string `gorm:"not null"`
-	Path      string `gorm:"not null"`
-	PathHash  string `gorm:"size:32;uniqueIndex"`
+	Name     string `gorm:"not null"`
+	Path     string `gorm:"not null"`
+	PathHash string `gorm:"size:32;uniqueIndex"`
 	// Size      int64
 	FileCount int64
 	UserID    uint
@@ -61,6 +61,7 @@ func (dir *Directory) Delete(forceDelete bool, db *gorm.DB) (err error) {
 	db.Commit()
 	return nil
 }
+
 //
 // func (dir *Directory) UpdateSize(size int64, db *gorm.DB) (err error) {
 // 	dir.Size += size

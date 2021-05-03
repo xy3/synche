@@ -19,4 +19,3 @@ func (Logger) PrintCommand(sessionId string, command string, params string) {
 func (Logger) PrintResponse(sessionId string, code int, message string) {
 	log.WithField("sessionId", sessionId).WithField("code", code).Debug(message)
 }
-

@@ -20,10 +20,10 @@ import (
 )
 
 var (
-	badRequest     = transfer.NewUploadChunkDefault(400)
-	serverErr      = transfer.NewUploadChunkDefault(500)
-	fileConflict   = transfer.NewUploadChunkDefault(409)
-	errNoData      = badRequest.WithPayload("no chunk data received")
+	badRequest   = transfer.NewUploadChunkDefault(400)
+	serverErr    = transfer.NewUploadChunkDefault(500)
+	fileConflict = transfer.NewUploadChunkDefault(409)
+	errNoData    = badRequest.WithPayload("no chunk data received")
 )
 
 func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middleware.Responder {
@@ -111,9 +111,9 @@ func storeChunkData(
 	item, ok := repo.FileIDChunkCountCache.Get(strFileID)
 	if ok {
 		chunksReceived, ok = item.(int64)
-	 	if !ok {
-	 		log.Error("invalid cache entry for chunks received")
-	 	}
+		if !ok {
+			log.Error("invalid cache entry for chunks received")
+		}
 	}
 
 	chunksReceived += 1
