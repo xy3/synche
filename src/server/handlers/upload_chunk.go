@@ -3,9 +3,11 @@ package handlers
 import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
@@ -14,6 +16,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 	"path/filepath"
+	"strconv"
 )
 
 var (
@@ -21,7 +24,6 @@ var (
 	serverErr      = transfer.NewUploadChunkDefault(500)
 	fileConflict   = transfer.NewUploadChunkDefault(409)
 	errNoData      = badRequest.WithPayload("no chunk data received")
-	chunksReceived = make(map[uint]int64)
 )
 
 func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middleware.Responder {
@@ -71,6 +73,8 @@ func storeChunkData(
 	params transfer.UploadChunkParams,
 	file schema.File,
 ) middleware.Responder {
+	var chunksReceived int64
+
 	db := database.DB.Begin()
 
 	chunk := schema.Chunk{
@@ -89,6 +93,7 @@ func storeChunkData(
 		ChunkID: chunk.ID,
 		FileID:  file.ID,
 	}
+	strFileID := strconv.Itoa(int(file.ID))
 
 	if db.Where(fileChunk).FirstOrCreate(&fileChunk).Error != nil {
 		db.Rollback()
@@ -102,22 +107,23 @@ func storeChunkData(
 	// 	return serverErr.WithPayload("failed to update the number of chunks received")
 	// }
 	//
-	// var chunksReceived int64
-	// item, ok := repo.UploadIdChunkCountCache.Get(strconv.Itoa(int(file.UploadID)))
-	// if ok {
-	// 	chunksReceived, ok = item.(int64)
-	// 	if !ok {
-	// 		log.Error("invalid cache entry for chunks received")
-	// 	}
-	// }
 
-	chunksReceived[file.ID] += 1
-	// repo.UploadIdChunkCountCache.Set(strconv.Itoa(int(file.UploadID)), chunksReceived, cache.DefaultExpiration)
-	log.Infof("Chunks received is now at: %d", chunksReceived)
+	item, ok := repo.FileIDChunkCountCache.Get(strFileID)
+	if ok {
+		chunksReceived, ok = item.(int64)
+	 	if !ok {
+	 		log.Error("invalid cache entry for chunks received")
+	 	}
+	}
 
-	// Reassemble file when uploadCounter indicates all chunks have been received
-	if chunksReceived[file.ID] >= file.TotalChunks {
-		delete(chunksReceived, file.ID)
+	chunksReceived += 1
+	repo.FileIDChunkCountCache.Set(strconv.Itoa(int(file.ID)), chunksReceived, cache.DefaultExpiration)
+	log.Infof("Received chunks: %d", chunksReceived)
+
+	if chunksReceived >= file.TotalChunks {
+		chunksReceived = 0
+		//delete(chunksReceived, file.ID)
+		repo.FileIDChunkCountCache.Delete(strFileID)
 		log.Infof("Reassembling the file: %d", file.ID)
 		err := jobs.ReassembleFile(c.Config.Server.ChunkDir, file)
 		if err != nil {

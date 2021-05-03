@@ -100,7 +100,6 @@ func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema
 	return directory, nil
 }
 
-
 func UpdateDirFileCount(dirID uint) error {
 	directory := &schema.Directory{}
 	tx := database.DB.Where("id = ?", dirID).First(directory)
@@ -110,7 +109,6 @@ func UpdateDirFileCount(dirID uint) error {
 	_, err := directory.UpdateFileCount(database.DB)
 	return err
 }
-
 
 func GenerateUserDirName(user *schema.User) string {
 	var userSlug = user.Email
@@ -147,4 +145,13 @@ func SetupUserHomeDir(user *schema.User) (*schema.Directory, error) {
 	}
 
 	return homeDir, nil
+}
+
+func GetTotalFileChunks(fileID uint64) (uint64, error) {
+	var file schema.File
+	tx := database.DB.Where("file.id = ?", fileID).First(&file)
+	if tx.Error != nil {
+		return 0, tx.Error
+	}
+	return uint64(file.TotalChunks), nil
 }

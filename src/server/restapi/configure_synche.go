@@ -97,12 +97,13 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.FilesListHomeDirectoryHandler = files.ListHomeDirectoryHandlerFunc(handlers.ListHomeDirectory)
 	api.FilesCreateDirectoryHandler = files.CreateDirectoryHandlerFunc(handlers.CreateDirectory)
 	api.FilesDeleteDirectoryHandler = files.DeleteDirectoryHandlerFunc(handlers.DeleteDirectory)
-	// api.FilesGetDirectoryInfoHandler = files.GetDirectoryInfoHandlerFunc(handlers.DirectoryInfo)
+	//api.FilesGetDirectoryInfoHandler = files.GetDirectoryInfoHandlerFunc(handlers.DirectoryInfo)
 
 	// Transfer handlers
 	api.TransferDownloadFileHandler = transfer.DownloadFileHandlerFunc(handlers.DownloadFile)
 	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(handlers.NewUpload)
 	api.TransferUploadChunkHandler = transfer.UploadChunkHandlerFunc(handlers.UploadChunk)
+	api.TransferFinishUploadHandler = transfer.FinishUploadHandlerFunc(handlers.FinishUpload)
 
 	api.TokensRefreshTokenHandler = tokens.RefreshTokenHandlerFunc(func(
 		params tokens.RefreshTokenParams,
