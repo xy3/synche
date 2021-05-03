@@ -27,4 +27,3 @@ func GetCachedChunksReceived(fileID uint64) uint64 {
 	log.Error("invalid cache entry for chunks received")
 	return 0
 }
-

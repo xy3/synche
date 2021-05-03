@@ -10,7 +10,7 @@ import (
 
 func GetHomeDirContents(user *schema.User) (*models.DirectoryContents, error) {
 	var (
-		err error
+		err     error
 		homeDir *schema.Directory
 	)
 	homeDir, err = GetHomeDir(user.ID)
@@ -41,10 +41,10 @@ func GetDirContentsByID(dirID uint) (*models.DirectoryContents, error) {
 
 	contents.CurrentDir = &models.Directory{
 		FileCount: uint64(directory.FileCount),
-		ID:                uint64(directory.ID),
-		Name:              directory.Name,
-		Path:              directory.Path,
-		PathHash:          directory.PathHash,
+		ID:        uint64(directory.ID),
+		Name:      directory.Name,
+		Path:      directory.Path,
+		PathHash:  directory.PathHash,
 	}
 
 	if directory.ParentID != nil {

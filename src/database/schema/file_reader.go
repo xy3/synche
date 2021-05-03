@@ -18,6 +18,10 @@ var (
 	ErrNegativePosition = errors.New("negative read position")
 )
 
+// The code below can be used when we implement reassembling on the fly, and store only chunks.
+// For now, files do not need to be read using this code - it is obsolete. The can simply be read
+// using the file system, since they are already reassembled by read-stage.
+
 type fileReader struct {
 	file               *File
 	rootPath           *string

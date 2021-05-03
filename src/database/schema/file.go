@@ -6,6 +6,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
 	"gorm.io/gorm"
 	"io"
+	"os"
 	"path/filepath"
 )
 
@@ -15,11 +16,11 @@ var (
 
 type File struct {
 	gorm.Model
-	Name        string `gorm:"not null"`
+	Name        string `gorm:"not null;uniqueIndex:idx_directory_filename;size:256"`
 	Size        int64  `gorm:"not null"`
 	Hash        string `gorm:"index;size:32;uniqueIndex:idx_user_file_hash"`
 	ChunkSize   int64
-	DirectoryID uint `gorm:"not null"`
+	DirectoryID uint `gorm:"not null;uniqueIndex:idx_directory_filename"`
 	Directory   *Directory
 	UserID      uint `gorm:"uniqueIndex:idx_user_file_hash"`
 	User        User
@@ -31,8 +32,18 @@ type File struct {
 	Chunks []FileChunk `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:file_id;association_autoupdate:false;association_autocreate:false"`
 }
 
-func (f *File) Reader(rootPath *string) (io.ReadSeeker, error) {
-	return NewFileReader(f, rootPath)
+func (f *File) Reader(db *gorm.DB) (io.ReadSeeker, error) {
+	path, err := f.Path(db)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := files.AppFS.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }
 
 // executeDelete deletes the file data on the disk
@@ -94,9 +105,41 @@ func (f *File) MoveToDir(newPath string) (err error) {
 	return err
 }
 
-func (f *File) AppendFromReader(reader io.Reader, num int, rootChunkPath *string) error {
-	// TODO
-	return nil
+func appendToFile(path string, reader io.Reader) (int64, error) {
+	if exists, _ := files.Afs.Exists(path); !exists {
+		return 0, errors.New("file does not exist")
+	}
+	file, err := files.AppFS.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return io.Copy(file, reader)
+}
+
+func (f *File) AppendFromReader(reader io.Reader, userID uint, db *gorm.DB) (err error) {
+	var (
+		size int64
+		path string
+	)
+
+	if userID != f.UserID {
+		return errors.New("you do not have permission to modify this file")
+	}
+
+	if path, err = f.Path(db); err != nil {
+		return err
+	}
+
+	// Write the file data to the end of the existing file
+	if size, err = appendToFile(path, reader); err != nil {
+		return err
+	}
+
+	f.Size += size
+
+	return db.Save(f).Error
 }
 
 func (f *File) LastChunkNumber() (int, error) {

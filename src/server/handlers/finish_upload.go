@@ -19,8 +19,8 @@ func getMissingChunks(fileID uint64, expectedNumOfChunks int64) ([]int64, error)
 
 	// iterate through received chunks to see if any chunk is missing
 	for i := int64(0); i < expectedNumOfChunks; i++ {
-		if fileChunks[i].Number != i + 1 {
-			missingChunks = append(missingChunks, i + 1)
+		if fileChunks[i].Number != i+1 {
+			missingChunks = append(missingChunks, i+1)
 		}
 	}
 

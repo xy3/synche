@@ -14,12 +14,11 @@ import (
 )
 
 type Driver struct {
-	db            *gorm.DB
-	conn          *server.Conn
-	user          *schema.User
-	rootDir       *schema.Directory
-	rootChunkPath *string
-	logger        *log.Logger
+	db      *gorm.DB
+	conn    *server.Conn
+	user    *schema.User
+	rootDir *schema.Directory
+	logger  *log.Logger
 }
 
 // Init is a hook which is called when a new connection is made
@@ -161,19 +160,23 @@ func (d *Driver) Rename(fromPath string, toPath string) (err error) {
 }
 
 // PutFile is used to upload file
-func (d *Driver) PutFile(path string, dataConn io.Reader, append bool) (bytes int64, err error) {
+func (d *Driver) PutFile(path string, connReader io.Reader, append bool) (bytes int64, err error) {
+	fullPath := d.buildPath(path)
+
 	var file *schema.File
 	if append {
-		if file, err = repo.FindFileByFullPath(d.buildPath(path)); err != nil {
+		if file, err = repo.FindFileByFullPath(fullPath); err != nil {
 			return
 		}
 		originSize := file.Size
-		if err = file.AppendFromReader(dataConn, 0, d.rootChunkPath); err != nil {
+
+		if err = file.AppendFromReader(connReader, d.user.ID, d.db); err != nil {
 			return
 		}
 		return file.Size - originSize, nil
 	}
-	if file, err = repo.CreateFileFromReader(path, dataConn, 0, d.rootChunkPath); err != nil {
+
+	if file, err = repo.CreateFileFromReader(fullPath, connReader, d.user.ID, d.db); err != nil {
 		return
 	}
 	return file.Size, nil
@@ -182,17 +185,19 @@ func (d *Driver) PutFile(path string, dataConn io.Reader, append bool) (bytes in
 // GetFile is used to download a file
 func (d *Driver) GetFile(path string, offset int64) (size int64, rc io.ReadCloser, err error) {
 	var (
-		rs   io.ReadSeeker
-		file *schema.File
+		fileReadSeeker io.ReadSeeker
+		file           *schema.File
 	)
 	if file, err = repo.FindFileByFullPath(d.buildPath(path)); err != nil {
 		return
 	}
-	if rs, err = file.Reader(d.rootChunkPath); err != nil {
+
+	if fileReadSeeker, err = file.Reader(d.db); err != nil {
 		return
 	}
-	_, err = rs.Seek(offset, io.SeekStart)
-	return file.Size, ioutil.NopCloser(rs), err
+
+	_, err = fileReadSeeker.Seek(offset, io.SeekStart)
+	return file.Size, ioutil.NopCloser(fileReadSeeker), err
 }
 
 func (d *Driver) MakeDir(path string) error {

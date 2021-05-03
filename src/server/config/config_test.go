@@ -56,7 +56,7 @@ func TestNewDSN(t *testing.T) {
 			wantDsn:  ":@()/?charset=utf8mb4&parseTime=True&loc=Local",
 		},
 		{
-			name:     "dsn with default config",
+			name: "dsn with default config",
 			dbConfig: DatabaseConfig{
 				Name:     "synche",
 				Username: "root",
@@ -64,7 +64,7 @@ func TestNewDSN(t *testing.T) {
 				Protocol: "tcp",
 				Address:  "127.0.0.1:3306",
 			},
-			wantDsn:  "root:test123@tcp(127.0.0.1:3306)/synche?charset=utf8mb4&parseTime=True&loc=Local",
+			wantDsn: "root:test123@tcp(127.0.0.1:3306)/synche?charset=utf8mb4&parseTime=True&loc=Local",
 		},
 	}
 	for _, tc := range tests {
