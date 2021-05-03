@@ -44,6 +44,13 @@ func AsyncUpload(splitter data.Splitter, uploadDirID uint, newUploadFunc NewUplo
 	log.Infof("Finished uploading all %d chunks to the server", splitter.NumChunks())
 	close(uploadErrors)
 
+	/* TODO:
+		Tell server that it's finished uploading the file
+		resp, err := apiclient.Client.Transfer.FinishUpload(transfer.NewFinishUploadParams().WithFileID(upload.ID), apiclient.ClientAuth)
+		chunkNumbers := resp.GetPayload()
+		Resend any chunks with the numbers the server has sent
+	*/
+
 	// Here we could attempt to cast the error as an UploadChunkBadRequest or other relevant error types
 	for err = range uploadErrors {
 		if err != nil {
