@@ -122,7 +122,7 @@ func storeChunkData(
 
 	if chunksReceived >= file.TotalChunks {
 		chunksReceived = 0
-		//delete(chunksReceived, file.ID)
+		// delete(chunksReceived, file.ID)
 		repo.FileIDChunkCountCache.Delete(strFileID)
 		log.Infof("Reassembling the file: %d", file.ID)
 		err := jobs.ReassembleFile(c.Config.Server.ChunkDir, file)

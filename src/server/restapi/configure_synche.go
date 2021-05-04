@@ -36,6 +36,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.JSONConsumer = runtime.JSONConsumer()
 	api.MultipartformConsumer = runtime.DiscardConsumer
 	api.JSONProducer = runtime.JSONProducer()
+	api.BinProducer = runtime.ByteStreamProducer()
 
 	authService := auth.Service{
 		SecretKey:       "CHANGE_THIS_SECRET_KEY", // TODO: This should be configurable
@@ -47,7 +48,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.AccessTokenAuth = func(token string) (*schema.User, error) {
 		claims, err := authService.ValidateAccessToken(token)
 		if err != nil {
-			return nil, fmt.Errorf("brrr")
+			return nil, fmt.Errorf("could not validate access token")
 		}
 
 		user, err := repo.GetUserByEmail(claims.Email)

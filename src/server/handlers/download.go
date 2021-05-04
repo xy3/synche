@@ -28,6 +28,11 @@ func DownloadFile(params transfer.DownloadFileParams, user *schema.User) middlew
 	if err != nil {
 		return transfer.NewDownloadFileDefault(500).WithPayload("failed to read the file")
 	}
+	stat, err := fileReader.Stat()
 
-	return transfer.NewDownloadFileOK().WithPayload(fileReader)
+	if err != nil {
+		return transfer.NewDownloadFileNotFound()
+	}
+
+	return transfer.NewDownloadFileOK().WithPayload(fileReader).WithContentLength(uint64(stat.Size()))
 }
