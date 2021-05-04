@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"errors"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
@@ -112,6 +113,53 @@ func CreateFileFromReader(path string, reader io.Reader, userID uint, db *gorm.D
 }
 
 func RenameFile(fileID uint, newName string) error {
+	// TODO: This needs to update the file on the disk, perhaps just use the MoveFile method?
 	tx := database.DB.Model(schema.File{}).Where("id = ?", fileID).Update("name", newName)
+	return tx.Error
+}
+
+func MoveFile(file *schema.File, newFullPath string) (err error) {
+	var (
+		db        *gorm.DB
+		directory *schema.Directory
+	)
+
+	log.Infof("Received move request for: %s to %s", file.Name, newFullPath)
+
+	db = database.DB
+	newDirPath := filepath.Dir(newFullPath)
+	newFileName := filepath.Base(newFullPath)
+
+	log.Infof("%#v", newDirPath)
+	log.Infof("%#v", newFileName)
+
+	if len(newDirPath) < 2 {
+		return errors.New("invalid directory in path")
+	}
+
+	// Find the directory or create it
+	directory, err = GetDirByPath(newDirPath)
+	if err != nil {
+		directory, err = CreateDirectoryFromPath(newDirPath, db)
+		if err != nil {
+			return err
+		}
+	}
+
+	// It is mandatory that this is called before updating the database record
+	// as file.Move will use the files current path to move it to the new path
+	if err = file.Move(newFullPath, db); err != nil {
+		return err
+	}
+
+	if newFileName == "" {
+		newFileName = file.Name
+	}
+
+	tx := db.Model(file).Where("id = ?", file.ID).Updates(schema.File{
+		Name: newFileName,
+		DirectoryID: directory.ID,
+	})
+
 	return tx.Error
 }

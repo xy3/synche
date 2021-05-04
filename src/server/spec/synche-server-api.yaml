@@ -63,8 +63,11 @@ paths:
         200:
           description: OK
           schema:
-            type: string
-            format: binary
+            type: file
+          headers:
+            Content-Length:
+              type: integer
+              format: uint
         403:
           description: Forbidden
         401:
@@ -225,7 +228,6 @@ paths:
           description: Error
           schema:
             $ref: "#/definitions/Error"
-
 
   /login:
     post:

@@ -15,7 +15,7 @@ import (
 
 func GetHomeDir(userID uint) (*schema.Directory, error) {
 	homeDir := &schema.Directory{}
-	tx := database.DB.Where(&schema.Directory{Name: "home", UserID: userID}).First(homeDir)
+	tx := database.DB.Where("parent_id IS NULL AND user_id = ?", userID).First(homeDir)
 	return homeDir, tx.Error
 }
 

@@ -16,7 +16,7 @@ var (
 
 type File struct {
 	gorm.Model
-	Name        string `gorm:"not null;uniqueIndex:idx_directory_filename;size:256"`
+	Name        string `gorm:"not null;uniqueIndex:idx_directory_filename;size:255"`
 	Size        int64  `gorm:"not null"`
 	Hash        string `gorm:"index;size:32;uniqueIndex:idx_user_file_hash"`
 	ChunkSize   int64
@@ -86,6 +86,10 @@ func (f *File) Delete(db *gorm.DB) (err error) {
 
 // Path is used to get the complete path of a file
 func (f *File) Path(db *gorm.DB) (string, error) {
+	if f.Directory != nil {
+		return filepath.Join(f.Directory.Path, f.Name), nil
+	}
+
 	var directory Directory
 	if err := db.First(&directory, f.DirectoryID).Error; err != nil {
 		return "", err
@@ -94,15 +98,26 @@ func (f *File) Path(db *gorm.DB) (string, error) {
 	return filepath.Join(directory.Path, f.Name), nil
 }
 
-func (f *File) MoveToDir(newPath string) (err error) {
-	// TODO
-	// newDir, err := repo.GetDirByPath(newPath)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// _, err = repo.UpdateFileDirectory(nil, f.ID, newDir.ID)
-	return err
+// executeMove moves a file
+func executeMove(oldPath, newFilePath string) error {
+	if exists, _ := files.Afs.Exists(oldPath); !exists {
+		return errors.New("a file does not exist at that location")
+	}
+
+	if exists, _ := files.Afs.Exists(newFilePath); exists {
+		return errors.New("a file already exists at the destination path")
+	}
+
+	return files.Afs.Rename(oldPath, newFilePath)
+}
+
+// Move only renames the file on the disk, it does not update the database
+func (f *File) Move(newPath string, db *gorm.DB) error {
+	path, err := f.Path(db)
+	if err != nil {
+		return err
+	}
+	return executeMove(path, newPath)
 }
 
 func appendToFile(path string, reader io.Reader) (int64, error) {

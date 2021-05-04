@@ -151,12 +151,12 @@ func (d *Driver) DeleteFile(path string) (err error) {
 	return file.Delete(d.db)
 }
 
-func (d *Driver) Rename(fromPath string, toPath string) (err error) {
-	var file *schema.File
-	if file, err = repo.FindFileByFullPath(fromPath); err != nil {
-		return
+func (d *Driver) Rename(fromPath string, toPath string) error {
+	file, err := repo.FindFileByFullPath(d.buildPath(fromPath))
+	if err != nil {
+		return err
 	}
-	return file.MoveToDir(toPath)
+	return repo.MoveFile(file, d.buildPath(toPath))
 }
 
 // PutFile is used to upload file

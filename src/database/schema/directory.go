@@ -16,7 +16,6 @@ type Directory struct {
 	Name     string `gorm:"not null"`
 	Path     string `gorm:"not null"`
 	PathHash string `gorm:"size:32;uniqueIndex"`
-	// Size      int64
 	FileCount int64
 	UserID    uint
 	ParentID  *uint
