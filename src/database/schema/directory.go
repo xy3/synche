@@ -13,9 +13,9 @@ var (
 
 type Directory struct {
 	gorm.Model
-	Name     string `gorm:"not null"`
-	Path     string `gorm:"not null"`
-	PathHash string `gorm:"size:32;uniqueIndex"`
+	Name      string `gorm:"not null"`
+	Path      string `gorm:"not null"`
+	PathHash  string `gorm:"size:32;uniqueIndex"`
 	FileCount int64
 	UserID    uint
 	ParentID  *uint

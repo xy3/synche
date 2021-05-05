@@ -12,6 +12,7 @@ import (
 )
 
 var getFileID uint64
+var getFilepath string
 var getFileOutput string
 
 func NewGetCmd() *cobra.Command {
@@ -32,7 +33,7 @@ func NewGetCmd() *cobra.Command {
 	}
 
 	getCmd.Flags().Uint64VarP(&getFileID, "id", "i", 0, "ID of the file to download")
-	// getCmd.Flags().StringVarP(&filename, "name", "n", "", "name of the file to download")
+	getCmd.Flags().StringVarP(&getFilepath, "name", "n", "", "path to the file to download")
 	getCmd.Flags().StringVarP(&getFileOutput, "output", "o", "", "download location. either a full file path or directory")
 	return getCmd
 }

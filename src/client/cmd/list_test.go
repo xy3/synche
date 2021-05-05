@@ -10,12 +10,10 @@ func TestListDirectoryByID(t *testing.T) {
 	type args struct {
 		dirId uint64
 	}
-	tests := []struct {
+	var tests []struct {
 		name string
 		args args
 		want *models.DirectoryContents
-	}{
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

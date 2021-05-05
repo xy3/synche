@@ -79,68 +79,6 @@ paths:
           schema:
             $ref: '#/definitions/Error'
 
-  /files/{fileID}:
-    parameters:
-      - in: path
-        name: fileID
-        type: integer
-        format: uint
-        required: true
-    get:
-      operationId: getFileInfo
-      tags:
-        - files
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/File'
-        401:
-          description: Unauthorized
-        404:
-          description: File not found
-      summary: Get file info
-    delete:
-      tags:
-        - files
-      operationId: deleteFile
-      responses:
-        200:
-          description: Deleted
-        default:
-          description: Error
-          schema:
-            $ref: '#/definitions/Error'
-      summary: Delete a file
-    patch:
-      tags:
-        - files
-      summary: Update a file
-      operationId: updateFile
-      description: Update a files directory or filename
-      parameters:
-        - in: query
-          type: integer
-          format: uint
-          name: directoryID
-          required: false
-        - in: query
-          type: string
-          name: filename
-      responses:
-        200:
-          description: OK
-          schema:
-            $ref: '#/definitions/File'
-        401:
-          description: Unauthorized
-        501:
-          description: Not implemented
-        default:
-          description: Error
-          schema:
-            $ref: '#/definitions/Error'
-
   /directory:
     get:
       tags:
@@ -228,6 +166,143 @@ paths:
           description: Error
           schema:
             $ref: "#/definitions/Error"
+
+  /home/{filepath}:
+    parameters:
+      - in: path
+        name: filepath
+        type: string
+        required: true
+      - in: query
+        type: integer
+        format: uint
+        name: directoryID
+        required: false
+    get:
+      operationId: getFilepathInfo
+      tags:
+        - files
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+      summary: Get file info
+    delete:
+      tags:
+        - files
+      operationId: deleteFilepath
+      responses:
+        200:
+          description: Deleted
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Delete a file
+    patch:
+      tags:
+        - files
+      summary: Update a file
+      operationId: updateFilepath
+      description: Update a files directory or filename
+      parameters:
+        - in: path
+          type: string
+          name: filepath
+          required: true
+        - in: query
+          type: string
+          name: newFilepath
+          required: false
+        - in: query
+          type: integer
+          format: uint
+          name: directoryID
+          required: false
+#        - in: query
+#          type: string
+#          name: filename
+#          required: false
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+
+  /files/{fileID}:
+    parameters:
+      - in: path
+        name: fileID
+        type: integer
+        format: uint
+        required: true
+    get:
+      operationId: getFileInfo
+      tags:
+        - files
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
+        401:
+          description: Unauthorized
+        404:
+          description: File not found
+      summary: Get file info
+    delete:
+      tags:
+        - files
+      operationId: deleteFile
+      responses:
+        200:
+          description: Deleted
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Delete a file
+    patch:
+      tags:
+        - files
+      summary: Update a file
+      operationId: updateFile
+      description: Update a files directory or filename
+      parameters:
+        - in: query
+          type: integer
+          format: uint
+          name: directoryID
+          required: false
+        - in: query
+          type: string
+          name: filepath
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/File'
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
 
   /login:
     post:
@@ -589,4 +664,3 @@ definitions:
           - member
           - admin
     description: User profile information
-
