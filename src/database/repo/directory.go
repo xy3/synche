@@ -41,29 +41,11 @@ func GetDirByPath(path string) (*schema.Directory, error) {
 	log.Infof("received GetDirByPath request for: %s", path)
 	pathHash := hash.PathHash(path)
 	dir := &schema.Directory{}
-	tx := database.DB.Where(schema.Directory{PathHash: pathHash}).First(dir)
+	tx := database.DB.Where(&schema.Directory{PathHash: pathHash}).First(dir)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 	return dir, nil
-}
-
-func CreateDirectoryFromPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
-	newPath := strings.TrimRight(strings.TrimSpace(path), "/")
-	parts := strings.Split(newPath, "/")
-
-	parentPath := filepath.Dir(newPath)
-	parentPathHash := hash.PathHash(parentPath)
-	parentDir := &schema.Directory{}
-	tx := db.Where(schema.Directory{PathHash: parentPathHash}).First(parentDir)
-	if tx.Error != nil && tx.Error.Error() == "record not found" {
-		if len(parts) < len(strings.Split(c.Config.Server.StorageDir, "/")) {
-			return nil, tx.Error
-		}
-		return CreateDirectoryFromPath(parentPath, db)
-	}
-
-	return CreateDirectory(parts[len(parts)-1], parentDir.ID, db)
 }
 
 func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema.Directory, err error) {
@@ -98,6 +80,24 @@ func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema
 	db.Commit()
 
 	return directory, nil
+}
+
+func CreateDirectoryFromPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+	newPath := strings.TrimRight(strings.TrimSpace(path), "/")
+	parts := strings.Split(newPath, "/")
+
+	parentPath := filepath.Dir(newPath)
+	parentPathHash := hash.PathHash(parentPath)
+	parentDir := &schema.Directory{}
+	tx := db.Where(schema.Directory{PathHash: parentPathHash}).First(parentDir)
+	if tx.Error != nil && tx.Error.Error() == "record not found" {
+		if len(parts) < len(strings.Split(c.Config.Server.StorageDir, "/")) {
+			return nil, tx.Error
+		}
+		return CreateDirectoryFromPath(parentPath, db)
+	}
+
+	return CreateDirectory(parts[len(parts)-1], parentDir.ID, db)
 }
 
 func UpdateDirFileCount(dirID uint) error {

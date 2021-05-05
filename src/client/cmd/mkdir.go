@@ -52,6 +52,12 @@ func createDirJob(name string, parentID uint64) {
 
 	var parentDirID *uint64
 	parentDirID = nil
+
+	if newDirParentID == 0 {
+		log.Error("parent id not specified")
+		return
+	}
+
 	if parentID != 0 {
 		parentDirID = &parentID
 

@@ -10,19 +10,6 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 )
 
-func convertFileToModelsFile(file schema.File) *models.File {
-	return &models.File{
-		ID:             uint64(file.ID),
-		ChunksReceived: file.ChunksReceived,
-		DirectoryID:    uint64(file.DirectoryID),
-		Hash:           file.Hash,
-		Name:           file.Name,
-		Size:           file.Size,
-		TotalChunks:    file.TotalChunks,
-		Available:      file.Available,
-	}
-}
-
 func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, user *schema.User) middleware.Responder {
 	db := database.DB.Begin()
 
@@ -38,7 +25,7 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 
 	if db.Create(&file).Error != nil {
 		db.Rollback()
-		return transfer.NewNewUploadDefault(500).WithPayload("failed to store the file data")
+		return transfer.NewNewUploadDefault(500).WithPayload("failed to store the file data, file may already exist")
 	}
 
 	db.Commit()
@@ -47,7 +34,7 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 		return transfer.NewNewUploadDefault(500).WithPayload("failed to update the directory file count")
 	}
 
-	return transfer.NewNewUploadOK().WithPayload(convertFileToModelsFile(file))
+	return transfer.NewNewUploadOK().WithPayload(repo.ConvertFileToModelsFile(file))
 }
 
 func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Responder {
@@ -101,5 +88,5 @@ func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Re
 
 	// repo.UploadsCache.Set(strconv.Itoa(int(newUpload.ID)), &newUpload, cache.DefaultExpiration)
 
-	return transfer.NewNewUploadOK().WithPayload(convertFileToModelsFile(prevFile))
+	return transfer.NewNewUploadOK().WithPayload(repo.ConvertFileToModelsFile(prevFile))
 }

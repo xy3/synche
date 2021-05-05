@@ -1,7 +1,8 @@
-package handlers
+package paths
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
@@ -21,10 +22,11 @@ func ConvertToFileModel(file *schema.File) *models.File {
 	}
 }
 
-func getFile(user *schema.User, params files.UpdateFileParams) (*schema.File, error) {
+func getFile(user *schema.User, params files.UpdateFilepathParams) (*schema.File, error) {
 	var file *schema.File
-	//get file by file ID
-	file, err := repo.GetFileByID(uint(params.FileID))
+
+	//get file by path
+	file, err := repo.GetFileByPath(user, params.Filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +42,7 @@ func updateFileJob(file *schema.File, directory *schema.Directory) (*schema.File
 	return file, nil
 }
 
-func UpdateFile(params files.UpdateFileParams, user *schema.User) middleware.Responder {
+func UpdateFilepath(params files.UpdateFilepathParams, user *schema.User) middleware.Responder {
 	var (
 		err                      error
 		newFileName              string
@@ -57,13 +59,13 @@ func UpdateFile(params files.UpdateFileParams, user *schema.User) middleware.Res
 	}
 
 	// get directory the file is being moved to by path
-	if params.Filepath != nil {
-		newFileName = filepath.Base(*params.Filepath)
+	if params.NewFilepath != nil {
+		newFileName = filepath.Base(*params.NewFilepath)
 		homeDir, err := repo.GetHomeDir(user.ID)
 		if err != nil {
 			return errUpdateDirectoryFailed
 		}
-		directory, err = repo.GetDirByPath(filepath.Clean(filepath.Join(homeDir.Path, filepath.Dir(*params.Filepath))))
+		directory, err = repo.GetDirByPath(filepath.Clean(filepath.Join(homeDir.Path, filepath.Dir(*params.NewFilepath))))
 		if err != nil {
 			return errNotFound
 		}
@@ -93,12 +95,17 @@ func UpdateFile(params files.UpdateFileParams, user *schema.User) middleware.Res
 	}
 
 	// update filename if needed, both on disk and in DB
-	if params.Filepath != nil && newFileName != file.Name {
-		newFile, err = repo.UpdateFilename(file, newFileName)
+	if params.NewFilepath != nil && newFileName != file.Name {
+		//log.Infof("file name and id %v %v", file.Name, file.ID)
+		//log.Infof("newfile name and id %v %v", newFile.Name, newFile.ID)
+
+		newFileInfo, err := repo.UpdateFilename(newFile, newFileName)
 		if err != nil {
+			log.WithError(err)
 			return errRenameFailed
 		}
+		return files.NewUpdateFilepathOK().WithPayload(ConvertToFileModel(newFileInfo))
 	}
 
-	return files.NewUpdateFileOK().WithPayload(ConvertToFileModel(newFile))
+	return files.NewUpdateFilepathOK().WithPayload(ConvertToFileModel(newFile))
 }

@@ -1,8 +1,9 @@
-package handlers
+package paths
 
 import (
 	"errors"
 	"github.com/go-openapi/runtime/middleware"
+	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
@@ -10,8 +11,8 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 )
 
-func deleteReassembledFileByID(user *schema.User, fileID uint) error {
-	file, err := repo.GetFileByID(fileID)
+func deleteReassembledFileByPath(user *schema.User, path string) error {
+	file, err := repo.GetFileByPath(user, path)
 	if err != nil {
 		return err
 	}
@@ -22,9 +23,10 @@ func deleteReassembledFileByID(user *schema.User, fileID uint) error {
 	return file.Delete(database.DB)
 }
 
-func DeleteFile(params files.DeleteFileParams, user *schema.User) middleware.Responder {
-	if err := deleteReassembledFileByID(user, uint(params.FileID)); err != nil {
-		return files.NewDeleteFileDefault(500).WithPayload(models.Error("failed to delete the file: " + err.Error()))
+func DeleteFilepath(params files.DeleteFilepathParams, user *schema.User) middleware.Responder {
+	if err := deleteReassembledFileByPath(user, params.Filepath); err != nil {
+		return files.NewDeleteFilepathDefault(500).WithPayload(models.Error("failed to delete the file: " + err.Error()))
 	}
-	return files.NewDeleteFileOK()
+	log.Infof("deleted file at %v", params.Filepath)
+	return files.NewDeleteFilepathOK()
 }

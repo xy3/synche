@@ -14,6 +14,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers/paths"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
@@ -92,6 +93,9 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFile)
 	api.FilesGetFileInfoHandler = files.GetFileInfoHandlerFunc(handlers.FileInfo)
 	api.FilesUpdateFileHandler = files.UpdateFileHandlerFunc(handlers.UpdateFile)
+	api.FilesDeleteFilepathHandler = files.DeleteFilepathHandlerFunc(paths.DeleteFilepath)
+	api.FilesUpdateFilepathHandler = files.UpdateFilepathHandlerFunc(paths.UpdateFilepath)
+	api.FilesGetFilepathInfoHandler = files.GetFilepathInfoHandlerFunc(paths.FileInfo)
 
 	// Directory handlers
 	api.FilesListDirectoryHandler = files.ListDirectoryHandlerFunc(handlers.ListDirectory)
