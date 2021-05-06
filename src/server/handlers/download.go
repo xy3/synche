@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 )
 
+// DownloadFile Responds to the client with the file specified in the client's request
 func DownloadFile(params transfer.DownloadFileParams, user *schema.User) middleware.Responder {
 	var file schema.File
 	tx := database.DB.Joins("Directory").First(&file, params.FileID)

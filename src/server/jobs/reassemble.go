@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 )
 
+// CreateUniqueFilePath Creates a unique file name if the file name already exists on the server
 func CreateUniqueFilePath(storageDir string, fileName string) (uniqueFilename string, uniqueFilePath string) {
 	extension := filepath.Ext(fileName)
 	nameWithoutExtension := fileName[0 : len(fileName)-len(extension)]
@@ -30,6 +31,7 @@ func CreateUniqueFilePath(storageDir string, fileName string) (uniqueFilename st
 	return newFilename, newFilePath
 }
 
+// ReassembleFile Retrieves all the chunk data relating to a file and reassembles the file
 func ReassembleFile(chunkDir string, file schema.File) error {
 	var (
 		fileChunks       []schema.FileChunk
@@ -70,7 +72,6 @@ func ReassembleFile(chunkDir string, file schema.File) error {
 	}
 
 	for index, chunk := range fileChunks {
-		// log.Infof("index: %d, chunk num: %d", index, chunk.Number)
 		expectedNumber := int64(index + 1)
 		if chunk.Number != expectedNumber {
 			log.Errorf("missing chunk number: %d for file ID: %d", expectedNumber, file.ID)

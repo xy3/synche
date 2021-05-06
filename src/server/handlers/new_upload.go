@@ -10,6 +10,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
 )
 
+// createNewUploadAndFile Stores the file data relating to a file that has been requested to be uploaded
 func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, user *schema.User) middleware.Responder {
 	db := database.DB.Begin()
 
@@ -37,6 +38,7 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 	return transfer.NewNewUploadOK().WithPayload(ConvertToFileModel(&file))
 }
 
+// NewUpload Handles requests to upload a new file and responds to the client
 func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Responder {
 	var (
 		err         error

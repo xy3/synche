@@ -21,6 +21,7 @@ import (
 	"syscall"
 )
 
+// startHttpServer Spins up a HTTP server using the config and flag values
 func startHttpServer(flags *flag.FlagSet, sig chan struct{}) error {
 	var (
 		apiServer   *restapi.Server // make sure init is called
@@ -57,6 +58,7 @@ func startHttpServer(flags *flag.FlagSet, sig chan struct{}) error {
 	return nil
 }
 
+// startFtpServer Spins up the FTP server using flag values
 func startFtpServer(flags *flag.FlagSet, sig chan struct{}) error {
 	cfg := c.Config.Ftp
 	if len(cfg.PassivePorts) > 0 {
@@ -104,6 +106,7 @@ func startFtpServer(flags *flag.FlagSet, sig chan struct{}) error {
 	return nil
 }
 
+// NewServeCmd Handles the creation of the server
 func NewServeCmd() *cobra.Command {
 	// serveCmd represents the serve command
 	var serveCmd = &cobra.Command{

@@ -26,6 +26,7 @@ var (
 	errNoData    = badRequest.WithPayload("no chunk data received")
 )
 
+// UploadChunk Handles new chunks being uploaded and responds to the client with each chunk status
 func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middleware.Responder {
 	if params.ChunkData == nil {
 		return errNoData
@@ -63,11 +64,13 @@ func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middlewar
 	return storeChunkData(namedFile, params, file)
 }
 
+// writeChunkFile Creates and writes the chunk details to the chunk file
 func writeChunkFile(chunkData []byte, chunkDir, chunkHash string) error {
 	chunkFilename := filepath.Join(chunkDir, chunkHash)
 	return files.Afs.WriteFile(chunkFilename, chunkData, 0644)
 }
 
+// storeChunkData Adds chunk details to the database and cache
 func storeChunkData(
 	chunkFile *runtime.File,
 	params transfer.UploadChunkParams,

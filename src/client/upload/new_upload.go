@@ -12,6 +12,7 @@ import (
 //go:generate mockery --name=NewUploadFunc --case underscore
 type NewUploadFunc func(params *transfer.NewUploadParams) (*models.File, error)
 
+// NewUpload Sends a request to the server that checks if it can begin uploading a file
 func NewUpload(params *transfer.NewUploadParams) (*models.File, error) {
 	if params.NumChunks == 0 {
 		return nil, errors.New("cannot upload with: NumChunks = 0")
@@ -20,9 +21,11 @@ func NewUpload(params *transfer.NewUploadParams) (*models.File, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return newUploadFile.GetPayload(), nil
 }
 
+// NewUploadParams Creates an upload object to send to the server
 func NewUploadParams(
 	fileSize, numChunks int64,
 	fileHash, fileName string,
@@ -38,6 +41,7 @@ func NewUploadParams(
 	}
 }
 
+// NewUploadParamsFromSplitter Creates an upload object to send to the server
 func NewUploadParamsFromSplitter(splitter data.Splitter, uploadDirID uint) *transfer.NewUploadParams {
 	return NewUploadParams(
 		splitter.File().FileSize,

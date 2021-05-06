@@ -8,6 +8,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 )
 
+// ListDirectory Retrieves the contents of the specified directory and replies with these to the client
 func ListDirectory(params files.ListDirectoryParams, user *schema.User) middleware.Responder {
 	var (
 		err         error
@@ -32,6 +33,7 @@ func ListDirectory(params files.ListDirectoryParams, user *schema.User) middlewa
 	return files.NewListDirectoryOK().WithPayload(contents)
 }
 
+// ListHomeDirectory Retrieves the contents of the home directory and replies with these to the client
 func ListHomeDirectory(_ files.ListHomeDirectoryParams, user *schema.User) middleware.Responder {
 	homeDirContents, err := repo.GetHomeDirContents(user, database.DB)
 	if err != nil {

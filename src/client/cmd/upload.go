@@ -36,7 +36,6 @@ func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 	uploadCmd.Flags().StringP("name", "n", "", "store the file on the server with this name instead")
 	uploadCmd.Flags().Int64VarP(&c.Config.Chunks.SizeKB, "chunk-size", "s", 1024, "size in KB for each chunk")
 	uploadCmd.Flags().IntVarP(&c.Config.Chunks.Workers, "workers", "w", 10, "number of chunks to upload in parallel")
-
 	uploadCmd.Flags().UintVarP(&uploadDirID, "dir-id", "d", 0, "the ID of the directory to store the file in. default is your home directory on the server")
 
 	return uploadCmd

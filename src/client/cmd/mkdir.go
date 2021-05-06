@@ -11,32 +11,12 @@ import (
 
 var newDirParentID uint64
 
-// mkdirCmd represents the mkdir command
-var mkdirCmd = &cobra.Command{
-	Use:    "mkdir",
-	Short:  "Create a new directory",
-	Long:   `Create a new directory on the server. The first argument should the name of the directory`,
-	Args:   cobra.ExactArgs(1),
-	PreRun: authenticateUserPreRun,
-	Run: func(cmd *cobra.Command, args []string) {
-		createDirJob(args[0], newDirParentID)
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(mkdirCmd)
-	mkdirCmd.Flags().Uint64VarP(
-		&newDirParentID,
-		"parent-dir-id",
-		"p",
-		0,
-		"the id of the directory you want to create a new directory in. Default is the home directory.",
-	)
-}
-
-// isValidDirName doesn't allow any special characters in the name
+// isValidDirName Ensures that the directory name is valid before sending a request to make the directory on the server
 // note that " / " is not allowed
 func isValidDirName(name string) bool {
+	if len(name) < 3 {
+		return false
+	}
 	matched := regexp.MustCompile(`[\\/\?%\*|<>\(\)\[\]\{\}.,:;"]`)
 	if matched.FindString(name) == "" {
 		return true
@@ -44,16 +24,15 @@ func isValidDirName(name string) bool {
 	return false
 }
 
-func createDirJob(name string, parentID uint64) {
-	if len(name) < 3 {
-		log.Error("directory name must be more than 3 characters long")
-		return
-	}
+// isValidDirParentID Ensures that the parent ID is 0 so that the directory is created in the home folder
+func isValidDirParentID(dirID uint64) bool { return dirID == 0 }
 
+// createDirJob Sends a request to create a directory on the server
+func createDirJob(name string, parentID uint64) {
 	var parentDirID *uint64
 	parentDirID = nil
 
-	if newDirParentID == 0 {
+	if !isValidDirParentID(newDirParentID) {
 		log.Error("parent id not specified")
 		return
 	}
@@ -80,4 +59,29 @@ func createDirJob(name string, parentID uint64) {
 		log.Info("Created the directory successfully.")
 		log.Infof("Directory ID: %d", directory.Payload.ID)
 	}
+}
+
+// mkdirCmd Handles the user inputs from the command line and outputs the result of the mkdir command
+// creates a directory on the server
+var mkdirCmd = &cobra.Command{
+	Use:    "mkdir",
+	Short:  "Create a new directory",
+	Long:   `Create a new directory on the server. The first argument should the name of the directory`,
+	Args:   cobra.ExactArgs(1),
+	PreRun: authenticateUserPreRun,
+	Run: func(cmd *cobra.Command, args []string) {
+		createDirJob(args[0], newDirParentID)
+	},
+}
+
+// TODO Fix bug so that it defaults to the home dir when -p is not set
+
+func init() {
+	rootCmd.AddCommand(mkdirCmd)
+	mkdirCmd.Flags().Uint64VarP(&newDirParentID,
+		"parent-dir-id",
+		"p",
+		0,
+		"the id of the directory you want to create a new directory in. Default is the home directory.",
+	)
 }

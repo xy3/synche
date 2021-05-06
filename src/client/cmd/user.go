@@ -15,35 +15,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// userCmd represents the user command
-var userCmd = &cobra.Command{
-	Use:   "user",
-	Short: "Register a new user account",
-	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		_, err := registerUser()
-		if err != nil {
-			registerError, ok := err.(*users.RegisterDefault)
-			if ok && registerError.Code() == 409 {
-				log.Error("A user already exists for that email")
-				return
-			}
-			log.WithError(err).Error("Failed to register a new account")
-			return
-		}
-
-		log.Info("New account created successfully")
-	},
-}
-
 var email, name string
 
-func init() {
-	newCmd.AddCommand(userCmd)
-	userCmd.Flags().StringVarP(&email, "email", "e", "", "User email address")
-	userCmd.Flags().StringVarP(&name, "name", "n", "", "Your name")
+// getUserPassword Reads the user password input via the command line and ensures it's valid
+func getUserPassword() (password string, err error) {
+	fmt.Println("Password:")
+	passwordInput, err := terminal.ReadPassword(0)
+	if err != nil {
+		return
+	}
+
+	fmt.Println("Confirm Password:")
+	confirmPasswordInput, err := terminal.ReadPassword(0)
+	if err != nil {
+		return
+	}
+
+	if string(passwordInput) != string(confirmPasswordInput) {
+		log.Error("Passwords do not match")
+		return getUserPassword()
+	}
+
+	password = string(passwordInput)
+	return
 }
 
+// registerUser Prompts the user to input all the details required to create a user
 func registerUser() (*models.User, error) {
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -79,24 +76,29 @@ func registerUser() (*models.User, error) {
 	return resp.Payload, nil
 }
 
-func getUserPassword() (password string, err error) {
-	fmt.Println("Password:")
-	passwordInput, err := terminal.ReadPassword(0)
-	if err != nil {
-		return
-	}
+// userCmd Handles everything to do with the user command
+var userCmd = &cobra.Command{
+	Use:   "user",
+	Short: "Register a new user account",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		_, err := registerUser()
+		if err != nil {
+			registerError, ok := err.(*users.RegisterDefault)
+			if ok && registerError.Code() == 409 {
+				log.Error("A user already exists for that email")
+				return
+			}
+			log.WithError(err).Error("Failed to register a new account")
+			return
+		}
 
-	fmt.Println("Confirm Password:")
-	confirmPasswordInput, err := terminal.ReadPassword(0)
-	if err != nil {
-		return
-	}
+		log.Info("New account created successfully")
+	},
+}
 
-	if string(passwordInput) != string(confirmPasswordInput) {
-		log.Error("Passwords do not match")
-		return getUserPassword()
-	}
-
-	password = string(passwordInput)
-	return
+func init() {
+	newCmd.AddCommand(userCmd)
+	userCmd.Flags().StringVarP(&email, "email", "e", "", "User email address")
+	userCmd.Flags().StringVarP(&name, "name", "n", "", "Your name")
 }

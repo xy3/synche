@@ -8,7 +8,7 @@ import (
 
 // TODO: Could implement this as a way to manage multiple servers from one client
 
-// serverCmd represents the server command
+// serverCmd Represents the server command
 var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Add a new server connection to this client",

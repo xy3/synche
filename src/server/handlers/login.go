@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// Login Calls Login() to log in a user, and generates access tokens
 func Login(params users.LoginParams, authService auth.Service) middleware.Responder {
 	user, err := LoginUser(params.Email, params.Password, database.DB)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 
 var cfgFile string
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd Represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "synche",
 	Short: "Quickly upload and manage your files on a Synche server",
@@ -22,7 +22,7 @@ var rootCmd = &cobra.Command{
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
+// Execute Adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.OnInitialize(func() {
@@ -37,6 +37,14 @@ func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 }
 
+// authenticateUserPreRun Ensures the user is authenticated
+func authenticateUserPreRun(*cobra.Command, []string) {
+	err := apiclient.Authenticator(filepath.Join(config.SyncheDir, "token.json"))
+	if err != nil {
+		log.Fatal("Failed to authenticate the client")
+	}
+}
+
 func init() {
 	err := setup.Dirs(files.AppFS, c.RequiredDirs())
 	if err != nil {
@@ -49,11 +57,4 @@ func init() {
 	}
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche/synche-client.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&c.Config.Synche.Verbose, "verbose", "v", false, "display verbose output (default is false)")
-}
-
-func authenticateUserPreRun(*cobra.Command, []string) {
-	err := apiclient.Authenticator(filepath.Join(config.SyncheDir, "token.json"))
-	if err != nil {
-		log.Fatal("Failed to authenticate the client")
-	}
 }

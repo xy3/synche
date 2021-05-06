@@ -9,6 +9,12 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/models"
 )
 
+// var listDirName string
+var listDirID int64
+
+// TODO Fix bug to allow file paths to be the default arguments
+
+// printContents Logs the list directory contents request response in a readable format
 func printContents(contents *models.DirectoryContents) {
 	if len(contents.Files)+len(contents.SubDirectories) < 1 {
 		log.Info("Directory is empty")
@@ -41,6 +47,8 @@ func printContents(contents *models.DirectoryContents) {
 // 	return resp.GetPayload()
 // }
 
+// ListDirectoryByID Sends a request to the server to list the contents of a given directory
+// that is specified by their path from the home dir or their ID
 func ListDirectoryByID(dirId uint64) *models.DirectoryContents {
 	params := files.NewListDirectoryParams().WithID(dirId)
 
@@ -53,6 +61,7 @@ func ListDirectoryByID(dirId uint64) *models.DirectoryContents {
 	return resp.GetPayload()
 }
 
+// ListHomeDirectory Sends a request to the server to list the contents of the user's home directory
 func ListHomeDirectory() *models.DirectoryContents {
 	resp, err := apiclient.Client.Files.ListHomeDirectory(files.NewListHomeDirectoryParams(), apiclient.ClientAuth)
 	if err != nil {
@@ -63,8 +72,7 @@ func ListHomeDirectory() *models.DirectoryContents {
 	return resp.GetPayload()
 }
 
-// var listDirName string
-var listDirID int64
+// listCmd Handles the user inputs from the command line and outputs the result of the list command
 var listCmd = &cobra.Command{
 	Use:    "list",
 	Short:  "List files on the server",
