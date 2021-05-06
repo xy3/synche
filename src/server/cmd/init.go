@@ -5,7 +5,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-// initCmd represents the init command
+// initCmd Represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize or update the server config",

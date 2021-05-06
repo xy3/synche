@@ -15,7 +15,7 @@ var (
 	cfgFile     string
 )
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd Represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "server",
 	Short: "A brief description of your application",

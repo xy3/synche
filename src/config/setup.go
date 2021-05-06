@@ -10,6 +10,7 @@ import (
 
 var TestMode bool
 
+// Setup Prompts the user to set up their configuration
 func Setup(cfg interface{}) (map[string]interface{}, error) {
 	cfgMap := structs.Map(cfg)
 

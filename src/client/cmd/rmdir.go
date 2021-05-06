@@ -11,9 +11,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rmDirID uint64
-var rmDirForce bool
+var (
+	rmDirID    uint64
+	rmDirForce bool
+)
 
+// TODO Fix bug so that dir paths can be used to delete directories
+
+// removeDirByID Removes a directory that is specified by an ID
 func removeDirByID(id uint64) (deleted bool, err error) {
 	if !rmDirForce {
 		var confirm string
@@ -36,6 +41,7 @@ func removeDirByID(id uint64) (deleted bool, err error) {
 	return true, nil
 }
 
+// rmdirCmd Handles the user inputs from the command line and outputs the result of the remove directory command
 var rmdirCmd = &cobra.Command{
 	Use:    "rmdir",
 	Short:  "Removes a directory on the server",

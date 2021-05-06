@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newCmd represents the new command
+// newCmd Flags when something needs to be created. This can be a user, server, or directory
 var newCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Create something new",

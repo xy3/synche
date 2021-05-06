@@ -11,10 +11,16 @@ import (
 	"os"
 )
 
-var getFileID uint64
-var getFilepath string
-var getFileOutput string
+var (
+	getFileID     uint64
+	getFilepath   string
+	getFileOutput string
+)
 
+// TODO Fix bug that breaks when a file path is entered
+// TODO Fix bug that breaks when flags aren't specified (should default to file paths)
+
+// NewGetCmd Handles the user inputs from the command line and requests to download a file from the server
 func NewGetCmd() *cobra.Command {
 	var getCmd = &cobra.Command{
 		Use:   "get",
@@ -38,6 +44,8 @@ func NewGetCmd() *cobra.Command {
 	return getCmd
 }
 
+// getFileJob Handles the user inputs from the command line and outputs the result of the get command
+// retrieves a file from server and writes it to the local client
 func getFileJob(cmd *cobra.Command) error {
 	if cmd.Flags().NFlag() == 0 {
 		return cmd.Help()
@@ -59,6 +67,7 @@ func getFileJob(cmd *cobra.Command) error {
 	if getFileOutput != "" {
 		outputFile = getFileOutput
 	}
+
 	fileWriter, err := files.Afs.OpenFile(outputFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err

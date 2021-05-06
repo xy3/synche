@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// registerCmd represents the register command
+// registerCmd Registers a new user
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Create a new user on the server",

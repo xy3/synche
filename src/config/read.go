@@ -22,6 +22,7 @@ func init() {
 	SyncheDir = filepath.Join(HomeDir, "synche")
 }
 
+// Read Reads a config in using Viper in order to facilitate different configuration file types
 func Read(name string, path string) error {
 	viper.SetConfigName(name)
 	viper.SetConfigType("yaml")
@@ -48,6 +49,8 @@ func Read(name string, path string) error {
 	return nil
 }
 
+// ReadOrCreate Reads in a config if it exists, if it does not exist it will call Setup() to prompt
+// the user to set up their configuration
 func ReadOrCreate(name, path string, defaultCfg, configStruct interface{}) (created bool, err error) {
 	err = Read(name, path)
 	if _, ok := err.(viper.ConfigFileNotFoundError); ok {

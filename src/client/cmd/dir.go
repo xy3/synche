@@ -4,7 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// dirCmd represents the dir command
+// mkdirCmd Handles the user inputs from the command line and outputs the result of the dir command
+// creates a directory on the server
 var dirCmd = &cobra.Command{
 	Use:    "dir",
 	Short:  "A brief description of your command",
@@ -16,6 +17,7 @@ var dirCmd = &cobra.Command{
 	},
 }
 
+// TODO: fix bug that doesn't allow file paths to be the default args
 func init() {
 	newCmd.AddCommand(dirCmd)
 	dirCmd.Flags().Uint64VarP(

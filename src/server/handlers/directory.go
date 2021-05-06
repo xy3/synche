@@ -10,6 +10,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 )
 
+// convertToModelsDir Translates a schema directory to a model directory
 func convertToModelsDir(directory *schema.Directory) (*models.Directory, error) {
 	var parentDirID uint64
 	if directory.ParentID != nil {
@@ -23,16 +24,17 @@ func convertToModelsDir(directory *schema.Directory) (*models.Directory, error) 
 		ParentDirectoryID: parentDirID,
 		Path:              directory.Path,
 		PathHash:          directory.PathHash,
-		// Size:              directory.Size,
 	}, nil
 }
 
+// findExistingDirByParentID Returns a directory specified by it's parent directory ID
 func findExistingDirByParentID(dirName string, parentDirID uint) (*schema.Directory, error) {
 	var directory schema.Directory
 	tx := database.DB.Where(schema.Directory{Name: dirName, ParentID: &parentDirID}).First(&directory)
 	return &directory, tx.Error
 }
 
+// CreateDirectory Creates a directory on disk and updates the database
 func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) middleware.Responder {
 	var (
 		err             error
@@ -76,6 +78,7 @@ func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) midd
 	return files.NewCreateDirectoryOK().WithPayload(modelsDir)
 }
 
+// DeleteDirectory Deletes a directory from disk and from the database
 func DeleteDirectory(params files.DeleteDirectoryParams, user *schema.User) middleware.Responder {
 	var (
 		err         error

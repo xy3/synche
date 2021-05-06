@@ -9,6 +9,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/models"
 )
 
+// printFile Logs file details in a readable format
 func printFile(file *models.File) {
 	log.Info("--- File moved successfully. Updated file information: ---")
 	log.WithFields(log.Fields{
@@ -87,6 +88,7 @@ location or the directory ID`,
 	},
 }
 
+// TODO: Fix bug so that arguments can default to file paths
 func init() {
 	moveCmd.Flags().StringVarP(&moveCurrentFilePath, "file-path", "f", "", "the file to move")
 	moveCmd.Flags().Uint64VarP(&moveFileID, "file-id", "i", 0, "the ID of the file to move")

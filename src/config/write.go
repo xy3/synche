@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Write Updates the config file
 func Write(path string, newConfig interface{}) error {
 	viper.Set("config", newConfig)
 
