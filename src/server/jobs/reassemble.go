@@ -38,7 +38,7 @@ func ReassembleFile(chunkDir string, file schema.File) error {
 		existingFileHash string
 	)
 
-	storageDir, err := repo.GetDirectoryForFileID(file.ID)
+	storageDir, err := repo.GetDirectoryForFileID(file.ID, database.DB)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func ReassembleFile(chunkDir string, file schema.File) error {
 		existingFileHash, err = hash.File(reassembledFileLocation)
 		if file.Hash != existingFileHash {
 			filename, reassembledFileLocation = CreateUniqueFilePath(storageDir.Path, filename)
-			if err = repo.RenameFile(file.ID, filename); err != nil {
+			if err = repo.RenameFile(file.ID, filename, database.DB); err != nil {
 				return err
 			}
 		}

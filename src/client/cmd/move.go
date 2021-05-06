@@ -10,80 +10,87 @@ import (
 )
 
 func printFile(file *models.File) {
-	log.Infof("--- File moved successfully. Updated file information: ---")
+	log.Info("--- File moved successfully. Updated file information: ---")
 	log.WithFields(log.Fields{
 		"Name":        file.Name,
 		"ID":          file.ID,
 		"DirectoryID": file.DirectoryID,
-		"FileSize":    file.Size}).Infof(color.GreenString(file.Name))
+		"FileSize":    file.Size,
+	}).Infof(color.GreenString(file.Name))
 }
 
-func moveIDJob(params *files.UpdateFileParams) *files.UpdateFileOK {
-	resp, err := apiclient.Client.Files.UpdateFile(params, apiclient.ClientAuth)
-	if err != nil {
-		log.WithError(err).Fatal("Failed to move file")
+func moveFileByID(fileID uint64, fileUpdate *models.FileUpdate) (*models.File, error) {
+	params := &files.UpdateFileByIDParams{
+		FileID:     fileID,
+		FileUpdate: fileUpdate,
 	}
-	return resp
-}
 
-func movePathJob(params *files.UpdateFilepathParams) *files.UpdateFilepathOK {
-	resp, err := apiclient.Client.Files.UpdateFilepath(params, apiclient.ClientAuth)
+	resp, err := apiclient.Client.Files.UpdateFileByID(params, apiclient.ClientAuth)
 	if err != nil {
-		log.WithError(err).Fatal("Failed to move file")
+		return nil, err
 	}
-	return resp
+	return resp.GetPayload(), nil
 }
 
-func moveFileByIDAndDirID() *models.File {
-	resp := moveIDJob(files.NewUpdateFileParams().WithFileID(moveFileID).WithDirectoryID(&moveDirID))
-	return resp.GetPayload()
+func moveFileByPath(filePath string, fileUpdate *models.FileUpdate) (*models.File, error) {
+	params := &files.UpdateFileByPathParams{
+		FilePath:   filePath,
+		FileUpdate: fileUpdate,
+	}
+
+	resp, err := apiclient.Client.Files.UpdateFileByPath(params, apiclient.ClientAuth)
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetPayload(), nil
 }
 
-func moveFileByIDAndFilepath() *models.File {
-	resp := moveIDJob(files.NewUpdateFileParams().WithFileID(moveFileID).WithFilepath(&moveNewFilepath))
-	return resp.GetPayload()
-}
+var (
+	moveCurrentFilePath string
+	moveNewFilePath     string
+	moveFileID          uint64
+	moveDirID           uint64
+	moveNewFileName     string
+)
 
-func moveFileByPathAndDirectoryID() *models.File {
-	resp := movePathJob(files.NewUpdateFilepathParams().WithFilepath(moveCurrentFilepath).WithDirectoryID(&moveDirID))
-	return resp.GetPayload()
-}
-
-func moveFileByPaths() *models.File {
-	resp := movePathJob(files.NewUpdateFilepathParams().WithFilepath(moveCurrentFilepath).WithNewFilepath(&moveNewFilepath))
-	return resp.GetPayload()
-}
-
-var moveCurrentFilepath string
-var moveNewFilepath string
-var moveFileID uint64
-var moveDirID uint64
 var moveCmd = &cobra.Command{
-	Use:    "move",
-	Short:  "Move a file",
-	Long:   `Move a file from one specified location to another using the full path to the current location or file ID, and the full path to the new location or the directory ID`,
+	Use:   "move",
+	Short: "Move a file",
+	Long: `Move a file from one specified location to another using the full 
+path to the current location or file ID, and the full path to the new 
+location or the directory ID`,
 	PreRun: authenticateUserPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		var file *models.File
-		if moveCurrentFilepath != "" && moveNewFilepath != "" {
-			file = moveFileByPaths()
-		} else if moveCurrentFilepath != "" && moveDirID != 0 {
-			file = moveFileByPathAndDirectoryID()
-		} else if moveFileID != 0 && moveNewFilepath != "" {
-			file = moveFileByIDAndFilepath()
-		} else if moveFileID != 0 && moveDirID != 0 {
-			file = moveFileByIDAndDirID()
+		var (
+			err  error
+			file *models.File
+		)
+
+		fileUpdate := &models.FileUpdate{
+			NewDirectoryID: moveDirID,
+			NewFileName:    moveNewFileName,
+			NewFilePath:    moveNewFilePath,
+		}
+
+		if moveFileID != 0 {
+			file, err = moveFileByID(moveFileID, fileUpdate)
+		} else if moveCurrentFilePath != "" {
+			file, err = moveFileByPath(moveCurrentFilePath, fileUpdate)
 		} else {
-			log.Error("Invalid argument supplied")
+			_ = cmd.Usage()
+		}
+
+		if err != nil {
+			log.WithError(err).Fatal("Failed to move file")
 		}
 		printFile(file)
 	},
 }
 
 func init() {
-	moveCmd.Flags().StringVarP(&moveCurrentFilepath, "current-file-path", "c", "", "Specify the name of a directory to move a file to it")
-	moveCmd.Flags().StringVarP(&moveNewFilepath, "new-file-path", "p", "", "Specify the name of a directory to move a file to it")
-	moveCmd.Flags().Uint64VarP(&moveFileID, "file-id", "f", 0, "Specify the ID of a file to move it")
-	moveCmd.Flags().Uint64VarP(&moveDirID, "dir-id", "d", 0, "Specify an ID of a directory to move a file to it")
+	moveCmd.Flags().StringVarP(&moveCurrentFilePath, "file-path", "f", "", "the file to move")
+	moveCmd.Flags().Uint64VarP(&moveFileID, "file-id", "i", 0, "the ID of the file to move")
+	moveCmd.Flags().StringVarP(&moveNewFilePath, "new-file-path", "o", "", "the new path to move to")
+	moveCmd.Flags().Uint64VarP(&moveDirID, "dir-id", "d", 0, "the directory ID to move to")
 	rootCmd.AddCommand(moveCmd)
 }

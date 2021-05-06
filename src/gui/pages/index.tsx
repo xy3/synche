@@ -37,7 +37,7 @@ export default function Index() {
                     </Link>
                   </div>
                   <Link href="/login">
-                    <a className="mt-4 link">Already a user?</a>
+                    <a className="mt-4 link">Already an user?</a>
                   </Link>
                 </div>
               )

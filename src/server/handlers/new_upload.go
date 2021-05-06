@@ -30,11 +30,11 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 
 	db.Commit()
 
-	if err := repo.UpdateDirFileCount(directoryID); err != nil {
+	if err := repo.UpdateDirFileCount(directoryID, database.DB); err != nil {
 		return transfer.NewNewUploadDefault(500).WithPayload("failed to update the directory file count")
 	}
 
-	return transfer.NewNewUploadOK().WithPayload(repo.ConvertFileToModelsFile(file))
+	return transfer.NewNewUploadOK().WithPayload(ConvertToFileModel(&file))
 }
 
 func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Responder {
@@ -46,12 +46,12 @@ func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Re
 
 	if params.DirectoryID != nil && *params.DirectoryID != 0 {
 		directoryID = uint(*params.DirectoryID)
-		directory, err = repo.GetDirectoryByID(directoryID)
+		directory, err = repo.GetDirectoryByID(directoryID, database.DB)
 		if err != nil {
 			return transfer.NewNewUploadDefault(500).WithPayload("directory not found")
 		}
 	} else {
-		directory, err = repo.GetHomeDir(user.ID)
+		directory, err = repo.GetHomeDir(user.ID, database.DB)
 		if err != nil {
 			return transfer.NewNewUploadDefault(500).WithPayload("home directory not found")
 		}
@@ -88,5 +88,5 @@ func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Re
 
 	// repo.UploadsCache.Set(strconv.Itoa(int(newUpload.ID)), &newUpload, cache.DefaultExpiration)
 
-	return transfer.NewNewUploadOK().WithPayload(repo.ConvertFileToModelsFile(prevFile))
+	return transfer.NewNewUploadOK().WithPayload(ConvertToFileModel(&prevFile))
 }

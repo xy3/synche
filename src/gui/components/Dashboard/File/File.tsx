@@ -13,13 +13,30 @@ import {
 import classNames from "classnames";
 import { ReactChild, useState } from "react";
 import { IFile } from "../../../utils/interfaces";
-import axios from "../../../utils/axios.instance";
+import Cookies from "js-cookie";
 import cogoToast from "../../../utils/cogoToast.instance";
 import FileDeleteModal from "../../Modals/FileDeleteModal";
-import FileDownload from "js-file-download";
+import { saveAs } from "file-saver";
 
 interface ComponentProps {
   data: IFile;
+}
+
+function saveFile(blob, filename) {
+  if (window.navigator.msSaveOrOpenBlob) {
+    window.navigator.msSaveOrOpenBlob(blob, filename);
+  } else {
+    const a = document.createElement("a");
+    document.body.appendChild(a);
+    const url = window.URL.createObjectURL(blob);
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 0);
+  }
 }
 
 export default function File({ data }: ComponentProps) {
@@ -38,13 +55,21 @@ export default function File({ data }: ComponentProps) {
 
   async function initiateDownload(fileId: string) {
     try {
-      const res = await axios.get(`/download/${fileId}`, {
-        responseType: "stream",
-      });
-
-      console.log(res);
-
-      FileDownload(res.data, data.Name);
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/download/${fileId}`, {
+        method: "GET",
+        headers: {
+          "X-Token": Cookies.get("accessToken"),
+        },
+      })
+        .then((res) => {
+          return res.blob();
+        })
+        .then((blob) => {
+          saveAs(blob, data.Name);
+        })
+        .catch((err) => {
+          cogoToast.error("There has been an error downloading the file");
+        });
     } catch (err) {
       cogoToast.error("There has been an error, please try again");
     }

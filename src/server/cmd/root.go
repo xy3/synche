@@ -49,8 +49,8 @@ func init() {
 		log.WithError(err).Fatal("Failed to initialize config")
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.synche/synche-server.yaml)")
-	rootCmd.PersistentFlags().BoolP("debug", "d", false, "display debug output (default: false)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", c.Config.Synche.Dir, "config file")
+	rootCmd.PersistentFlags().BoolP("debug", "d", false, "display debug output")
 	err = viper.BindPFlag("config.synche.debug", rootCmd.PersistentFlags().Lookup("debug"))
 	if err != nil {
 		log.Fatal(err)

@@ -2,6 +2,8 @@ package hash
 
 import (
 	"crypto/md5"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/kalafut/imohash"
@@ -24,6 +26,10 @@ func MD5HashString(input string) string {
 	return MD5Hash([]byte(input))
 }
 
+func SHA256Hash(bytes []byte) string {
+	return fmt.Sprintf("%x", sha256.Sum256(bytes))
+}
+
 func PathHash(path string) string {
 	return MD5HashString(strings.TrimRight(strings.TrimSpace(path), "/"))
 }
@@ -40,4 +46,18 @@ func ImoHash(filePath string) (hash string, err error) {
 	}
 	fileHash := imohash.Sum(fileData)
 	return hex.EncodeToString(fileHash[:]), nil
+}
+
+// Random is used to generate random bytes
+func Random(length uint) []byte {
+	var r = make([]byte, length)
+	_, _ = rand.Reader.Read(r)
+	return r
+}
+
+// RandomWithMD5 is used to generate random and hashed by md5
+func RandomWithMD5(length uint) string {
+	hash := md5.New()
+	_, _ = hash.Write(Random(length))
+	return hex.EncodeToString(hash.Sum(nil))
 }

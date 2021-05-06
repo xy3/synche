@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	DB *gorm.DB
+	DB     *gorm.DB
+	TestDB *gorm.DB
 )
 
 func migrateAll(db *gorm.DB) error {
@@ -30,6 +31,11 @@ func NewConnection() (*gorm.DB, error) {
 		return DB, nil
 	}
 
+	if TestDB != nil {
+		DB = TestDB
+		return configureConnection(DB)
+	}
+
 	var err error
 	DB, err = gorm.Open(mysql.Open(c.Config.Database.DSN()), &gorm.Config{
 		PrepareStmt: true,
@@ -44,11 +50,8 @@ func NewConnection() (*gorm.DB, error) {
 }
 
 // RequireNewConnection just calls NewConnection, but it will panic when something goes wrong
-func RequireNewConnection() *gorm.DB {
-	var (
-		db  *gorm.DB
-		err error
-	)
+func RequireNewConnection() (db *gorm.DB) {
+	var err error
 	if db, err = NewConnection(); err != nil {
 		panic(err)
 	}
@@ -69,26 +72,28 @@ func configureConnection(db *gorm.DB) (*gorm.DB, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
 	// Verify the connection
-	if err := sqlDB.PingContext(ctx); err != nil {
+	if err = sqlDB.PingContext(ctx); err != nil {
 		return db, err
 	}
 	return db, nil
 }
 
-func InitSyncheData() error {
+func InitSyncheData() (*gorm.DB, error) {
 	db, err := NewConnection()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", c.Config.Database.Name)).Error; err != nil {
-		return err
+	if TestDB == nil {
+		if err = db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", c.Config.Database.Name)).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	if err = migrateAll(db); err != nil {
 		log.WithError(err).Error("Failed to migrate database")
-		return err
+		return nil, err
 	}
 
-	return nil
+	return db, nil
 }

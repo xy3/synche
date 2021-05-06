@@ -8,7 +8,7 @@ import (
 )
 
 func deleteJobByPath() error {
-	_, err := apiclient.Client.Files.DeleteFilepath(files.NewDeleteFilepathParams().WithFilepath(deleteFilepath), apiclient.ClientAuth)
+	_, err := apiclient.Client.Files.DeleteFilepath(files.NewDeleteFilepathParams().WithFilePath(deleteFilepath), apiclient.ClientAuth)
 	if err != nil {
 		return err
 	}

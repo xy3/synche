@@ -36,7 +36,6 @@ func (dir *Directory) Delete(forceDelete bool, db *gorm.DB) (err error) {
 		return err
 	}
 
-	db = db.Begin()
 	if dir.Name == "home" {
 		return ErrDeleteHomeDirNotAllowed
 	}
@@ -48,16 +47,13 @@ func (dir *Directory) Delete(forceDelete bool, db *gorm.DB) (err error) {
 	}
 
 	if err = db.Where(File{DirectoryID: dir.ID}).Delete(&File{}).Error; err != nil {
-		db.Rollback()
 		return err
 	}
 
 	if err = db.Unscoped().Delete(&Directory{}, dir).Error; err != nil {
-		db.Rollback()
 		return err
 	}
 
-	db.Commit()
 	return nil
 }
 

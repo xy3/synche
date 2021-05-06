@@ -42,7 +42,3 @@ compile:
     - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/synche_client client/main.go
     # build the server
     - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/synche_server server/main.go
-  artifacts:
-    paths:
-      - synche_client
-      - synche_server

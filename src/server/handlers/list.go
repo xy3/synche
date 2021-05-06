@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
@@ -14,7 +15,7 @@ func ListDirectory(params files.ListDirectoryParams, user *schema.User) middlewa
 		errNotFound = files.NewListDirectoryDefault(404).WithPayload("directory not found")
 	)
 
-	directory, err = repo.GetDirectoryByID(uint(params.ID))
+	directory, err = repo.GetDirectoryByID(uint(params.ID), database.DB)
 	if err != nil {
 		return errNotFound
 	}
@@ -32,7 +33,7 @@ func ListDirectory(params files.ListDirectoryParams, user *schema.User) middlewa
 }
 
 func ListHomeDirectory(_ files.ListHomeDirectoryParams, user *schema.User) middleware.Responder {
-	homeDirContents, err := repo.GetHomeDirContents(user)
+	homeDirContents, err := repo.GetHomeDirContents(user, database.DB)
 	if err != nil {
 		return files.NewListHomeDirectoryDefault(500).WithPayload("could not list the home directory")
 	}

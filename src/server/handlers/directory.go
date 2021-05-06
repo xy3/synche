@@ -37,6 +37,7 @@ func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) midd
 	var (
 		err             error
 		directory       *schema.Directory
+		homeDir         *schema.Directory
 		defaultRes      = files.NewCreateDirectoryDefault
 		errDirTooShort  = defaultRes(400).WithPayload("directory names must be greater than 3 characters in length")
 		errCreateFailed = defaultRes(500).WithPayload("could not create the directory")
@@ -52,7 +53,7 @@ func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) midd
 	if params.ParentDirectoryID != nil {
 		parentDirID = uint(*params.ParentDirectoryID)
 	} else {
-		homeDir, err := repo.GetHomeDir(user.ID)
+		homeDir, err = repo.GetHomeDir(user.ID, database.DB)
 		if err != nil {
 			return errNoParentDir
 		}
@@ -87,7 +88,7 @@ func DeleteDirectory(params files.DeleteDirectoryParams, user *schema.User) midd
 	log.Info("Deleting dir: ", params.ID)
 	// This handler does not ask for confirmation. The directory is completely gone if this handler is called.
 	// This scope just makes sure "where user_id = the users ID" is applied
-	directory, err = repo.GetDirectoryByID(uint(params.ID))
+	directory, err = repo.GetDirectoryByID(uint(params.ID), database.DB)
 	if err != nil {
 		return errNotFound
 	}
