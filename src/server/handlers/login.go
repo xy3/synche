@@ -2,16 +2,18 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
+	"gorm.io/gorm"
 	"time"
 )
 
 func Login(params users.LoginParams, authService auth.Service) middleware.Responder {
-	user, err := LoginUser(params.Email, params.Password)
+	user, err := LoginUser(params.Email, params.Password, database.DB)
 	if err != nil {
 		return users.NewLoginDefault(401).WithPayload("invalid user credentials")
 	}
@@ -35,8 +37,8 @@ func Login(params users.LoginParams, authService auth.Service) middleware.Respon
 	})
 }
 
-func LoginUser(email, password string) (*schema.User, error) {
-	user, err := repo.GetUserByEmail(email)
+func LoginUser(email, password string, db *gorm.DB) (*schema.User, error) {
+	user, err := repo.GetUserByEmail(email, db)
 	if err != nil {
 		return nil, err
 	}

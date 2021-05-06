@@ -2,7 +2,6 @@ package repo
 
 import (
 	"errors"
-	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
@@ -13,23 +12,42 @@ import (
 	"strings"
 )
 
-func GetHomeDir(userID uint) (*schema.Directory, error) {
-	homeDir := &schema.Directory{}
-	tx := database.DB.Where("parent_id IS NULL AND user_id = ?", userID).First(homeDir)
+func GetHomeDir(userID uint, db *gorm.DB) (homeDir *schema.Directory, err error) {
+	tx := db.Where("parent_id IS NULL AND user_id = ?", userID).First(&homeDir)
 	return homeDir, tx.Error
 }
 
-func GetDirectoryByID(dirID uint) (*schema.Directory, error) {
-	var directory schema.Directory
-	if err := database.DB.First(&directory, dirID).Error; err != nil {
-		return nil, err
+func GetOrCreateHomeDir(user *schema.User, db *gorm.DB) (homeDir *schema.Directory, err error) {
+	homeDir, err = GetHomeDir(user.ID, db)
+	if err != nil {
+		return
 	}
-	return &directory, nil
+
+	if exists, _ := files.Afs.IsDir(homeDir.Path); !exists {
+		if _, err = MakeUserHomeDir(user); err != nil {
+			return
+		}
+	}
+
+	return homeDir, nil
 }
 
-func GetDirectoryForFileID(fileId uint) (*schema.Directory, error) {
+func BuildFullPath(path string, user *schema.User, db *gorm.DB) (string, error) {
+	homeDir, err := GetOrCreateHomeDir(user, db)
+	if err != nil {
+		return path, err
+	}
+	return filepath.Join(homeDir.Path, path), nil
+}
+
+func GetDirectoryByID(dirID uint, db *gorm.DB) (dir *schema.Directory, err error) {
+	tx := db.First(&dir, dirID)
+	return dir, tx.Error
+}
+
+func GetDirectoryForFileID(fileId uint, db *gorm.DB) (*schema.Directory, error) {
 	var file schema.File
-	res := database.DB.Joins("Directory").Find(&file, fileId)
+	res := db.Joins("Directory").Find(&file, fileId)
 	if res.Error != nil {
 		return nil, res.Error
 	}
@@ -37,15 +55,35 @@ func GetDirectoryForFileID(fileId uint) (*schema.Directory, error) {
 	return file.Directory, nil
 }
 
-func GetDirByPath(path string) (*schema.Directory, error) {
-	log.Infof("received GetDirByPath request for: %s", path)
-	pathHash := hash.PathHash(path)
-	dir := &schema.Directory{}
-	tx := database.DB.Where(&schema.Directory{PathHash: pathHash}).First(dir)
-	if tx.Error != nil {
-		return nil, tx.Error
+func GetDirByPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+	path = strings.TrimRight(strings.TrimSpace(path), "/")
+	tx := db.Where(schema.Directory{PathHash: hash.PathHash(path)}).First(&dir)
+	return dir, tx.Error
+}
+
+func GetOrCreateDirectory(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+	if dir, err = GetDirByPath(path, db); errors.Is(err, gorm.ErrRecordNotFound) {
+		return CreateDirectoryFromPath(path, db)
 	}
-	return dir, nil
+	return dir, err
+}
+
+func CreateDirectoryFromPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+	path = strings.TrimRight(strings.TrimSpace(path), "/")
+	parts := strings.Split(path, "/")
+
+	if parts[0] != "" {
+		return nil, errors.New("no suitable parent directory could be found")
+	}
+
+	parentPath := filepath.Dir(path)
+
+	parentDir, err := GetOrCreateDirectory(parentPath, db)
+	if err != nil {
+		return nil, err
+	}
+
+	return CreateDirectory(parts[len(parts)-1], parentDir.ID, db)
 }
 
 func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema.Directory, err error) {
@@ -72,37 +110,16 @@ func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema
 		return nil, err
 	}
 
-	db = db.Begin()
 	if err = db.Create(directory).Error; err != nil {
-		db.Rollback()
 		return nil, err
 	}
-	db.Commit()
 
 	return directory, nil
 }
 
-func CreateDirectoryFromPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
-	newPath := strings.TrimRight(strings.TrimSpace(path), "/")
-	parts := strings.Split(newPath, "/")
-
-	parentPath := filepath.Dir(newPath)
-	parentPathHash := hash.PathHash(parentPath)
-	parentDir := &schema.Directory{}
-	tx := db.Where(schema.Directory{PathHash: parentPathHash}).First(parentDir)
-	if tx.Error != nil && tx.Error.Error() == "record not found" {
-		if len(parts) < len(strings.Split(c.Config.Server.StorageDir, "/")) {
-			return nil, tx.Error
-		}
-		return CreateDirectoryFromPath(parentPath, db)
-	}
-
-	return CreateDirectory(parts[len(parts)-1], parentDir.ID, db)
-}
-
-func UpdateDirFileCount(dirID uint) error {
+func UpdateDirFileCount(dirID uint, db *gorm.DB) error {
 	directory := &schema.Directory{}
-	tx := database.DB.Where("id = ?", dirID).First(directory)
+	tx := db.Where("id = ?", dirID).First(directory)
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -112,22 +129,26 @@ func UpdateDirFileCount(dirID uint) error {
 
 func GenerateUserDirName(user *schema.User) string {
 	var userSlug = user.Email
-	userSlug = strings.ReplaceAll(userSlug, "@", "")
+	userSlug = strings.Split(userSlug, "@")[0]
 	userSlug = strings.ReplaceAll(userSlug, ".", "")
-	userSlug = userSlug[:5]
-	userHash := hash.MD5Hash([]byte(user.Email + user.Password))
+	length := len(userSlug)
+	if length > 20 {
+		length = 20
+	}
+	userSlug = userSlug[:length]
+	userHash := hash.MD5HashString(user.Email + user.Name)[:10]
 	return userSlug + "_" + userHash
 }
 
-func CreateUserHomeDir(user *schema.User) (homeDir string, err error) {
+func MakeUserHomeDir(user *schema.User) (homeDir string, err error) {
 	homeDir = filepath.Join(c.Config.Server.StorageDir, GenerateUserDirName(user))
 	err = files.AppFS.MkdirAll(homeDir, 0755)
 	return
 }
 
-func SetupUserHomeDir(user *schema.User) (*schema.Directory, error) {
+func SetupUserHomeDir(user *schema.User, db *gorm.DB) (*schema.Directory, error) {
 	// Create the user's home directory
-	homeDirPath, err := CreateUserHomeDir(user)
+	homeDirPath, err := MakeUserHomeDir(user)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +161,7 @@ func SetupUserHomeDir(user *schema.User) (*schema.Directory, error) {
 		ParentID: nil,
 	}
 
-	if err = database.DB.Create(homeDir).Error; err != nil {
+	if err = db.Create(homeDir).Error; err != nil {
 		return nil, err
 	}
 

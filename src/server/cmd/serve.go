@@ -111,7 +111,7 @@ func NewServeCmd() *cobra.Command {
 		Short: "Start the Synche API server",
 		Long:  ``,
 		PreRun: func(cmd *cobra.Command, args []string) {
-			err := database.InitSyncheData()
+			_, err := database.InitSyncheData()
 			if err != nil {
 				log.WithError(err).Fatal("Failed to start Synche Data requirements")
 			}

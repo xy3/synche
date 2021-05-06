@@ -8,16 +8,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetHomeDirContents(user *schema.User) (*models.DirectoryContents, error) {
+func GetHomeDirContents(user *schema.User, db *gorm.DB) (*models.DirectoryContents, error) {
 	var (
 		err     error
 		homeDir *schema.Directory
 	)
-	homeDir, err = GetHomeDir(user.ID)
+	homeDir, err = GetHomeDir(user.ID, db)
 
 	if err != nil {
 		if err.Error() == "record not found" {
-			homeDir, err = SetupUserHomeDir(user)
+			homeDir, err = SetupUserHomeDir(user, db)
 			if err != nil {
 				return nil, err
 			}

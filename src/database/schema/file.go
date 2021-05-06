@@ -57,10 +57,8 @@ func (f *File) executeDelete(filePath string) error {
 // Delete deletes the file from both the disk and the database.
 // It updates the containing directories for size and file count
 func (f *File) Delete(db *gorm.DB) (err error) {
-	tx := db.Begin()
-
 	if f.Directory == nil {
-		if err = tx.Preload("Directory").Find(f).Error; err != nil {
+		if err = db.Preload("Directory").Find(f).Error; err != nil {
 			return err
 		}
 	}
@@ -71,16 +69,12 @@ func (f *File) Delete(db *gorm.DB) (err error) {
 	}
 
 	if _, err = f.Directory.UpdateFileCount(db); err != nil {
-		tx.Rollback()
 		return err
 	}
 
 	if err = db.Unscoped().Delete(f).Error; err != nil {
-		tx.Rollback()
 		return err
 	}
-
-	tx.Commit()
 	return nil
 }
 

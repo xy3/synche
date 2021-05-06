@@ -10,11 +10,11 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers/paths"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
@@ -52,7 +52,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 			return nil, fmt.Errorf("could not validate access token")
 		}
 
-		user, err := repo.GetUserByEmail(claims.Email)
+		user, err := repo.GetUserByEmail(claims.Email, database.DB)
 		if err != nil {
 			return nil, fmt.Errorf("user credentials not found")
 		}
@@ -64,7 +64,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		if err != nil {
 			return nil, errors.New(400, "token could not be validated")
 		}
-		user, err := repo.GetUserByEmail(claims.Email)
+		user, err := repo.GetUserByEmail(claims.Email, database.DB)
 		if err != nil {
 			return nil, errors.New(404, "user credentials not found")
 		}
@@ -90,12 +90,12 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.UsersProfileHandler = users.ProfileHandlerFunc(handlers.Profile)
 
 	// File handlers
-	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFile)
+	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFileID)
 	api.FilesGetFileInfoHandler = files.GetFileInfoHandlerFunc(handlers.FileInfo)
-	api.FilesUpdateFileHandler = files.UpdateFileHandlerFunc(handlers.UpdateFile)
-	api.FilesDeleteFilepathHandler = files.DeleteFilepathHandlerFunc(paths.DeleteFilepath)
-	api.FilesUpdateFilepathHandler = files.UpdateFilepathHandlerFunc(paths.UpdateFilepath)
-	api.FilesGetFilepathInfoHandler = files.GetFilepathInfoHandlerFunc(paths.FileInfo)
+	api.FilesUpdateFileByIDHandler = files.UpdateFileByIDHandlerFunc(handlers.UpdateFileByID)
+	api.FilesDeleteFilepathHandler = files.DeleteFilepathHandlerFunc(handlers.DeleteFilePath)
+	api.FilesUpdateFileByPathHandler = files.UpdateFileByPathHandlerFunc(handlers.UpdateFileByPath)
+	api.FilesGetFilePathInfoHandler = files.GetFilePathInfoHandlerFunc(handlers.FilePathInfo)
 
 	// Directory handlers
 	api.FilesListDirectoryHandler = files.ListDirectoryHandlerFunc(handlers.ListDirectory)
