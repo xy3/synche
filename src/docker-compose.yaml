@@ -5,7 +5,7 @@ services:
     restart: always
     build: .
     volumes:
-      - /home/tara/synche/synche-server.yaml:/root/synche/synche-server.yaml
+      - /home/user/synche/synche-server.yaml:/root/synche/synche-server.yaml
     ports:
       - 127.0.0.1:9449:9449
       - 127.0.0.1:2121:2121
