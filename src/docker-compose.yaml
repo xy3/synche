@@ -1,0 +1,31 @@
+version: '3'
+services:
+  synche:
+    container_name: synche-server
+    restart: always
+    build: .
+    volumes:
+      - /home/tara/synche/synche-server.yaml:/root/synche/synche-server.yaml
+    ports:
+      - 127.0.0.1:9449:9449
+      - 127.0.0.1:2121:2121
+    networks:
+      - backend
+  db:
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_DATABASE: synche
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+      MYSQL_ROOT_PASSWORD: admin
+    ports:
+      - 3306:3306
+    volumes:
+      - /var/lib/mariadb:/var/lib/mysql
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
