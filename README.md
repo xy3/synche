@@ -9,6 +9,7 @@ Synche is a multipart file transfer and self-hosted storage solution.
 - [Project Proposal](https://gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/blob/master/docs/proposal/proposal.md)
 - [Functional Specification](https://gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/tree/master/docs/functional-spec)
 - [Documentation](https://gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/tree/master/docs/documentation)
+- [Video Walk-through](https://drive.google.com/file/d/1wDjWhAED3Ryny6WnZw1rA85UrlaZcBWL/view)
 
 
 ## Additional resources
