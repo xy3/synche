@@ -22,23 +22,6 @@ interface ComponentProps {
   data: IFile;
 }
 
-function saveFile(blob, filename) {
-  if (window.navigator.msSaveOrOpenBlob) {
-    window.navigator.msSaveOrOpenBlob(blob, filename);
-  } else {
-    const a = document.createElement("a");
-    document.body.appendChild(a);
-    const url = window.URL.createObjectURL(blob);
-    a.href = url;
-    a.download = filename;
-    a.click();
-    setTimeout(() => {
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    }, 0);
-  }
-}
-
 export default function File({ data }: ComponentProps) {
   const [deleteFileModalVisible, setDeleteFileModalVisible] = useState<boolean>(
     false
@@ -55,12 +38,70 @@ export default function File({ data }: ComponentProps) {
 
   async function initiateDownload(fileId: string) {
     try {
+      /*
+      const chunks = [];
+      let xhr = new XMLHttpRequest();
+      let last_index = 0;
+
+      xhr.onload = function () {
+        let b = this.response;
+        for (let i = 0; i < b.size; i += 1000) {
+          chunks.push(b.slice(i, i + 1000));
+        }
+        console.log(chunks.length);
+        const blob = new Blob(chunks);
+
+        saveAs(blob, data.Name);
+      };
+      xhr.onabort = function () {
+        cogoToast.error("Aborted");
+      };
+      xhr.ontimeout = function () {
+        cogoToast.info("Timed out");
+      };
+      xhr.responseType = "blob";
+      xhr.open("get", `${process.env.NEXT_PUBLIC_BASE_URL}/download/${fileId}`);
+      xhr.setRequestHeader("X-Token", Cookies.get("accessToken"));
+      xhr.send();*/
+
       fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/download/${fileId}`, {
         method: "GET",
         headers: {
           "X-Token": Cookies.get("accessToken"),
         },
       })
+        .then(async (response) => {
+          console.log(response);
+
+          const reader = response.body.getReader();
+
+          const contentLength = +response.headers.get("Content-Length");
+
+          let receivedLength = 0; // received that many bytes at the moment
+          let chunks = []; // array of received binary chunks (comprises the body)
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              break;
+            }
+
+            chunks.push(value);
+            receivedLength += value.length;
+
+            console.log(`Received ${receivedLength} of ${contentLength}`);
+          }
+
+          const blob = new Blob(chunks, {type: "octet/stream"});
+
+          saveAs(blob, data.Name);
+        })
+        .catch((err) => {
+          cogoToast.error("There has been an error downloading the file");
+          console.log(err);
+        });
+
+      /*
         .then((res) => {
           return res.blob();
         })
@@ -69,7 +110,7 @@ export default function File({ data }: ComponentProps) {
         })
         .catch((err) => {
           cogoToast.error("There has been an error downloading the file");
-        });
+        });*/
     } catch (err) {
       cogoToast.error("There has been an error, please try again");
     }
@@ -129,6 +170,13 @@ export default function File({ data }: ComponentProps) {
             <RiFileDownloadLine className="icon" />
             <span>Download</span>
           </button>
+
+          <a
+            href={`${process.env.NEXT_PUBLIC_BASE_URL}/download/${data.ID}`}
+            download
+          >
+            DL
+          </a>
 
           <button
             className="m-2 text-sm context-button bg-red-50 text-red-500"

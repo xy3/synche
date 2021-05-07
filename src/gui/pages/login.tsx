@@ -52,10 +52,11 @@ export default function Login() {
                 if (res.status === 200) {
                   Cookies.set("accessToken", res.data.accessToken);
                   Cookies.set("refreshToken", res.data.refreshToken);
-                  window.location.href = "/";
+                  window.location.href = "/dashboard/folder";
                 }
               } catch (err) {
                 cogoToast.error("There has been an error, please try again");
+                setBtnDisabled(false);
               }
             }}
             validationSchema={validationSchema}

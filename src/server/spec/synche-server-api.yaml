@@ -64,13 +64,13 @@ paths:
           description: OK
           schema:
             type: file
-#          headers:
-#            Content-Length:
-#              type: integer
-#              format: uint
-#            Content-Disposition:
-#              type: string
-#              pattern: attachment; filename="attachement.txt"
+          headers:
+            Content-Length:
+              type: integer
+              format: uint
+            Content-Disposition:
+              type: string
+              pattern: attachment; filename="attachement.txt"
         403:
           description: Forbidden
         401:
