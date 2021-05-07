@@ -21,6 +21,7 @@ var Config = &Configuration{
 		BasePath:   "/v1/api",
 		StorageDir: filepath.Join(config.SyncheDir, "data", "storage"),
 		ChunkDir:   filepath.Join(config.SyncheDir, "data", "chunks"),
+		SecretKey:  "CHANGE_THIS_SECRET_KEY",
 	},
 	Database: DatabaseConfig{
 		Driver:   "mysql",
@@ -60,6 +61,7 @@ type ServerConfig struct {
 	BasePath   string
 	ChunkDir   string
 	StorageDir string
+	SecretKey  string
 }
 
 type DatabaseConfig struct {

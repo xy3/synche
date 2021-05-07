@@ -10,11 +10,22 @@ import (
 	"gorm.io/gorm"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 func GetFileByID(fileID uint, db *gorm.DB) (file *schema.File, err error) {
+	strFileID := strconv.Itoa(int(fileID))
+	if fileValue, ok := idFileCache.Get(strFileID); ok {
+		return fileValue.(*schema.File), nil
+	}
+
 	err = db.First(&file, fileID).Error
+	if err != nil {
+		return nil, err
+	}
+
+	idFileCache.Set(strFileID, &file, cache.DefaultExpiration)
 	return file, nil
 }
 

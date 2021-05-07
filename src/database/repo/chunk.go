@@ -7,8 +7,7 @@ import (
 	"strconv"
 )
 
-func GetFileChunksInOrder(fileID uint) ([]schema.FileChunk, error) {
-	var chunks []schema.FileChunk
+func GetFileChunksInOrder(fileID uint) (chunks []schema.FileChunk, err error) {
 	tx := database.DB.Joins("Chunk").Where("file_id = ?", fileID).Order("number ASC").Find(&chunks)
 	if tx.Error != nil {
 		return nil, tx.Error

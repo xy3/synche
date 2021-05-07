@@ -32,7 +32,7 @@ func CreateUniqueFilePath(storageDir string, fileName string) (uniqueFilename st
 }
 
 // ReassembleFile Retrieves all the chunk data relating to a file and reassembles the file
-func ReassembleFile(chunkDir string, file schema.File) error {
+func ReassembleFile(chunkDir string, file *schema.File) error {
 	var (
 		fileChunks       []schema.FileChunk
 		chunkData        []byte

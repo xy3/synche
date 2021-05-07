@@ -55,9 +55,9 @@ func Random(length uint) []byte {
 	return r
 }
 
-// RandomWithMD5 is used to generate random and hashed by md5
-func RandomWithMD5(length uint) string {
+// RandomMD5Hash is used to generate random and hashed by md5
+func RandomMD5Hash(bytes uint) string {
 	hash := md5.New()
-	_, _ = hash.Write(Random(length))
+	_, _ = hash.Write(Random(bytes))
 	return hex.EncodeToString(hash.Sum(nil))
 }

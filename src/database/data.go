@@ -8,6 +8,7 @@ import (
 	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"time"
 )
 
@@ -39,6 +40,12 @@ func NewConnection() (*gorm.DB, error) {
 	var err error
 	DB, err = gorm.Open(mysql.Open(c.Config.Database.DSN()), &gorm.Config{
 		PrepareStmt: true,
+		Logger: logger.New(
+			log.New(),
+			logger.Config{
+				IgnoreRecordNotFoundError: true,
+			},
+		),
 	})
 
 	if err != nil {

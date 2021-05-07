@@ -18,7 +18,3 @@ generate:
 
 build:
 	go build -o $(build_dir) ./...
-
-upload:
-	make build
-	scp -i ~/.ssh/id_rsa_old -P 6313 $(build_dir)/server root@144.76.86.88:/root/synche/server

@@ -14,6 +14,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
+	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
@@ -40,13 +41,17 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.BinProducer = runtime.ByteStreamProducer()
 
 	authService := auth.Service{
-		SecretKey:       "CHANGE_THIS_SECRET_KEY", // TODO: This should be configurable
+		SecretKey:       c.Config.Server.SecretKey,
 		Issuer:          "synche.auth.service",
 		ExpirationHours: 24,
 	}
 
 	// Applies when the "Bearer" header is set
 	api.AccessTokenAuth = func(token string) (*schema.User, error) {
+		if cachedUser, found := repo.TokenToUserCache.Get(token); found {
+			return cachedUser.(*schema.User), nil
+		}
+
 		claims, err := authService.ValidateAccessToken(token)
 		if err != nil {
 			return nil, fmt.Errorf("could not validate access token")
@@ -56,6 +61,9 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		if err != nil {
 			return nil, fmt.Errorf("user credentials not found")
 		}
+
+		repo.TokenToUserCache.SetDefault(token, user)
+
 		return user, nil
 	}
 
