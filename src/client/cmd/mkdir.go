@@ -66,6 +66,7 @@ func createDirJob(name string, parentID uint64) {
 var mkdirCmd = &cobra.Command{
 	Use:    "mkdir",
 	Short:  "Create a new directory",
+	Aliases: []string{"md"},
 	Long:   `Create a new directory on the server. The first argument should the name of the directory`,
 	Args:   cobra.ExactArgs(1),
 	PreRun: authenticateUserPreRun,
@@ -80,7 +81,7 @@ func init() {
 	rootCmd.AddCommand(mkdirCmd)
 	mkdirCmd.Flags().Uint64VarP(&newDirParentID,
 		"parent-dir-id",
-		"p",
+		"d",
 		0,
 		"the id of the directory you want to create a new directory in. Default is the home directory.",
 	)

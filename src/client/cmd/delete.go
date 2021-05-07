@@ -35,6 +35,7 @@ func deleteJobByID() error {
 // deleteCmd Handles the user inputs from the command line and outputs the result of the delete command
 var deleteCmd = &cobra.Command{
 	Use:    "delete",
+	Aliases: []string{"rm", "del"},
 	Short:  "Delete a file on the server",
 	Long:   `Sends a request to the server to delete file by specified file id or file path.`,
 	PreRun: authenticateUserPreRun,

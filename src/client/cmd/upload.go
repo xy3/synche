@@ -17,6 +17,7 @@ var uploadDirID uint
 func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 	uploadCmd := &cobra.Command{
 		Use:    "upload [file path]",
+		Aliases: []string{"put"},
 		Short:  "Uploads a specified file to the server",
 		Long:   `Uploads a specified local file to the server using chunked uploading`,
 		Args:   cobra.ExactArgs(1),

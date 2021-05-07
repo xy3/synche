@@ -6,8 +6,8 @@ import (
 )
 
 func TestIsValidDirName(t *testing.T) {
-	validDirNames := []string{"DirName", "nnnnn", "😄"}
-	invalidDirNames := []string{"/", "name*", "name;", "name:", "name?"}
+	validDirNames := []string{"DirName", "dir123name", "abcabc😄"}
+	invalidDirNames := []string{"/", "dirname*", "dirname;", "dirname:", "dirname?"}
 
 	for _, name := range validDirNames {
 		assert.True(t, isValidDirName(name))

@@ -24,6 +24,7 @@ var (
 func NewGetCmd() *cobra.Command {
 	var getCmd = &cobra.Command{
 		Use:   "get",
+		Aliases: []string{"download"},
 		Short: "Download a file from a Synche server",
 		Long: `Specify a file ID to download. The file will be downloaded to the current directory by default. Examples:
   synche get -i 2
@@ -39,7 +40,7 @@ func NewGetCmd() *cobra.Command {
 	}
 
 	getCmd.Flags().Uint64VarP(&getFileID, "id", "i", 0, "ID of the file to download")
-	getCmd.Flags().StringVarP(&getFilepath, "name", "n", "", "path to the file to download")
+	getCmd.Flags().StringVarP(&getFilepath, "path", "p", "", "path to the file to download")
 	getCmd.Flags().StringVarP(&getFileOutput, "output", "o", "", "download location. either a full file path or directory")
 	return getCmd
 }
