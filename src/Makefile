@@ -17,4 +17,5 @@ generate:
 		-t client
 
 build:
-	go build -o $(build_dir) ./...
+	go build -o $(build_dir)/synche client/main.go && \
+    go build -o $(build_dir)/synche-server server/main.go
