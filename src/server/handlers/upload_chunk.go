@@ -51,9 +51,8 @@ func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middlewar
 		return badRequest.WithPayload("chunk hash does not match its data")
 	}
 
-	var file schema.File
-	tx := database.DB.Where("id = ?", params.FileID).First(&file)
-	if tx.Error != nil {
+	file, err := repo.GetFileByID(uint(params.FileID), database.DB)
+	if err != nil {
 		return badRequest.WithPayload("Failed to find a related file")
 	}
 
@@ -74,9 +73,8 @@ func writeChunkFile(chunkData []byte, chunkDir, chunkHash string) error {
 func storeChunkData(
 	chunkFile *runtime.File,
 	params transfer.UploadChunkParams,
-	file schema.File,
+	file *schema.File,
 ) middleware.Responder {
-	var chunksReceived int64
 
 	db := database.DB.Begin()
 
@@ -96,7 +94,6 @@ func storeChunkData(
 		ChunkID: chunk.ID,
 		FileID:  file.ID,
 	}
-	strFileID := strconv.Itoa(int(file.ID))
 
 	if db.Where(fileChunk).FirstOrCreate(&fileChunk).Error != nil {
 		db.Rollback()
@@ -111,16 +108,23 @@ func storeChunkData(
 	// }
 	//
 
-	item, ok := repo.FileIDChunkCountCache.Get(strFileID)
-	if ok {
+	strFileID := strconv.Itoa(int(file.ID))
+	var chunksReceived int64
+	if item, ok := repo.FileIDChunkCountCache.Get(strFileID); ok {
 		chunksReceived, ok = item.(int64)
 		if !ok {
 			log.Error("invalid cache entry for chunks received")
 		}
+	} else {
+		 repo.FileIDChunkCountCache.Set(strFileID, int64(0), cache.NoExpiration)
 	}
 
+	err := repo.FileIDChunkCountCache.Increment(strFileID, 1)
+	if err != nil {
+		return serverErr.WithPayload("failed increment the chunks received count")
+	}
 	chunksReceived += 1
-	repo.FileIDChunkCountCache.Set(strconv.Itoa(int(file.ID)), chunksReceived, cache.DefaultExpiration)
+
 	log.Infof("Received chunks: %d", chunksReceived)
 
 	if chunksReceived >= file.TotalChunks {
@@ -128,7 +132,7 @@ func storeChunkData(
 		// delete(chunksReceived, file.ID)
 		repo.FileIDChunkCountCache.Delete(strFileID)
 		log.Infof("Reassembling the file: %d", file.ID)
-		err := jobs.ReassembleFile(c.Config.Server.ChunkDir, file)
+		err = jobs.ReassembleFile(c.Config.Server.ChunkDir, file)
 		if err != nil {
 			return badRequest.WithPayload("Failed to re-assemble the file")
 		}
