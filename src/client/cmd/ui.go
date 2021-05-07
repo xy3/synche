@@ -18,7 +18,7 @@ var guiPort uint
 // uiCmd represents the ui command
 var uiCmd = &cobra.Command{
 	Use:   "ui",
-	Short: "A brief description of your command",
+	Short: "Open the Synche UI in your browser",
 	Run: func(cmd *cobra.Command, args []string) {
 		uiUrl := "http://127.0.0.1:" + strconv.Itoa(int(guiPort))
 

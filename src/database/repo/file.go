@@ -25,7 +25,7 @@ func GetFileByID(fileID uint, db *gorm.DB) (file *schema.File, err error) {
 		return nil, err
 	}
 
-	idFileCache.Set(strFileID, &file, cache.DefaultExpiration)
+	idFileCache.Set(strFileID, file, cache.DefaultExpiration)
 	return file, nil
 }
 
