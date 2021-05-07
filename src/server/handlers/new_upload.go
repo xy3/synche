@@ -26,7 +26,7 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 
 	if db.Create(&file).Error != nil {
 		db.Rollback()
-		return transfer.NewNewUploadDefault(500).WithPayload("failed to store the file data, file may already exist")
+		return transfer.NewNewUploadDefault(500).WithPayload("failed to store the file data, file already exists")
 	}
 
 	db.Commit()

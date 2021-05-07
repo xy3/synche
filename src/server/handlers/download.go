@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
@@ -30,17 +31,15 @@ func DownloadFile(params transfer.DownloadFileParams, user *schema.User) middlew
 	if err != nil {
 		return transfer.NewDownloadFileDefault(500).WithPayload("failed to read the file")
 	}
-	// stat, err := fileReader.Stat()
 
 	namedReader := runtime.NamedReader(file.Name, fileReader)
 
-	// if err != nil {
-	// 	return transfer.NewDownloadFileNotFound()
-	// }
+	stat, err := fileReader.Stat()
+	if err != nil {
+		return transfer.NewDownloadFileNotFound()
+	}
 
-	return transfer.NewDownloadFileOK().WithPayload(namedReader)
-
-	// .
-	// 	WithContentDisposition(fmt.Sprintf("attachment; filename=\"%s\";", file.Name)).
-	// 	WithContentLength(uint64(stat.Size()))
+	return transfer.NewDownloadFileOK().WithPayload(namedReader).
+		WithContentDisposition(fmt.Sprintf("attachment; filename=\"%s\";", file.Name)).
+		WithContentLength(uint64(stat.Size()))
 }
