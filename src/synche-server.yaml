@@ -1,0 +1,26 @@
+config:
+  database:
+    address: 127.0.0.1:3306
+    driver: mysql
+    name: synche
+    password: password
+    protocol: tcp
+    username: username
+  ftp:
+    certfile: ""
+    hostname: 127.0.0.1
+    keyfile: ""
+    passiveports: 52013-52114
+    port: 2121
+    publicip: ""
+    welcomemessage: Welcome to the Synche FTP server
+  server:
+    basepath: /v1/api
+    chunkdir: /root/synche/data/chunks
+    host: 127.0.0.1
+    port: 9449
+    storagedir: /root/synche/data/storage
+  synche:
+    debug: false
+    dir: /root/synche
+    verbose: false
