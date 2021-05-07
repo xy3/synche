@@ -57,6 +57,7 @@ var (
 var moveCmd = &cobra.Command{
 	Use:   "move",
 	Short: "Move a file",
+	Aliases: []string{"mv", "move"},
 	Long: `Move a file from one specified location to another using the full 
 path to the current location or file ID, and the full path to the new 
 location or the directory ID`,

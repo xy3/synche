@@ -65,6 +65,6 @@ var rmdirCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(rmdirCmd)
-	rmdirCmd.Flags().Uint64VarP(&rmDirID, "dir-id", "i", 0, "Specify an ID of a directory to delete. ")
+	rmdirCmd.Flags().Uint64VarP(&rmDirID, "dir-id", "d", 0, "Specify an ID of a directory to delete. ")
 	rmdirCmd.Flags().BoolVarP(&rmDirForce, "force", "f", false, "Skip confirmation and delete the directory immediately")
 }
