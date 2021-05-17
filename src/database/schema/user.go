@@ -21,6 +21,13 @@ type User struct {
 	Role          string `gorm:"default:user"`
 }
 
+func (user *User) Delete(db *gorm.DB) error {
+	if err := db.Unscoped().Delete(user).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 func (user *User) ValidateForRegistration() error {
 	if !isEmailValid(user.Email) {
 		return errors.New("email is invalid")

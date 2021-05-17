@@ -5,24 +5,27 @@ services:
     restart: always
     build: .
     volumes:
-      - /home/user/synche/synche-server.yaml:/root/synche/synche-server.yaml
+      - /home/tara/synche/synche-server.yaml:/root/synche/synche-server.yaml
     ports:
-      - 127.0.0.1:9449:9449
-      - 127.0.0.1:2121:2121
+      - 0.0.0.0:9449:9449
+      - 0.0.0.0:2121:2121
     networks:
       - backend
+    depends_on:
+      - "db"
   db:
-    image: mariadb
+    container_name: synche-db
+    image: mariadb:latest
     restart: always
     environment:
       MYSQL_DATABASE: synche
       MYSQL_USER: admin
       MYSQL_PASSWORD: admin
-      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
     ports:
       - 3306:3306
-    volumes:
-      - /var/lib/mariadb:/var/lib/mysql
+    #volumes:
+    # - /var/lib/mariadb:/var/lib/mysql
     networks:
       - backend
 

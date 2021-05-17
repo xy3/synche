@@ -14,4 +14,4 @@ RUN apt update && \
 
 EXPOSE 9449 2121
 
-CMD ["/synche/build/server", "serve"]
+CMD ["/synche/build/synche-server", "serve"]

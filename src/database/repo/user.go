@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// GetUserByEmail retrieves user details relating to an email address
 func GetUserByEmail(email string, db *gorm.DB) (*schema.User, error) {
 	// The email hash should be used instead of the plaintext email for performance
 	emailHash := hash.MD5Hash([]byte(strings.TrimSpace(email)))
@@ -29,6 +30,7 @@ func GetUserByEmail(email string, db *gorm.DB) (*schema.User, error) {
 	return &user, nil
 }
 
+// NewUser validates a user and enters their details into the database
 func NewUser(email, password string, name, picture *string, db *gorm.DB) (user *schema.User, err error) {
 	user = &schema.User{
 		Email:     email,

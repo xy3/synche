@@ -20,6 +20,8 @@ func printFile(file *models.File) {
 	}).Infof(color.GreenString(file.Name))
 }
 
+// moveFileByID Sends a request to the server to move a file from one directory to another.
+// The file is specified by ID
 func moveFileByID(fileID uint64, fileUpdate *models.FileUpdate) (*models.File, error) {
 	params := &files.UpdateFileByIDParams{
 		FileID:     fileID,
@@ -33,6 +35,8 @@ func moveFileByID(fileID uint64, fileUpdate *models.FileUpdate) (*models.File, e
 	return resp.GetPayload(), nil
 }
 
+// moveFileByPath Sends a request to the server to move a file from one directory to another.
+// The file is specified by path
 func moveFileByPath(filePath string, fileUpdate *models.FileUpdate) (*models.File, error) {
 	params := &files.UpdateFileByPathParams{
 		FilePath:   filePath,
@@ -55,8 +59,8 @@ var (
 )
 
 var moveCmd = &cobra.Command{
-	Use:   "move",
-	Short: "Move a file",
+	Use:     "move",
+	Short:   "Move a file",
 	Aliases: []string{"mv", "move"},
 	Long: `Move a file from one specified location to another using the full 
 path to the current location or file ID, and the full path to the new 
@@ -67,6 +71,15 @@ location or the directory ID`,
 			err  error
 			file *models.File
 		)
+
+		// Take command line args without flags by default
+		if len(args) > 0 && args[0] != "" {
+			moveCurrentFilePath = args[0]
+
+			if len(args) > 1 && args[1] != "" {
+				moveNewFilePath = args[1]
+			}
+		}
 
 		fileUpdate := &models.FileUpdate{
 			NewDirectoryID: moveDirID,
@@ -89,7 +102,6 @@ location or the directory ID`,
 	},
 }
 
-// TODO: Fix bug so that arguments can default to file paths
 func init() {
 	moveCmd.Flags().StringVarP(&moveCurrentFilePath, "file-path", "f", "", "the file to move")
 	moveCmd.Flags().Uint64VarP(&moveFileID, "file-id", "i", 0, "the ID of the file to move")

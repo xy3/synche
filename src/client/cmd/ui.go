@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 var guiPort uint
 
 // uiCmd represents the ui command

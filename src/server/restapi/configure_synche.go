@@ -96,6 +96,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	})
 	api.UsersRegisterHandler = users.RegisterHandlerFunc(handlers.Register)
 	api.UsersProfileHandler = users.ProfileHandlerFunc(handlers.Profile)
+	api.UsersDeleteUserHandler = users.DeleteUserHandlerFunc(handlers.DeleteUser)
 
 	// File handlers
 	api.FilesDeleteFileHandler = files.DeleteFileHandlerFunc(handlers.DeleteFileID)

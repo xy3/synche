@@ -64,12 +64,12 @@ func createDirJob(name string, parentID uint64) {
 // mkdirCmd Handles the user inputs from the command line and outputs the result of the mkdir command
 // creates a directory on the server
 var mkdirCmd = &cobra.Command{
-	Use:    "mkdir",
-	Short:  "Create a new directory",
+	Use:     "mkdir",
+	Short:   "Create a new directory",
 	Aliases: []string{"md"},
-	Long:   `Create a new directory on the server. The first argument should the name of the directory`,
-	Args:   cobra.ExactArgs(1),
-	PreRun: authenticateUserPreRun,
+	Long:    `Create a new directory on the server. The first argument should the name of the directory`,
+	Args:    cobra.ExactArgs(1),
+	PreRun:  authenticateUserPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		createDirJob(args[0], newDirParentID)
 	},
