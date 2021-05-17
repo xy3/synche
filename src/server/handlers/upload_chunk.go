@@ -116,7 +116,7 @@ func storeChunkData(
 			log.Error("invalid cache entry for chunks received")
 		}
 	} else {
-		 repo.FileIDChunkCountCache.Set(strFileID, int64(0), cache.NoExpiration)
+		repo.FileIDChunkCountCache.Set(strFileID, int64(0), cache.NoExpiration)
 	}
 
 	err := repo.FileIDChunkCountCache.Increment(strFileID, 1)

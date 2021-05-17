@@ -74,11 +74,11 @@ func ListHomeDirectory() *models.DirectoryContents {
 
 // listCmd Handles the user inputs from the command line and outputs the result of the list command
 var listCmd = &cobra.Command{
-	Use:    "list",
+	Use:     "list",
 	Aliases: []string{"ls", "dir"},
-	Short:  "List files on the server",
-	Long:   `Returns a list of the files in a specified location on the server`,
-	PreRun: authenticateUserPreRun,
+	Short:   "List files on the server",
+	Long:    `Returns a list of the files in a specified location on the server`,
+	PreRun:  authenticateUserPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		// if listDirName != "" {
 		// 	contents = ListDirectoryByName(listDirName)

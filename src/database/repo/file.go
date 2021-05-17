@@ -14,6 +14,7 @@ import (
 	"strings"
 )
 
+// GetFileByID returns the file information relating to the file with the specified ID
 func GetFileByID(fileID uint, db *gorm.DB) (file *schema.File, err error) {
 	strFileID := strconv.Itoa(int(fileID))
 	if fileValue, ok := idFileCache.Get(strFileID); ok {
@@ -167,5 +168,8 @@ func MoveFile(file *schema.File, newFullPath string, db *gorm.DB) (err error) {
 	file.DirectoryID = directory.ID
 	file.Name = newFileName
 
+	if _, err := directory.UpdateFileCount(db); err != nil {
+		return err
+	}
 	return tx.Error
 }

@@ -359,6 +359,22 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       summary: Get user info
+    delete:
+      tags:
+        - users
+      operationId: deleteUser
+      parameters:
+        - in: query
+          name: email
+          type: string
+          required: true
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
 
   /upload/chunk:
     post:

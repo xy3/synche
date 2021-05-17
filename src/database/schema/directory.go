@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	ErrDeleteHomeDirNotAllowed = errors.New("you cannot delete a home directory")
-	ErrDirNotEmpty             = errors.New("directory is not empty")
+	//ErrDeleteHomeDirNotAllowed = errors.New("you cannot delete a home directory")
+	ErrDirNotEmpty = errors.New("directory is not empty")
 )
 
 type Directory struct {
@@ -36,9 +36,9 @@ func (dir *Directory) Delete(forceDelete bool, db *gorm.DB) (err error) {
 		return err
 	}
 
-	if dir.Name == "home" {
-		return ErrDeleteHomeDirNotAllowed
-	}
+	//if dir.Name == "home" {
+	//	return ErrDeleteHomeDirNotAllowed
+	//}
 
 	var filesInDir int64
 	db.Model(File{}).Where(File{DirectoryID: dir.ID}).Count(&filesInDir)
