@@ -26,7 +26,7 @@ func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 			start := time.Now()
 			filePath := args[0]
 
-			if err := fileUploadFunc(filePath); err != nil {
+			if err := fileUploadFunc(filePath, uploadDirID); err != nil {
 				log.WithError(err).Fatal("Failed to upload the file")
 			}
 			elapsed := time.Since(start)
@@ -43,9 +43,9 @@ func NewUploadCmd(fileUploadFunc FileUploadFunc) *cobra.Command {
 }
 
 //go:generate mockery --name=FileUploadFunc --case=underscore
-type FileUploadFunc func(filePath string) error
+type FileUploadFunc func(filePath string, dirID uint) error
 
-func FileUpload(filePath string) error {
+func FileUpload(filePath string, dirID uint) error {
 	file, err := files.AppFS.Open(filePath)
 
 	if err != nil {
@@ -64,7 +64,7 @@ func FileUpload(filePath string) error {
 		return err
 	}
 	splitFile := data.NewSplitFile(stat.Size(), c.Config.Chunks.SizeKB, filePath, path.Base(filePath), fileHash, file)
-	return upload.AsyncUpload(splitFile, uploadDirID, upload.NewUpload, upload.AsyncChunkUpload)
+	return upload.AsyncUpload(splitFile, dirID, upload.NewUpload, upload.AsyncChunkUpload)
 }
 
 func init() {
