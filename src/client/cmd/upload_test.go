@@ -28,7 +28,7 @@ func TestFileUpload(t *testing.T) {
 func TestUploadCommand(t *testing.T) {
 	// Create a new mock FileUploadFunc and return no error for any string input
 	fileUploader := new(mocks.FileUploadFunc)
-	fileUploader.On("Execute", mock.AnythingOfType("string")).Return(nil)
+	fileUploader.On("Execute", mock.AnythingOfType("string"), mock.AnythingOfType("uint")).Return(nil)
 	uploadCmd := cmd.NewUploadCmd(fileUploader.Execute)
 
 	mockAuth := new(apiClientMocks.AuthenticatorFunc)

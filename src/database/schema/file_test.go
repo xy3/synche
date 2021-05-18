@@ -68,7 +68,6 @@ func (s *fileTestSuite) TestFile_AppendFromReader() {
 	})
 }
 
-
 func (s *fileTestSuite) TestFile_ConvertToFileModel() {
 	defer s.down(s.T())
 	got := s.file.ConvertToFileModel()

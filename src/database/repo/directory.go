@@ -48,6 +48,13 @@ func GetDirectoryByID(dirID uint, db *gorm.DB) (dir *schema.Directory, err error
 	return dir, tx.Error
 }
 
+// GetDirByPath retrieves a directory by its path
+func GetDirByPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+	path = strings.TrimRight(strings.TrimSpace(path), "/")
+	tx := db.Where(schema.Directory{PathHash: hash.PathHash(path)}).First(&dir)
+	return dir, tx.Error
+}
+
 // GetDirectoryForFileID retrieves the directory a certain file is in
 func GetDirectoryForFileID(fileID uint, db *gorm.DB) (*schema.Directory, error) {
 	var file schema.File
@@ -57,13 +64,6 @@ func GetDirectoryForFileID(fileID uint, db *gorm.DB) (*schema.Directory, error) 
 	}
 
 	return file.Directory, nil
-}
-
-// GetDirByPath retrieves a directory by its path
-func GetDirByPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
-	path = strings.TrimRight(strings.TrimSpace(path), "/")
-	tx := db.Where(schema.Directory{PathHash: hash.PathHash(path)}).First(&dir)
-	return dir, tx.Error
 }
 
 // GetOrCreateDirectory finds a directory by its path, or creates the it if it does not exist

@@ -53,6 +53,11 @@ export default function Dashboard() {
     getDirectoryList();
   }
 
+  async function onNewFile() {
+    setNewUploadModalVisible(false);
+    getDirectoryList();
+  }
+
   return (
     <Layout title="My Dashboard">
       <section className="my-16 container">
@@ -83,7 +88,7 @@ export default function Dashboard() {
           />
           <FileUploadModal
             isOpen={newUploadModalVisible}
-            onSubmit={() => setNewUploadModalVisible(false)}
+            onSubmit={onNewFile}
             onGoBack={() => setNewUploadModalVisible(false)}
           />
           <div className="my-8 w-full flex justify-end">

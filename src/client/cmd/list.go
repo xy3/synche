@@ -9,10 +9,10 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/models"
 )
 
-// var listDirName string
-var listDirID int64
-
-// TODO Fix bug to allow file paths to be the default arguments
+var (
+	listDirPath string
+	listDirID   uint64
+)
 
 // printContents Logs the list directory contents request response in a readable format
 func printContents(contents *models.DirectoryContents) {
@@ -40,24 +40,29 @@ func printContents(contents *models.DirectoryContents) {
 	}
 }
 
-// TODO: Replace this with a function to list by path
-// func ListDirectoryByName(name string) *models.DirectoryContents {
-// 	resp := listDirectoryJob(files.NewListDirectoryParams().WithDirectoryName(&name))
-// 	log.Infof("Directory name: %v\n", name)
-// 	return resp.GetPayload()
-// }
+// ListDirByPath Sends a request to the server to list the contents of a given directory
+// that is specified by the path to the directory
+func ListDirByPath() *models.DirectoryContents {
+	params := files.NewListDirPathInfoParams().WithDirPath(listDirPath)
+
+	resp, err := apiclient.Client.Files.ListDirPathInfo(params, apiclient.ClientAuth)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to retrieve directory contents")
+	}
+	return resp.GetPayload()
+}
 
 // ListDirectoryByID Sends a request to the server to list the contents of a given directory
 // that is specified by their path from the home dir or their ID
-func ListDirectoryByID(dirId uint64) *models.DirectoryContents {
-	params := files.NewListDirectoryParams().WithID(dirId)
+func ListDirectoryByID() *models.DirectoryContents {
+	params := files.NewListDirectoryParams().WithID(listDirID)
 
 	resp, err := apiclient.Client.Files.ListDirectory(params, apiclient.ClientAuth)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to retrieve directory contents")
 	}
 
-	log.Infof("Directory ID: %d\n", dirId)
+	log.Infof("Directory ID: %d\n", listDirID)
 	return resp.GetPayload()
 }
 
@@ -80,11 +85,14 @@ var listCmd = &cobra.Command{
 	Long:    `Returns a list of the files in a specified location on the server`,
 	PreRun:  authenticateUserPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		// if listDirName != "" {
-		// 	contents = ListDirectoryByName(listDirName)
 		var contents *models.DirectoryContents
-		if listDirID != 0 {
-			contents = ListDirectoryByID(uint64(listDirID))
+		if len(args) > 0 && args[0] != "" {
+			listDirPath = args[0]
+			contents = ListDirByPath()
+		} else if listDirPath != "" {
+			contents = ListDirByPath()
+		} else if listDirID != 0 {
+			contents = ListDirectoryByID()
 		} else {
 			contents = ListHomeDirectory()
 		}
@@ -93,7 +101,7 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	// listCmd.Flags().StringVarP(&listDirName, "dir-name", "n", "", "Specify the name to a directory to list its contents. Defaults to your base user directory")
-	listCmd.Flags().Int64VarP(&listDirID, "dir-id", "d", 0, "Specify an ID of a directory to list its contents")
+	listCmd.Flags().StringVarP(&listDirPath, "dir-path", "p", "", "Specify the to a directory to list its contents")
+	listCmd.Flags().Uint64VarP(&listDirID, "dir-id", "d", 0, "Specify an ID of a directory to list its contents")
 	rootCmd.AddCommand(listCmd)
 }

@@ -120,7 +120,7 @@ func DeleteFilePath(params files.DeleteFilepathParams, user *schema.User) middle
 // to the client accordingly
 func DeleteUser(params users.DeleteUserParams, user *schema.User) middleware.Responder {
 	if params.Email != user.Email {
-		return users.NewDeleteUserDefault(500).WithPayload(models.Error("failed to authenticate the user"))
+		return users.NewDeleteUserDefault(500).WithPayload("failed to authenticate the user")
 	}
 
 	if err := deleteFilesByUserID(user.ID); err != nil {

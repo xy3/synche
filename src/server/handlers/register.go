@@ -8,6 +8,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
 )
 
+// Register Handles new user registration and responds to the client
 func Register(params users.RegisterParams) middleware.Responder {
 	db := database.DB.Begin()
 

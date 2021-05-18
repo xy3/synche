@@ -177,7 +177,6 @@ paths:
         type: integer
         format: uint
         required: true
-
     get:
       summary: Get file info
       operationId: getFileInfo
@@ -192,7 +191,6 @@ paths:
           description: Unauthorized
         404:
           description: File not found
-
     delete:
       summary: Delete a file
       tags:
@@ -205,7 +203,6 @@ paths:
           description: Error
           schema:
             $ref: '#/definitions/Error'
-
     patch:
       tags:
         - files
@@ -217,7 +214,6 @@ paths:
           name: fileUpdate
           schema:
              $ref: '#/definitions/FileUpdate'
-
       responses: &UPDATE_FILE_RESPONSES
         200:
           description: OK
@@ -232,27 +228,79 @@ paths:
           schema:
             $ref: '#/definitions/Error'
 
+  /directoryPath/{dirPath}:
+    parameters:
+      - in: path
+        name: dirPath
+        type: string
+        required: true
+    get:
+      tags:
+        - files
+      summary: Get directory info
+      operationId: listDirPathInfo
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/DirectoryContents'
+        401:
+          description: Unauthorized
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+    delete:
+      tags:
+        - files
+      summary: Remove a certain directory
+      operationId: deleteDirPath
+      responses:
+        200:
+          description: OK
+        401:
+          description: Unauthorized
+        501:
+          description: Not implemented
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+    put:
+      tags:
+        - files
+      summary: Create a new directory
+      operationId: createDirPath
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Directory'
+        401:
+          description: Unauthorized
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
   /home/{filePath}:
     parameters:
       - in: path
         name: filePath
         type: string
         required: true
-
     get:
       summary: Get file info
       operationId: getFilePathInfo
       tags:
         - files
       responses: *GET_FILE_RESPONSES
-
     delete:
       summary: Delete a file
       tags:
         - files
       operationId: deleteFilepath
       responses: *DELETE_FILE_RESPONSES
-
     patch:
       tags:
         - files

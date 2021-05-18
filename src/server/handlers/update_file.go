@@ -16,6 +16,7 @@ var (
 	ErrDirNotFound = errors.New("directory not found")
 )
 
+// updateFile Checks all file details in the database and updates them if needed
 func updateFile(file *schema.File, user *schema.User, update *models.FileUpdate, db *gorm.DB) (
 	newFile *schema.File,
 	err error,
@@ -56,6 +57,7 @@ func updateFile(file *schema.File, user *schema.User, update *models.FileUpdate,
 	return file, err
 }
 
+// UpdateFileByID Handles a request from the client to update a file and responds accordingly
 func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middleware.Responder {
 	file, err := repo.GetFileByID(uint(params.FileID), database.DB)
 	if err != nil {
@@ -74,6 +76,7 @@ func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middle
 	return files.NewUpdateFileByIDOK().WithPayload(newFile.ConvertToFileModel())
 }
 
+// UpdateFileByPath Handles a request from the client to update a file and responds accordingly
 func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema.User) middleware.Responder {
 	var (
 		file    *schema.File
