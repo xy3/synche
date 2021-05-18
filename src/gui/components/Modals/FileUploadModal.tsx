@@ -1,9 +1,9 @@
 import Modal from "../Modal";
-import { Formik, Form, Field, ErrorMessage } from "formik";
+import {ErrorMessage, Field, Form, Formik} from "formik";
 import axios from "../../utils/axios.instance";
 import cogoToast from "../../utils/cogoToast.instance";
 import * as yup from "yup";
-import { RiFolderAddLine } from "react-icons/ri";
+import {RiFolderAddLine} from "react-icons/ri";
 
 interface ComponentProps {
   currentPathID?: number;
@@ -19,12 +19,7 @@ export default function FileUploadModal({
   onGoBack,
 }: ComponentProps) {
   const validationSchema = yup.object().shape({
-    file: yup
-      .mixed()
-      .test("fileSize", "File Size is too large (max: 5 MB)", (value) => {
-        return value ? value.size <= 5242880 : false;
-      })
-      .required("File is required"),
+    filePath: yup.string().required("File path is required"),
   });
 
   return (
@@ -33,25 +28,21 @@ export default function FileUploadModal({
         <h1 className="title text-gray-300">File Upload</h1>
         <div className="my-8 p-4 bg-gray-800 shadow-sm">
           <Formik
-            initialValues={{ file: null }}
+            initialValues={{ filePath: "" }}
             onSubmit={async (values) => {
               try {
-                const url = new URLSearchParams();
-
-                const file: File = values.file;
-
-                url.append("fileName", file.name);
-                url.append("fileSize", file.size.toString());
-                url.append("fileHash", "");
-                url.append("numChunks", "");
-
-                if (currentPathID) {
-                  url.append("directoryID", currentPathID.toString());
+                var newFileParams = {
+                  directoryID: 0,
+                  filePath: values.filePath
                 }
 
-                const res = await axios.delete(
-                  `/upload/new/?${url.toString()}`
-                );
+                if (currentPathID) {
+                  newFileParams.directoryID = currentPathID;
+                }
+
+                const res = await axios({url: "/upload", baseURL: process.env.NEXT_PUBLIC_CLIENT_BASE_URL, method: "post", data: newFileParams});
+
+                cogoToast.info("Uploading the file via the command line utility...")
 
                 if (res.status === 200) {
                   onSubmit();
@@ -66,20 +57,11 @@ export default function FileUploadModal({
               <Form>
                 <div className="my-4">
                   <label className="block text-gray-400 text-sm">File *</label>
-                  <input
-                    name="photo"
-                    id="photo"
-                    type="file"
-                    accept="*"
-                    className="input-inverted"
-                    placeholder="Please upload your file"
-                    onChange={(e) =>
-                      props.setFieldValue(
-                        "file",
-                        e.currentTarget.files[0],
-                        true
-                      )
-                    }
+                  <Field
+                      type="text"
+                      name="filePath"
+                      className="input-inverted"
+                      placeholder="Provide the full path to a file..."
                   />
                   <div className="mb-2 text-red-500 text-sm">
                     <ErrorMessage name="file" />

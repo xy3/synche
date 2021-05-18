@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -13,8 +12,6 @@ import (
 )
 
 var (
-	// NewTxForTest = newTxForTest
-
 	TestUser = struct {
 		Email             string
 		Password          string
@@ -37,7 +34,6 @@ func newDBForTest(t *testing.T) *gorm.DB {
 		return testDB
 	}
 
-	logrus.Infof("newDBForTest called")
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"))
 	assert.NoError(t, err)
 
@@ -49,8 +45,6 @@ func newDBForTest(t *testing.T) *gorm.DB {
 }
 
 func NewTxForTest(t *testing.T) (db *gorm.DB, down func(*testing.T)) {
-	// assert.Nil(t, c.InitConfig(""))
-
 	defer func() { assert.Nil(t, recover()) }()
 
 	db = newDBForTest(t)

@@ -216,7 +216,7 @@ paths:
         - in: body
           name: fileUpdate
           schema:
-             $ref: '#/definitions/FileUpdate'
+            $ref: '#/definitions/FileUpdate'
 
       responses: &UPDATE_FILE_RESPONSES
         200:

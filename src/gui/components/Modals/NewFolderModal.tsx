@@ -59,7 +59,7 @@ export default function NewFolderModal({
                   type="text"
                   name="folderName"
                   className="input-inverted"
-                  placeholder="Please enter new's folder name..."
+                  placeholder="Please enter new folder name..."
                 />
                 <div className="mb-2 text-red-500 text-sm">
                   <ErrorMessage name="folderName" />
