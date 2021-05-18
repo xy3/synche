@@ -14,11 +14,11 @@ import (
 
 type directoryTestSuite struct {
 	suite.Suite
-	user     *schema.User
-	homeDir  *schema.Directory
-	dir      *schema.Directory
-	down     func(t *testing.T)
-	db       *gorm.DB
+	user    *schema.User
+	homeDir *schema.Directory
+	dir     *schema.Directory
+	down    func(t *testing.T)
+	db      *gorm.DB
 }
 
 func Test_directoryTestSuite(t *testing.T) {

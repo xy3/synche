@@ -7,6 +7,7 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/apiclient/users"
+	"golang.org/x/net/context"
 	"strings"
 )
 
@@ -41,7 +42,10 @@ func deleteUserJob() error {
 
 // deleteJobByPath Sends a request to the server to delete a file specified by an ID
 func deleteJobByPath() error {
-	_, err := apiclient.Client.Files.DeleteFilepath(files.NewDeleteFilepathParams().WithFilePath(deleteFilepath), apiclient.ClientAuth)
+	_, err := apiclient.Client.Files.DeleteFilepath(
+		files.NewDeleteFilepathParams().WithFilePath(
+			deleteFilepath).WithContext(
+			context.Background()), apiclient.ClientAuth)
 	if err != nil {
 		return err
 	}
@@ -51,7 +55,10 @@ func deleteJobByPath() error {
 
 // deleteJobByPath Sends a request to the server to delete a file specified by the path to a file
 func deleteJobByID() error {
-	_, err := apiclient.Client.Files.DeleteFile(files.NewDeleteFileParams().WithFileID(deleteFileID), apiclient.ClientAuth)
+	_, err := apiclient.Client.Files.DeleteFile(
+		files.NewDeleteFileParams().WithFileID(
+			deleteFileID).WithContext(
+			context.Background()), apiclient.ClientAuth)
 	if err != nil {
 		return err
 	}

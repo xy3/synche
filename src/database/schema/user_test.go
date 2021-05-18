@@ -42,9 +42,9 @@ func TestUser_ValidateForRegistration(t *testing.T) {
 
 func Test_isEmailValid(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		email string
-		want bool
+		want  bool
 	}{
 		{"valid email", "mail@test.com", true},
 		{"no TLD", "mail@", false},

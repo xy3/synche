@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,6 +27,7 @@ func moveFileByID(fileID uint64, fileUpdate *models.FileUpdate) (*models.File, e
 	params := &files.UpdateFileByIDParams{
 		FileID:     fileID,
 		FileUpdate: fileUpdate,
+		Context:    context.Background(),
 	}
 
 	resp, err := apiclient.Client.Files.UpdateFileByID(params, apiclient.ClientAuth)
@@ -41,6 +43,7 @@ func moveFileByPath(filePath string, fileUpdate *models.FileUpdate) (*models.Fil
 	params := &files.UpdateFileByPathParams{
 		FilePath:   filePath,
 		FileUpdate: fileUpdate,
+		Context:    context.Background(),
 	}
 
 	resp, err := apiclient.Client.Files.UpdateFileByPath(params, apiclient.ClientAuth)
