@@ -53,7 +53,7 @@ func Read(name string, path string) error {
 // the user to set up their configuration
 func ReadOrCreate(name, path string, defaultCfg, configStruct interface{}) (created bool, err error) {
 	err = Read(name, path)
-	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+	if err != nil {
 		log.Warn("No config file found")
 
 		newConfig, err := Setup(defaultCfg)

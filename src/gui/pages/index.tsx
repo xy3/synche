@@ -8,16 +8,15 @@ export default function Index() {
   return (
     <Layout>
       <div className="bg-brand-dark-blue">
-        <section className="py-24 container">
+        <section className="p-4 py-24 container">
           <img src="/img/logo-lines.png" className="w-64 h-auto mx-auto" />
           <h1 className="text-center font-rubik text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-50 to-gray-200 tracking-wide">
             Sync your files faster than ever.
           </h1>
           <p className="my-8 text-gray-300 text-center tracking-wider text-lg">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Totam et
-            dignissimos, laboriosam corporis impedit vel expedita quod molestias
-            veniam officia debitis, suscipit exercitationem aliquid eligendi,
-            ipsa temporibus? Iure, inventore eaque?
+            Synche is a self-hosted storage solution that features multi-part concurrent file uploading.
+            Put simply, Synche allows you to upload large files faster and more reliably than leading cloud-storage
+            providers, all while maintaining complete control of all your files and the data storage location.
           </p>
           <UserConsumer>
             {(user) =>
@@ -37,7 +36,7 @@ export default function Index() {
                     </Link>
                   </div>
                   <Link href="/login">
-                    <a className="mt-4 link">Already an user?</a>
+                    <a className="mt-4 link">Already n user?</a>
                   </Link>
                 </div>
               )
