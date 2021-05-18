@@ -3,11 +3,11 @@ package schema
 import (
 	"errors"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gorm.io/gorm"
 )
 
 var (
-	//ErrDeleteHomeDirNotAllowed = errors.New("you cannot delete a home directory")
 	ErrDirNotEmpty = errors.New("directory is not empty")
 )
 
@@ -36,10 +36,6 @@ func (dir *Directory) Delete(forceDelete bool, db *gorm.DB) (err error) {
 		return err
 	}
 
-	//if dir.Name == "home" {
-	//	return ErrDeleteHomeDirNotAllowed
-	//}
-
 	var filesInDir int64
 	db.Model(File{}).Where(File{DirectoryID: dir.ID}).Count(&filesInDir)
 	if filesInDir != 0 && !forceDelete {
@@ -57,26 +53,6 @@ func (dir *Directory) Delete(forceDelete bool, db *gorm.DB) (err error) {
 	return nil
 }
 
-//
-// func (dir *Directory) UpdateSize(size int64, db *gorm.DB) (err error) {
-// 	dir.Size += size
-//
-// 	if dir.Parent == nil {
-// 		db.Preload("Parent").Find(dir)
-// 	}
-//
-// 	if err = db.Save(dir).Error; err != nil {
-// 		return err
-// 	}
-//
-// 	if dir.Parent == nil {
-// 		return nil
-// 	}
-//
-// 	// Recursively update parent directories
-// 	return dir.Parent.UpdateSize(size, db)
-// }
-
 func (dir *Directory) UpdateFileCount(db *gorm.DB) (num int64, err error) {
 	tx := db.Model(&File{}).Where("directory_id = ?", dir.ID).Count(&num)
 	if tx.Error != nil {
@@ -84,4 +60,20 @@ func (dir *Directory) UpdateFileCount(db *gorm.DB) (num int64, err error) {
 	}
 	dir.FileCount = num
 	return num, db.Save(dir).Error
+}
+
+// ConvertToModelsDir Translates a schema directory to a model directory
+func (dir *Directory) ConvertToModelsDir() *models.Directory {
+	var parentDirID uint64
+	if dir.ParentID != nil {
+		parentDirID = uint64(*dir.ParentID)
+	}
+	return &models.Directory{
+		FileCount:         uint64(dir.FileCount),
+		ID:                uint64(dir.ID),
+		Name:              dir.Name,
+		ParentDirectoryID: parentDirID,
+		Path:              dir.Path,
+		PathHash:          dir.PathHash,
+	}
 }

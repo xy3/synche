@@ -10,23 +10,6 @@ import (
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
 )
 
-// convertToModelsDir Translates a schema directory to a model directory
-func convertToModelsDir(directory *schema.Directory) (*models.Directory, error) {
-	var parentDirID uint64
-	if directory.ParentID != nil {
-		parentDirID = uint64(*directory.ParentID)
-	}
-
-	return &models.Directory{
-		FileCount:         uint64(directory.FileCount),
-		ID:                uint64(directory.ID),
-		Name:              directory.Name,
-		ParentDirectoryID: parentDirID,
-		Path:              directory.Path,
-		PathHash:          directory.PathHash,
-	}, nil
-}
-
 // findExistingDirByParentID Returns a directory specified by it's parent directory ID
 func findExistingDirByParentID(dirName string, parentDirID uint) (*schema.Directory, error) {
 	var directory schema.Directory
@@ -44,7 +27,6 @@ func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) midd
 		errDirTooShort  = defaultRes(400).WithPayload("directory names must be greater than 3 characters in length")
 		errCreateFailed = defaultRes(500).WithPayload("could not create the directory")
 		errNoParentDir  = defaultRes(500).WithPayload("could not locate parent directory")
-		errConvertFail  = defaultRes(500).WithPayload("failed to convert the response object to models.Directory")
 	)
 
 	if len(params.DirectoryName) < 3 {
@@ -71,10 +53,7 @@ func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) midd
 		}
 	}
 
-	modelsDir, err := convertToModelsDir(directory)
-	if err != nil {
-		return errConvertFail
-	}
+	modelsDir := directory.ConvertToModelsDir()
 	return files.NewCreateDirectoryOK().WithPayload(modelsDir)
 }
 

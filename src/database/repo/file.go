@@ -3,7 +3,6 @@ package repo
 import (
 	"errors"
 	"github.com/patrickmn/go-cache"
-	log "github.com/sirupsen/logrus"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
@@ -56,6 +55,7 @@ func FindFileByFullPath(path string, db *gorm.DB) (*schema.File, error) {
 
 func writeFileData(path string, reader io.Reader) (int64, error) {
 	// for ftp it should allow file overwriting, but what about other cases?
+	// e.g.
 	// if exists, _ := files.Afs.Exists(path); exists {
 	// 	return 0, errors.New("file already exists")
 	// }
@@ -121,22 +121,19 @@ func CreateFileFromReader(path string, reader io.Reader, userID uint, db *gorm.D
 	return file, nil
 }
 
-func RenameFile(fileID uint, newName string, db *gorm.DB) error {
-	var newFile *schema.File
-	tx := db.Joins("Directory").Where("id = ?", fileID).First(&newFile)
+func RenameFile(fileID uint, newName string, db *gorm.DB) (newFile *schema.File, err error) {
+	tx := db.Model(&schema.File{}).Preload("Directory").Where("id = ?", fileID).First(&newFile)
 	if tx.Error != nil {
-		return tx.Error
+		return nil, tx.Error
 	}
 
 	newPath := filepath.Join(newFile.Directory.Path, newName)
-	return MoveFile(newFile, newPath, db)
+	return newFile, MoveFile(newFile, newPath, db)
 }
 
 // MoveFile moves the file to a new directory, both in the database and on the disk
 func MoveFile(file *schema.File, newFullPath string, db *gorm.DB) (err error) {
 	var directory *schema.Directory
-
-	log.Infof("Received move request for: %s to %s", file.Name, newFullPath)
 
 	newDirPath := filepath.Dir(newFullPath)
 	newFileName := filepath.Base(newFullPath)
@@ -172,4 +169,12 @@ func MoveFile(file *schema.File, newFullPath string, db *gorm.DB) (err error) {
 		return err
 	}
 	return tx.Error
+}
+
+func GetTotalFileChunks(fileID uint64, db *gorm.DB) (uint64, error) {
+	var file schema.File
+	if tx := db.First(&file, fileID); tx.Error != nil {
+		return 0, tx.Error
+	}
+	return uint64(file.TotalChunks), nil
 }

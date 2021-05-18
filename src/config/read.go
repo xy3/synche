@@ -45,7 +45,7 @@ func Read(name string, path string) error {
 		return err
 	}
 
-	log.Infof("Using config file: %s", viper.ConfigFileUsed())
+	log.Debugf("Using config file: %s", viper.ConfigFileUsed())
 	return nil
 }
 

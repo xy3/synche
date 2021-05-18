@@ -32,5 +32,5 @@ func FilePathInfo(params files.GetFilePathInfoParams, user *schema.User) middlew
 		return files.NewGetFilePathInfoNotFound()
 	}
 
-	return files.NewGetFilePathInfoOK().WithPayload(ConvertToFileModel(file))
+	return files.NewGetFilePathInfoOK().WithPayload(file.ConvertToFileModel())
 }

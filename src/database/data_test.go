@@ -1,35 +1,57 @@
-package database_test
+package database
 
 import (
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"testing"
 )
 
-type dataSuite struct {
+type dataTestSuite struct {
 	suite.Suite
-	DB     *gorm.DB
-	mockDB sqlmock.Sqlmock
+	down func(t *testing.T)
+	db   *gorm.DB
 }
 
-func (s *dataSuite) SetupSuite() {
-	db, mockDB, err := sqlmock.New()
-	require.NoError(s.T(), err)
-
-	s.mockDB = mockDB
-	s.mockDB.ExpectQuery("SELECT VERSION()").WillReturnRows(sqlmock.NewRows([]string{"VERSION()"}).AddRow(""))
-	s.DB, err = gorm.Open(mysql.New(mysql.Config{Conn: db}))
-
-	require.NoError(s.T(), err)
-
-	database.DB = s.DB
+func Test_dataTestSuite(t *testing.T) {
+	suite.Run(t, new(dataTestSuite))
 }
 
-// Todo: Add migration test cases and configure the sqlmock to expect the queries
-func TestDataSuite(t *testing.T) {
-	suite.Run(t, new(dataSuite))
+func (s *dataTestSuite) SetupTest() {
+	db, down := NewTxForTest(s.T())
+	s.down = down
+	s.db = db
+	TestDB = s.db
+}
+
+func (s *dataTestSuite) TestInitSyncheData() {
+	defer s.down(s.T())
+	gotDb, err := InitSyncheData()
+	s.Assert().NoError(err)
+	s.Assert().NotNil(gotDb)
+}
+
+func (s *dataTestSuite) TestNewConnection() {
+	defer s.down(s.T())
+	gotDb, err := NewConnection()
+	s.Assert().NoError(err)
+	s.Assert().NotNil(gotDb)
+}
+
+func (s *dataTestSuite) TestRequireNewConnection() {
+	defer s.down(s.T())
+	gotDb := RequireNewConnection()
+	s.Assert().NotNil(gotDb)
+}
+
+func (s *dataTestSuite) Test_configureConnection() {
+	defer s.down(s.T())
+	gotDb, err := configureConnection(s.db)
+	s.Assert().NoError(err)
+	s.Assert().NotNil(gotDb)
+}
+
+func (s *dataTestSuite) TestMigrateAll() {
+	defer s.down(s.T())
+	err := MigrateAll(s.db)
+	s.Assert().NoError(err)
 }

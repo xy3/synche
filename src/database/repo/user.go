@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// GetUserByEmail retrieves user details relating to an email address
+// GetUserByEmail finds a user either in the cache or database using their email address
 func GetUserByEmail(email string, db *gorm.DB) (*schema.User, error) {
 	// The email hash should be used instead of the plaintext email for performance
 	emailHash := hash.MD5Hash([]byte(strings.TrimSpace(email)))
@@ -43,7 +43,7 @@ func NewUser(email, password string, name, picture *string, db *gorm.DB) (user *
 		user.Name = *name
 	}
 	if picture != nil {
-		user.Password = *picture
+		user.Picture = *picture
 	}
 
 	if err = user.ValidateForRegistration(); err != nil {

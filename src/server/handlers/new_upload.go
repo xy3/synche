@@ -35,7 +35,7 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 		return transfer.NewNewUploadDefault(500).WithPayload("failed to update the directory file count")
 	}
 
-	return transfer.NewNewUploadOK().WithPayload(ConvertToFileModel(&file))
+	return transfer.NewNewUploadOK().WithPayload(file.ConvertToFileModel())
 }
 
 // NewUpload Handles requests to upload a new file and responds to the client
@@ -90,5 +90,5 @@ func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Re
 
 	// repo.UploadsCache.Set(strconv.Itoa(int(newUpload.ID)), &newUpload, cache.DefaultExpiration)
 
-	return transfer.NewNewUploadOK().WithPayload(ConvertToFileModel(&prevFile))
+	return transfer.NewNewUploadOK().WithPayload(prevFile.ConvertToFileModel())
 }

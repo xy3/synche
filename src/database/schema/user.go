@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
 	"gorm.io/gorm"
-	"regexp"
+	"net/mail"
 )
 
 // User uses an email hash to have a set key length for finding a user by their email address
@@ -45,9 +45,6 @@ func (user *User) ValidateForRegistration() error {
 }
 
 func isEmailValid(email string) bool {
-	emailRegex := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-	if len(email) < 3 && len(email) > 254 {
-		return false
-	}
-	return emailRegex.MatchString(email)
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }

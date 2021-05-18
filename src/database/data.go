@@ -17,7 +17,7 @@ var (
 	TestDB *gorm.DB
 )
 
-func migrateAll(db *gorm.DB) error {
+func MigrateAll(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&schema.Chunk{},
 		&schema.File{},
@@ -97,7 +97,7 @@ func InitSyncheData() (*gorm.DB, error) {
 		}
 	}
 
-	if err = migrateAll(db); err != nil {
+	if err = MigrateAll(db); err != nil {
 		log.WithError(err).Error("Failed to migrate database")
 		return nil, err
 	}

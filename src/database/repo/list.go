@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
@@ -26,15 +25,14 @@ func GetHomeDirContents(user *schema.User, db *gorm.DB) (*models.DirectoryConten
 		}
 	}
 
-	return GetDirContentsByID(homeDir.ID)
+	return GetDirContentsByID(homeDir.ID, db)
 }
 
-func GetDirContentsByID(dirID uint) (*models.DirectoryContents, error) {
+func GetDirContentsByID(dirID uint, db *gorm.DB) (*models.DirectoryContents, error) {
 	contents := &models.DirectoryContents{}
-
 	directory := &schema.Directory{}
 
-	tx := database.DB.Where("id = ?", dirID).First(directory)
+	tx := db.Where("id = ?", dirID).First(directory)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -51,12 +49,12 @@ func GetDirContentsByID(dirID uint) (*models.DirectoryContents, error) {
 		contents.CurrentDir.ParentDirectoryID = uint64(*directory.ParentID)
 	}
 
-	tx = database.DB.Where(&schema.Directory{ParentID: &dirID}).Find(&contents.SubDirectories)
+	tx = db.Where(&schema.Directory{ParentID: &dirID}).Find(&contents.SubDirectories)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	tx = database.DB.Where(&schema.File{DirectoryID: dirID}).Find(&contents.Files)
+	tx = db.Where(&schema.File{DirectoryID: dirID}).Find(&contents.Files)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}

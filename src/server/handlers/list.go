@@ -25,7 +25,7 @@ func ListDirectory(params files.ListDirectoryParams, user *schema.User) middlewa
 		return files.NewListDirectoryUnauthorized()
 	}
 
-	contents, err := repo.GetDirContentsByID(uint(params.ID))
+	contents, err := repo.GetDirContentsByID(uint(params.ID), database.DB)
 	if err != nil {
 		return errNotFound
 	}
