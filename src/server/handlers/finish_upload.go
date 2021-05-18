@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
@@ -14,7 +15,7 @@ func getMissingChunks(fileID uint64, expectedNumOfChunks int64) ([]int64, error)
 	missingChunks := make([]int64, 0)
 
 	// get all received chunks
-	fileChunks, err := repo.GetFileChunksInOrder(uint(fileID))
+	fileChunks, err := repo.GetFileChunksInOrder(uint(fileID), database.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -33,11 +34,15 @@ func getMissingChunks(fileID uint64, expectedNumOfChunks int64) ([]int64, error)
 // it'll send an array of chunk numbers to the client of there are missing chunks.
 // It'll send an empty array to the client if there are no missing chunks
 func FinishUpload(params transfer.FinishUploadParams, user *schema.User) middleware.Responder {
+	cacheFailure := transfer.NewFinishUploadDefault(500).WithPayload("failed to access cache")
 	fileID := params.FileID
-	chunksReceived := repo.GetCachedChunksReceived(fileID)
-	expectedNumOfChunks, err := repo.GetTotalFileChunks(fileID)
-	if err != nil || chunksReceived == 0 {
-		return transfer.NewFinishUploadDefault(500).WithPayload("failed to access cache")
+	chunksReceived, err := repo.GetCachedChunksReceived(fileID)
+	if err != nil {
+		return cacheFailure
+	}
+	expectedNumOfChunks, err := repo.GetTotalFileChunks(fileID, database.DB)
+	if err != nil {
+		return cacheFailure
 	}
 
 	// If the amount of chunks received != the expected, find what chunks are missing

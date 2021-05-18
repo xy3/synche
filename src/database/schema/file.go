@@ -4,6 +4,7 @@ import (
 	"errors"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
 	"gorm.io/gorm"
 	"io"
 	"os"
@@ -151,16 +152,6 @@ func (f *File) AppendFromReader(reader io.Reader, userID uint, db *gorm.DB) (err
 	return db.Save(f).Error
 }
 
-func (f *File) LastChunkNumber() (int, error) {
-	// TODO
-	return 0, nil
-}
-
-func (f *File) ChunkByNumber(num int) (*Chunk, error) {
-	// TODO
-	return nil, nil
-}
-
 func (f *File) ValidateHash(db *gorm.DB) error {
 	path, err := f.Path(db)
 	if err != nil {
@@ -192,4 +183,27 @@ func (f *File) SetUnavailable(db *gorm.DB) error {
 func (f *File) Rename(newName string, db *gorm.DB) error {
 	f.Name = newName
 	return db.Save(f).Error
+}
+
+func (f *File) ConvertToFileModel() *models.File {
+	return &models.File{
+		ID:             uint64(f.ID),
+		Size:           f.Size,
+		Hash:           f.Hash,
+		Name:           f.Name,
+		Available:      f.Available,
+		TotalChunks:    f.TotalChunks,
+		ChunksReceived: f.ChunksReceived,
+		DirectoryID:    uint64(f.DirectoryID),
+	}
+}
+
+func (f *File) LastChunkNumber() (int, error) {
+	// TODO
+	return 0, nil
+}
+
+func (f *File) ChunkByNumber(num int) (*Chunk, error) {
+	// TODO
+	return nil, nil
 }

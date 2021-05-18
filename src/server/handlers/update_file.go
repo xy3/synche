@@ -16,19 +16,6 @@ var (
 	ErrDirNotFound = errors.New("directory not found")
 )
 
-func ConvertToFileModel(file *schema.File) *models.File {
-	return &models.File{
-		Available:      file.Available,
-		ChunksReceived: file.ChunksReceived,
-		DirectoryID:    uint64(file.DirectoryID),
-		Hash:           file.Hash,
-		ID:             uint64(file.ID),
-		Name:           file.Name,
-		Size:           file.Size,
-		TotalChunks:    file.TotalChunks,
-	}
-}
-
 func updateFile(file *schema.File, user *schema.User, update *models.FileUpdate, db *gorm.DB) (
 	newFile *schema.File,
 	err error,
@@ -84,7 +71,7 @@ func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middle
 		return files.NewUpdateFileByIDDefault(500).WithPayload(models.Error("failed to update the file: " + err.Error()))
 	}
 
-	return files.NewUpdateFileByIDOK().WithPayload(ConvertToFileModel(newFile))
+	return files.NewUpdateFileByIDOK().WithPayload(newFile.ConvertToFileModel())
 }
 
 func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema.User) middleware.Responder {
@@ -114,5 +101,5 @@ func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema.User) mi
 		return err500.WithPayload(models.Error("failed to update the file: " + err.Error()))
 	}
 
-	return files.NewUpdateFileByPathOK().WithPayload(ConvertToFileModel(newFile))
+	return files.NewUpdateFileByPathOK().WithPayload(newFile.ConvertToFileModel())
 }

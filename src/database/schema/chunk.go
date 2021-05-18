@@ -1,9 +1,10 @@
 package schema
 
 import (
+	"github.com/spf13/afero"
 	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/config"
+	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
 	"gorm.io/gorm"
-	"os"
 	"path/filepath"
 )
 
@@ -25,8 +26,8 @@ type FileChunk struct {
 }
 
 // Reader return a reader with buffer
-func (c *Chunk) Reader(rootPath *string) (file *os.File, err error) {
-	return os.Open(c.Path(rootPath))
+func (c *Chunk) Reader(rootPath *string) (file afero.File, err error) {
+	return files.AppFS.Open(c.Path(rootPath))
 }
 
 // Path represent the actual storage path for the chunk
@@ -35,9 +36,4 @@ func (c Chunk) Path(rootPath *string) string {
 		rootPath = &config.Config.Synche.DataDir
 	}
 	return filepath.Join(*rootPath, c.Hash)
-}
-
-func GetChunkByHash(hash string, db *gorm.DB) (*Chunk, error) {
-	var chunk Chunk
-	return &chunk, db.Where(Chunk{Hash: hash}).First(&chunk).Error
 }

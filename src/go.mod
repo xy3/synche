@@ -3,7 +3,6 @@ module gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src
 go 1.16
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fatih/color v1.10.0

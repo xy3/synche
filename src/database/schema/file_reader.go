@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"math"
-	"os"
 )
 
 var (
@@ -25,7 +24,7 @@ var (
 type fileReader struct {
 	file               *File
 	rootPath           *string
-	currentChunkReader *os.File
+	currentChunkReader io.ReadSeekCloser
 	totalChunkNumber   int
 	currentChunkNumber int
 	alreadyReadCount   int
@@ -39,7 +38,7 @@ func NewFileReader(file *File, rootPath *string) (*fileReader, error) {
 	var (
 		err              error
 		firstChunk       *Chunk
-		chunkReader      *os.File
+		chunkReader      io.ReadSeekCloser
 		totalChunkNumber int
 	)
 
@@ -70,7 +69,7 @@ func NewFileReader(file *File, rootPath *string) (*fileReader, error) {
 
 func (fr *fileReader) Read(p []byte) (readCount int, err error) {
 	if fr.alreadyReadCount >= int(fr.file.Size) {
-		_ = fr.currentChunkReader.Close()
+		_ = fr.currentChunkReader
 		return 0, io.EOF
 	}
 	defer func() { fr.alreadyReadCount += readCount }()
@@ -111,7 +110,7 @@ func (fr *fileReader) Seek(offset int64, whence int) (abs int64, err error) {
 	}
 	var (
 		currentChunk       *Chunk
-		currentChunkReader *os.File
+		currentChunkReader io.ReadSeekCloser
 		currentChunkNumber = int(math.Ceil(float64(abs) / float64(fr.file.ChunkSize)))
 	)
 

@@ -1,6 +1,6 @@
 package upload_test
 
-//func TestAsyncUpload(t *testing.T) {
+// func TestAsyncUpload(t *testing.T) {
 //	tests := []struct {
 //		name    string
 //		wantErr bool
@@ -24,4 +24,4 @@ package upload_test
 //			}
 //		})
 //	}
-//}
+// }

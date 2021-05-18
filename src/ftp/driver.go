@@ -57,8 +57,6 @@ func (d *Driver) Stat(path string) (fileInfo server.FileInfo, err error) {
 		return nil, err
 	}
 
-	d.logger.Debugf("Stat-ing path: %s", fullPath)
-
 	if dir, err = repo.GetDirByPath(fullPath, d.db); err == nil {
 		return &FileInfo{
 			name:     dir.Name,

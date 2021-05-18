@@ -18,7 +18,7 @@ var (
 // rootCmd Represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "server",
-	Short: "A brief description of your application",
+	Short: "The Synche Server command line interface",
 	Long:  ``,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -28,6 +28,8 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	InitServerCLI()
+
 	cobra.OnInitialize(func() {
 		if viper.GetBool("config.synche.debug") {
 			log.Infof("Debug: true")
@@ -38,7 +40,7 @@ func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 }
 
-func init() {
+func InitServerCLI() {
 	err := setup.Dirs(files.AppFS, c.RequiredDirs())
 	if err != nil {
 		log.WithError(err).Fatal("Could not set up the required directories")

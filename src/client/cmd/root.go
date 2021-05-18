@@ -25,6 +25,8 @@ var rootCmd = &cobra.Command{
 // Execute Adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	InitClientCLI()
+
 	cobra.OnInitialize(func() {
 		apiclient.ConfigureClient(c.Config.Server.Host, c.Config.Server.BasePath)
 
@@ -45,7 +47,7 @@ func authenticateUserPreRun(*cobra.Command, []string) {
 	}
 }
 
-func init() {
+func InitClientCLI() {
 	err := setup.Dirs(files.AppFS, c.RequiredDirs())
 	if err != nil {
 		log.WithError(err).Fatal("Could not set up the required directories")
