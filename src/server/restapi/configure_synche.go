@@ -119,7 +119,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.TransferDownloadFileHandler = transfer.DownloadFileHandlerFunc(handlers.DownloadFile)
 	api.TransferNewUploadHandler = transfer.NewUploadHandlerFunc(handlers.NewUpload)
 	api.TransferUploadChunkHandler = transfer.UploadChunkHandlerFunc(handlers.UploadChunk)
-	api.TransferFinishUploadHandler = transfer.FinishUploadHandlerFunc(handlers.FinishUpload)
+	api.TransferCheckUploadedChunksHandler = transfer.CheckUploadedChunksHandlerFunc(handlers.CheckUpload)
 
 	api.TokensRefreshTokenHandler = tokens.RefreshTokenHandlerFunc(func(
 		params tokens.RefreshTokenParams,
