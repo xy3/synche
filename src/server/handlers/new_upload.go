@@ -24,8 +24,12 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 		TotalChunks: params.NumChunks,
 	}
 
-	if db.Create(&file).Error != nil {
+	if db.Where(file).FirstOrCreate(&file).Error != nil {
 		db.Rollback()
+		return transfer.NewNewUploadDefault(500).WithPayload("failed to store the file data, file already exists")
+	}
+
+	if (file.ChunksReceived == file.TotalChunks) && file.Available {
 		return transfer.NewNewUploadDefault(500).WithPayload("failed to store the file data, file already exists")
 	}
 

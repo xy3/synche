@@ -18,9 +18,6 @@ type AsyncChunkUploader func(wg *sync.WaitGroup, params *transfer.UploadChunkPar
 func AsyncChunkUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, uploadErrors chan error) {
 	defer wg.Done()
 
-	// TODO: Have a limit of errors before we consider it "not working"
-
-	// Should be configurable
 	timeout := make(chan bool, 1)
 	go func() {
 		time.Sleep(10 * time.Second)
@@ -42,7 +39,6 @@ func AsyncChunkUpload(wg *sync.WaitGroup, params *transfer.UploadChunkParams, up
 		"ChunkID":  chunk.Chunk.ID,
 	}).Debug("Successfully uploaded chunk")
 
-	// TODO: Do something here with the response payload to check if the chunk was uploaded correctly
 	return
 }
 

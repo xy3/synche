@@ -467,28 +467,25 @@ paths:
           schema:
             $ref: '#/definitions/Error'
 
-  /upload/finish:
+  /upload/check:
     post:
       tags:
         - transfer
-      summary: Checks chunks of a file have been sent
-      operationId: finishUpload
-      description: To ensure all file chunks have been recieved, the client can send a request to this endpoint. If there are missing chunks, the server will request them.
+      summary: Gets the chunks that are already on the server
+      operationId: checkUploadedChunks
       parameters:
         - in: query
           name: fileID
           type: integer
-          format: uint64
+          format: uint
           required: true
       responses:
         200:
           description: OK
           schema:
-            $ref: '#/definitions/MissingChunks'
+            $ref: '#/definitions/ExistingChunks'
         401:
           description: Unauthorised
-        501:
-          description: Not implemented
         default:
           description: Error
           schema:
@@ -670,7 +667,7 @@ definitions:
         format: uint
     description: A chunk with a reference to the file it is a part of
 
-  MissingChunks:
+  ExistingChunks:
     type: object
     required:
       - chunkNumbers
