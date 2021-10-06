@@ -25,7 +25,6 @@ jobs:
          curl -o /usr/local/bin/swagger -L'#' "https://github.com/go-swagger/go-swagger/releases/download/v0.27.0/swagger_linux_amd64"
          chmod +x /usr/local/bin/swagger
          go get github.com/vektra/mockery/v2/.../
-         cd $GOPATH/src/$REPO_NAME/src
          swagger version
 
     - name: Go Generate
