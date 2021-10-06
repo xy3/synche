@@ -27,6 +27,7 @@ jobs:
 
     - name: Go Generate
       run: |
+        ls
         make generate
         go generate ./...
 
