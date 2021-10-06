@@ -33,6 +33,7 @@ jobs:
 
     - name: Build
       run: |
+        pwd
         cd src/server && go build ./...
         cd ..
         cd src/client && go build ./...
