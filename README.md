@@ -1,5 +1,7 @@
 # Synche
 
+[![Go](https://github.com/xy3/synche/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/xy3/synche/actions/workflows/go.yml)
+
 <img src='https://i.postimg.cc/QCRDPv9y/new-crop.png' width='300'>
 
 Synche is a multipart file transfer and self-hosted storage solution.

@@ -1,6 +1,4 @@
-## Proposed changes
-
-## :rocket: New Feature
+## :rocket: New Feature | :bug: Bug fix | :wrench: Code Refactor
 
 ### What:
 Describe the changes this merge request adds to the repo.
