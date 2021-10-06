@@ -29,8 +29,7 @@ jobs:
          swagger version
 
     - name: Go Generate
-    - run: |
-        echo "Running make generate"
+      run: |
         make generate
         go generate ./...
 
