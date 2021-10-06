@@ -34,6 +34,7 @@ jobs:
     - name: Build
       run: |
         pwd
+        ls
         cd src/server && go build ./...
         cd ..
         cd src/client && go build ./...
