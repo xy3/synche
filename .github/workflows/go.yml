@@ -31,14 +31,12 @@ jobs:
         make generate
         go generate ./...
 
-#     - name: Test
-#       run: |
-#         go fmt $(go list ./... | grep -v /vendor/)
-#         go vet $(go list ./... | grep -v /vendor/)
-#         go test -race $(go list ./... | grep -v /vendor/)
-
     - name: Build
       run: |
-        pwd
-        ls
         cd src && go build ./...
+
+    - name: Test
+      run: |
+        go fmt $(go list ./... | grep -v /vendor/)
+        go vet $(go list ./... | grep -v /vendor/)
+        go test -race $(go list ./... | grep -v /vendor/)
