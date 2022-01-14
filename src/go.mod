@@ -1,4 +1,4 @@
-module gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src
+module github.com/xy3/synche/src
 
 go 1.16
 
@@ -8,14 +8,13 @@ require (
 	github.com/fatih/color v1.10.0
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/go-openapi/analysis v0.20.1 // indirect
-	github.com/go-openapi/errors v0.20.0
-	github.com/go-openapi/loads v0.20.2
-	github.com/go-openapi/runtime v0.19.28
-	github.com/go-openapi/spec v0.20.3
-	github.com/go-openapi/strfmt v0.20.1
+	github.com/go-openapi/errors v0.20.1
+	github.com/go-openapi/loads v0.21.0
+	github.com/go-openapi/runtime v0.21.0
+	github.com/go-openapi/spec v0.20.4
+	github.com/go-openapi/strfmt v0.21.1
 	github.com/go-openapi/swag v0.19.15
-	github.com/go-openapi/validate v0.20.2
+	github.com/go-openapi/validate v0.20.3
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/goftp/file-driver v0.0.0-20180502053751-5d604a0fc0c9 // indirect
 	github.com/goftp/server v0.0.0-20200708154336-f64f7c2d8a42
@@ -41,8 +40,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/wagslane/go-password-validator v0.3.0
 	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc
-	golang.org/x/net v0.0.0-20210415231046-e915ea6b2b7d
-	golang.org/x/sys v0.0.0-20210419170143-37df388d1f33 // indirect
+	golang.org/x/net v0.0.0-20210421230115-4e50805a0758
 	golang.org/x/term v0.0.0-20210406210042-72f3dc4e9b72 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gorm.io/driver/mysql v1.0.5

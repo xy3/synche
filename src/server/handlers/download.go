@@ -5,17 +5,17 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
+	"github.com/xy3/synche/src/files"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/restapi/operations/transfer"
+	"github.com/xy3/synche/src/server/schema"
 	"path/filepath"
 )
 
 // DownloadFile Responds to the client with the file specified in the client's request
 func DownloadFile(params transfer.DownloadFileParams, user *schema.User) middleware.Responder {
 	var file schema.File
-	tx := database.DB.Joins("Directory").First(&file, params.FileID)
+	tx := server.DB.Joins("Directory").First(&file, params.FileID)
 
 	if tx.Error != nil {
 		return transfer.NewDownloadFileNotFound()

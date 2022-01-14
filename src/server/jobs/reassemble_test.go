@@ -2,7 +2,7 @@ package jobs_test
 
 import (
 	"github.com/stretchr/testify/require"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/jobs"
+	"github.com/xy3/synche/src/server/jobs"
 	"testing"
 )
 

@@ -1,8 +1,8 @@
 package ftp
 
 import (
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/handlers"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +16,7 @@ func (a *Auth) CheckPasswd(username, password string) (correct bool, err error) 
 	if a.testDB != nil {
 		_, err = handlers.LoginUser(username, password, a.testDB)
 	} else {
-		_, err = handlers.LoginUser(username, password, database.DB)
+		_, err = handlers.LoginUser(username, password, server.DB)
 	}
 
 	if err != nil {

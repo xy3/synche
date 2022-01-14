@@ -1,4 +1,4 @@
-spec_file = server/spec/synche-server-api.yaml
+spec_file = synche-server-api.yaml
 build_dir = ../build
 
 generate:
@@ -6,16 +6,15 @@ generate:
 	swagger generate server \
 		 --name Synche \
 		 --spec $(spec_file) \
-		 --principal gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema.User \
+		 --principal github.com/xy3/synche/src/database/schema.User \
 		 --flag-strategy=pflag \
 		 --exclude-main \
 		 -t server
 
 	swagger generate client \
 		--spec $(spec_file) \
-		-c apiclient \
-		-t client
+		-c client
 
 build:
-	go build -o $(build_dir)/synche client/main.go && \
-    go build -o $(build_dir)/synche-server server/main.go
+	go build -o $(build_dir)/synche cmd/client/main.go && \
+    go build -o $(build_dir)/syncheserver cmd/server/main.go

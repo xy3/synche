@@ -3,9 +3,9 @@ package ftp
 import (
 	"github.com/goftp/server"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/client/data"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
+	"github.com/xy3/synche/src/files"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
@@ -60,7 +60,7 @@ func (d *Driver) Stat(path string) (fileInfo server.FileInfo, err error) {
 	if dir, err = repo.GetDirByPath(fullPath, d.db); err == nil {
 		return &FileInfo{
 			name:     dir.Name,
-			size:     4 * data.KB,
+			size:     4 * files.KB,
 			isDir:    true,
 			modeTime: dir.UpdatedAt,
 		}, nil
@@ -114,7 +114,7 @@ func (d *Driver) ListDir(path string, callback func(server.FileInfo) error) (err
 	for _, child := range dir.Children {
 		if err = callback(&FileInfo{
 			name:     child.Name,
-			size:     4 * data.KB,
+			size:     4 * files.KB,
 			isDir:    true,
 			modeTime: child.UpdatedAt,
 		}); err != nil {

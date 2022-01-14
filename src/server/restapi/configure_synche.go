@@ -10,22 +10,20 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/auth"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/handlers"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/tokens"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
+	c "github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/handlers"
+	"github.com/xy3/synche/src/server/models"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/restapi/operations"
+	"github.com/xy3/synche/src/server/restapi/operations/files"
+	"github.com/xy3/synche/src/server/restapi/operations/tokens"
+	"github.com/xy3/synche/src/server/restapi/operations/transfer"
+	"github.com/xy3/synche/src/server/restapi/operations/users"
+	"github.com/xy3/synche/src/server/schema"
 	"net/http"
 )
 
-// //go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/data/schema.User --flag-strategy=pflag --exclude-main
+// //go:generate swagger generate server --target ../../server --name Synche --spec ../spec/synche-server-api.yaml --principal github.com/xy3/synche/src/server/data/schema.User --flag-strategy=pflag --exclude-main
 
 func configureFlags(api *operations.SyncheAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
@@ -40,7 +38,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 	api.JSONProducer = runtime.JSONProducer()
 	api.BinProducer = runtime.ByteStreamProducer()
 
-	authService := auth.Service{
+	authService := c.Service{
 		SecretKey:       c.Config.Server.SecretKey,
 		Issuer:          "synche.auth.service",
 		ExpirationHours: 24,
@@ -57,7 +55,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 			return nil, fmt.Errorf("could not validate access token")
 		}
 
-		user, err := repo.GetUserByEmail(claims.Email, database.DB)
+		user, err := repo.GetUserByEmail(claims.Email, c.DB)
 		if err != nil {
 			return nil, fmt.Errorf("user credentials not found")
 		}
@@ -72,7 +70,7 @@ func configureAPI(api *operations.SyncheAPI) http.Handler {
 		if err != nil {
 			return nil, errors.New(400, "token could not be validated")
 		}
-		user, err := repo.GetUserByEmail(claims.Email, database.DB)
+		user, err := repo.GetUserByEmail(claims.Email, c.DB)
 		if err != nil {
 			return nil, errors.New(404, "user credentials not found")
 		}

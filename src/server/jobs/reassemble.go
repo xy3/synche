@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
+	"github.com/xy3/synche/src/files"
+	"github.com/xy3/synche/src/hash"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/schema"
 	"os"
 	"path/filepath"
 )
@@ -40,7 +40,7 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 		existingFileHash string
 	)
 
-	storageDir, err := repo.GetDirectoryForFileID(file.ID, database.DB)
+	storageDir, err := repo.GetDirectoryForFileID(file.ID, server.DB)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 		existingFileHash, err = hash.File(reassembledFileLocation)
 		if file.Hash != existingFileHash {
 			filename, reassembledFileLocation = CreateUniqueFilePath(storageDir.Path, filename)
-			if _, err = repo.RenameFile(file.ID, filename, database.DB); err != nil {
+			if _, err = repo.RenameFile(file.ID, filename, server.DB); err != nil {
 				return err
 			}
 		}
@@ -66,7 +66,7 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 
 	defer reassembledFile.Close()
 
-	fileChunks, err = repo.GetFileChunksInOrder(file.ID, database.DB)
+	fileChunks, err = repo.GetFileChunksInOrder(file.ID, server.DB)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 	}
 
 	// !Important! The file must be set to available once its reassembled in order for it to appear for download
-	if err = file.SetAvailable(database.DB); err != nil {
+	if err = file.SetAvailable(server.DB); err != nil {
 		return err
 	}
 

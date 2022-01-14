@@ -7,11 +7,11 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
+	"github.com/xy3/synche/src/files"
+	"github.com/xy3/synche/src/hash"
+	server2 "github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"io/ioutil"
 	"path/filepath"
@@ -62,7 +62,7 @@ func newDriverForTest(t *testing.T) (driver *Driver, down func(*testing.T)) {
 
 	return &Driver{
 		db:      db,
-		conn:    newConn(database.TestUser.Email),
+		conn:    newConn(server2.TestUser.Email),
 		user:    user,
 		homeDir: homeDir,
 		logger:  logger,
@@ -73,8 +73,8 @@ func (s *ftpTestSuite) TestDriver_Init() {
 	defer s.down(s.T())
 
 	driver := &Driver{}
-	driver.Init(newConn(database.TestUser.Email))
-	s.Assert().Equal(database.TestUser.Email, s.driver.conn.LoginUser())
+	driver.Init(newConn(server2.TestUser.Email))
+	s.Assert().Equal(server2.TestUser.Email, s.driver.conn.LoginUser())
 }
 
 func (s *ftpTestSuite) TestDriverBuildPath() {

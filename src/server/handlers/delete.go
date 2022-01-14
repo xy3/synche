@@ -4,22 +4,22 @@ import (
 	"errors"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/models"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/restapi/operations/files"
+	"github.com/xy3/synche/src/server/restapi/operations/users"
+	"github.com/xy3/synche/src/server/schema"
 )
 
 // deleteUserDetails
 func deleteUserDetails(email string) error {
-	user, err := repo.GetUserByEmail(email, database.DB)
+	user, err := repo.GetUserByEmail(email, server.DB)
 	if err != nil {
 		return err
 	}
 
-	if err = user.Delete(database.DB); err != nil {
+	if err = user.Delete(server.DB); err != nil {
 		return err
 	}
 
@@ -28,12 +28,12 @@ func deleteUserDetails(email string) error {
 
 // deleteFilesByUserID Deletes all files and directories belonging to a user
 func deleteFilesByUserID(userID uint) error {
-	directory, err := repo.GetHomeDir(userID, database.DB)
+	directory, err := repo.GetHomeDir(userID, server.DB)
 	if err != nil {
 		return err
 	}
 
-	if err = directory.Delete(true, database.DB); err != nil {
+	if err = directory.Delete(true, server.DB); err != nil {
 		return err
 	}
 	return nil
@@ -41,7 +41,7 @@ func deleteFilesByUserID(userID uint) error {
 
 // deleteReassembledFileByID Deletes a file specified by its ID
 func deleteReassembledFileByID(user *schema.User, fileID uint) error {
-	file, err := repo.GetFileByID(fileID, database.DB)
+	file, err := repo.GetFileByID(fileID, server.DB)
 	if err != nil {
 		return err
 	}
@@ -50,16 +50,16 @@ func deleteReassembledFileByID(user *schema.User, fileID uint) error {
 		return errors.New("access denied")
 	}
 
-	if err := file.Delete(database.DB); err != nil {
+	if err := file.Delete(server.DB); err != nil {
 		return err
 	}
 
-	directory, err := repo.GetDirectoryByID(file.DirectoryID, database.DB)
+	directory, err := repo.GetDirectoryByID(file.DirectoryID, server.DB)
 	if err != nil {
 		return err
 	}
 
-	if _, err := directory.UpdateFileCount(database.DB); err != nil {
+	if _, err := directory.UpdateFileCount(server.DB); err != nil {
 		return err
 	}
 	return nil
@@ -76,12 +76,12 @@ func DeleteFileID(params files.DeleteFileParams, user *schema.User) middleware.R
 
 // deleteReassembledFileByPath Deletes a file specified by its path
 func deleteReassembledFileByPath(path string, user *schema.User) error {
-	fullPath, err := repo.BuildFullPath(path, user, database.DB)
+	fullPath, err := repo.BuildFullPath(path, user, server.DB)
 	if err != nil {
 		return err
 	}
 
-	file, err := repo.FindFileByFullPath(fullPath, database.DB)
+	file, err := repo.FindFileByFullPath(fullPath, server.DB)
 	if err != nil {
 		return err
 	}
@@ -90,16 +90,16 @@ func deleteReassembledFileByPath(path string, user *schema.User) error {
 		return errors.New("access denied")
 	}
 
-	if err := file.Delete(database.DB); err != nil {
+	if err := file.Delete(server.DB); err != nil {
 		return err
 	}
 
-	directory, err := repo.GetDirectoryByID(file.DirectoryID, database.DB)
+	directory, err := repo.GetDirectoryByID(file.DirectoryID, server.DB)
 	if err != nil {
 		return err
 	}
 
-	if _, err := directory.UpdateFileCount(database.DB); err != nil {
+	if _, err := directory.UpdateFileCount(server.DB); err != nil {
 		return err
 	}
 	return nil
