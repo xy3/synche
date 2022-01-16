@@ -2,7 +2,7 @@ package ftp
 
 import (
 	"github.com/stretchr/testify/assert"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
+	c "github.com/xy3/synche/src/server"
 	"testing"
 )
 

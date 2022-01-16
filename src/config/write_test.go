@@ -2,8 +2,8 @@ package config_test
 
 import (
 	"github.com/stretchr/testify/assert"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/config"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
+	"github.com/xy3/synche/src/config"
+	c "github.com/xy3/synche/src/server"
 	"testing"
 )
 

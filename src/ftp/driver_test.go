@@ -7,11 +7,10 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
+	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
+	server2 "github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/repo"
 	"gorm.io/gorm"
 	"io/ioutil"
 	"path/filepath"
@@ -26,8 +25,8 @@ const testDirName = "/this/is/a/dir"
 
 type ftpTestSuite struct {
 	suite.Suite
-	user    *schema.User
-	homeDir *schema.Directory
+	user    *schema2.User
+	homeDir *schema2.Directory
 	down    func(t *testing.T)
 	db      *gorm.DB
 	driver  *Driver
@@ -62,7 +61,7 @@ func newDriverForTest(t *testing.T) (driver *Driver, down func(*testing.T)) {
 
 	return &Driver{
 		db:      db,
-		conn:    newConn(database.TestUser.Email),
+		conn:    newConn(server2.TestUser.Email),
 		user:    user,
 		homeDir: homeDir,
 		logger:  logger,
@@ -73,8 +72,8 @@ func (s *ftpTestSuite) TestDriver_Init() {
 	defer s.down(s.T())
 
 	driver := &Driver{}
-	driver.Init(newConn(database.TestUser.Email))
-	s.Assert().Equal(database.TestUser.Email, s.driver.conn.LoginUser())
+	driver.Init(newConn(server2.TestUser.Email))
+	s.Assert().Equal(server2.TestUser.Email, s.driver.conn.LoginUser())
 }
 
 func (s *ftpTestSuite) TestDriverBuildPath() {
@@ -103,7 +102,7 @@ func (s *ftpTestSuite) TestDriver_Stat() {
 	s.Assert().True(dirInfo.IsDir())
 	s.Assert().Equal("dir", dirInfo.Name())
 
-	fileReader := bytes.NewReader(hash.Random(222))
+	fileReader := bytes.NewReader(files.Random(222))
 	_, err = repo.CreateFileFromReader(filepath.Join(fullPath, "file.bin"), fileReader, s.driver.user.ID, s.driver.db)
 	s.Assert().NoError(err)
 
@@ -227,12 +226,12 @@ func (s *ftpTestSuite) TestDriver_PutFile() {
 	_, err = repo.CreateFileFromReader(existingFilePath, strings.NewReader(""), s.driver.user.ID, s.driver.db)
 	s.Assert().NoError(err)
 
-	writeBytes, err := s.driver.PutFile("/create/dir/file.bin", bytes.NewReader(hash.Random(22)), true)
+	writeBytes, err := s.driver.PutFile("/create/dir/file.bin", bytes.NewReader(files.Random(22)), true)
 	s.Assert().NoError(err)
 	s.Assert().Equal(int64(22), writeBytes)
 
 	// create a new file
-	writeBytes, err = s.driver.PutFile("/create/dir/random.bytes", bytes.NewReader(hash.Random(22)), false)
+	writeBytes, err = s.driver.PutFile("/create/dir/random.bytes", bytes.NewReader(files.Random(22)), false)
 	s.Assert().NoError(err)
 	s.Assert().Equal(int64(22), writeBytes)
 }
@@ -240,8 +239,8 @@ func (s *ftpTestSuite) TestDriver_PutFile() {
 func (s *ftpTestSuite) TestDriver_GetFile() {
 	defer s.down(s.T())
 
-	randomBytes := hash.Random(256)
-	randomBytesHash := hash.SHA256Hash(randomBytes)
+	randomBytes := files.Random(256)
+	randomBytesHash := files.SHA256Hash(randomBytes)
 
 	fullPath, err := s.driver.buildPath("/create/dir/file.bin")
 	s.Assert().NoError(err)
@@ -257,7 +256,7 @@ func (s *ftpTestSuite) TestDriver_GetFile() {
 	// s.Assert().Equal(256, int(size))
 	content, err := ioutil.ReadAll(rc)
 	s.Assert().NoError(err)
-	contentHash := hash.SHA256Hash(content)
+	contentHash := files.SHA256Hash(content)
 	s.Assert().NoError(err)
 	s.Assert().Equal(randomBytesHash, contentHash)
 }

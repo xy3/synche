@@ -2,15 +2,15 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/users"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/models"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/restapi/operations/users"
 )
 
 // Register Handles new user registration and responds to the client
 func Register(params users.RegisterParams) middleware.Responder {
-	db := database.DB.Begin()
+	db := server.DB.Begin()
 
 	user, err := repo.NewUser(params.Email, params.Password, params.Name, params.Picture, db)
 	if err != nil {

@@ -3,7 +3,7 @@ package ftp
 import (
 	"github.com/goftp/server"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
+	server2 "github.com/xy3/synche/src/server"
 )
 
 // Factory is an FTP driver factory, it is used to generate a driver when a new connection comes
@@ -13,7 +13,7 @@ type Factory struct {
 
 func (f *Factory) NewDriver() (server.Driver, error) {
 	return &Driver{
-		db:     database.RequireNewConnection(),
+		db:     server2.RequireNewConnection(),
 		logger: f.Logger,
 	}, nil
 }

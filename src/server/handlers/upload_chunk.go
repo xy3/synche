@@ -6,15 +6,13 @@ import (
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
-	c "gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/config"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/jobs"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/transfer"
+	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
+	c "github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/jobs"
+	"github.com/xy3/synche/src/server/models"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/restapi/operations/transfer"
 	"path/filepath"
 	"strconv"
 )
@@ -27,7 +25,7 @@ var (
 )
 
 // UploadChunk Handles new chunks being uploaded and responds to the client with each chunk status
-func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middleware.Responder {
+func UploadChunk(params transfer.UploadChunkParams, _ *schema2.User) middleware.Responder {
 	if params.ChunkData == nil {
 		return errNoData
 	}
@@ -37,7 +35,7 @@ func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middlewar
 	if ok {
 		log.WithFields(log.Fields{
 			"Size":        namedFile.Header.Size,
-			"ChunkHash":   params.ChunkHash,
+			"chunkHash":   params.ChunkHash,
 			"ChunkNumber": params.ChunkNumber,
 		}).Info("Received new chunk")
 	}
@@ -47,11 +45,11 @@ func UploadChunk(params transfer.UploadChunkParams, user *schema.User) middlewar
 		return badRequest.WithPayload("Failed to read the chunk bytes")
 	}
 
-	if !hash.ValidateChunkHash(params.ChunkHash, chunkBytes) {
+	if !files.ValidateChunkHash(params.ChunkHash, chunkBytes) {
 		return badRequest.WithPayload("chunk hash does not match its data")
 	}
 
-	file, err := repo.GetFileByID(uint(params.FileID), database.DB)
+	file, err := repo.GetFileByID(uint(params.FileID), c.DB)
 	if err != nil {
 		return badRequest.WithPayload("Failed to find a related file")
 	}
@@ -73,12 +71,12 @@ func writeChunkFile(chunkData []byte, chunkDir, chunkHash string) error {
 func storeChunkData(
 	chunkFile *runtime.File,
 	params transfer.UploadChunkParams,
-	file *schema.File,
+	file *schema2.File,
 ) middleware.Responder {
 
-	db := database.DB.Begin()
+	db := c.DB.Begin()
 
-	chunk := schema.Chunk{
+	chunk := schema2.Chunk{
 		Hash: params.ChunkHash,
 		Size: chunkFile.Header.Size,
 	}
@@ -89,7 +87,7 @@ func storeChunkData(
 	}
 
 	// Insert chunk info into data
-	fileChunk := schema.FileChunk{
+	fileChunk := schema2.FileChunk{
 		Number:  params.ChunkNumber,
 		ChunkID: chunk.ID,
 		FileID:  file.ID,

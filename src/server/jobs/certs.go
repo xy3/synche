@@ -10,7 +10,7 @@ import (
 	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
+	"github.com/xy3/synche/src/files"
 	"math/big"
 	"math/rand"
 	"net"

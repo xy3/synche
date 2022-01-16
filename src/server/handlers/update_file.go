@@ -3,11 +3,11 @@ package handlers
 import (
 	"errors"
 	"github.com/go-openapi/runtime/middleware"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/models"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/server/restapi/operations/files"
+	schema2 "github.com/xy3/synche/src/schema"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/models"
+	"github.com/xy3/synche/src/server/repo"
+	"github.com/xy3/synche/src/server/restapi/operations/files"
 	"gorm.io/gorm"
 	"path/filepath"
 )
@@ -17,12 +17,12 @@ var (
 )
 
 // updateFile Checks all file details in the database and updates them if needed
-func updateFile(file *schema.File, user *schema.User, update *models.FileUpdate, db *gorm.DB) (
-	newFile *schema.File,
+func updateFile(file *schema2.File, user *schema2.User, update *models.FileUpdate, db *gorm.DB) (
+	newFile *schema2.File,
 	err error,
 ) {
 	if file.Directory == nil {
-		err = database.DB.Preload("Directory").Find(file).Error
+		err = server.DB.Preload("Directory").Find(file).Error
 		if err != nil || file.Directory == nil {
 			return newFile, ErrDirNotFound
 		}
@@ -58,8 +58,8 @@ func updateFile(file *schema.File, user *schema.User, update *models.FileUpdate,
 }
 
 // UpdateFileByID Handles a request from the client to update a file and responds accordingly
-func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middleware.Responder {
-	file, err := repo.GetFileByID(uint(params.FileID), database.DB)
+func UpdateFileByID(params files.UpdateFileByIDParams, user *schema2.User) middleware.Responder {
+	file, err := repo.GetFileByID(uint(params.FileID), server.DB)
 	if err != nil {
 		return files.NewUpdateFileByIDDefault(404).WithPayload("file not found")
 	}
@@ -68,7 +68,7 @@ func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middle
 		return files.NewUpdateFileByIDUnauthorized()
 	}
 
-	newFile, err := updateFile(file, user, params.FileUpdate, database.DB)
+	newFile, err := updateFile(file, user, params.FileUpdate, server.DB)
 	if err != nil {
 		return files.NewUpdateFileByIDDefault(500).WithPayload(models.Error("failed to update the file: " + err.Error()))
 	}
@@ -77,20 +77,20 @@ func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middle
 }
 
 // UpdateFileByPath Handles a request from the client to update a file and responds accordingly
-func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema.User) middleware.Responder {
+func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema2.User) middleware.Responder {
 	var (
-		file    *schema.File
-		newFile *schema.File
+		file    *schema2.File
+		newFile *schema2.File
 		err404  = files.NewUpdateFileByPathDefault(404)
 		err500  = files.NewUpdateFileByPathDefault(500)
 	)
 
-	fullPath, err := repo.BuildFullPath(params.FilePath, user, database.DB)
+	fullPath, err := repo.BuildFullPath(params.FilePath, user, server.DB)
 	if err != nil {
 		return err500.WithPayload(models.Error(err.Error()))
 	}
 
-	file, err = repo.FindFileByFullPath(fullPath, database.DB)
+	file, err = repo.FindFileByFullPath(fullPath, server.DB)
 	if err != nil {
 		return err404.WithPayload("file not found")
 	}
@@ -99,7 +99,7 @@ func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema.User) mi
 		return files.NewUpdateFileByPathUnauthorized()
 	}
 
-	newFile, err = updateFile(file, user, params.FileUpdate, database.DB)
+	newFile, err = updateFile(file, user, params.FileUpdate, server.DB)
 	if err != nil {
 		return err500.WithPayload(models.Error("failed to update the file: " + err.Error()))
 	}

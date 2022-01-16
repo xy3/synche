@@ -2,8 +2,8 @@ package ftp
 
 import (
 	"github.com/stretchr/testify/assert"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/repo"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func TestAuth_CheckPasswd(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.False(t, correct)
 
-	correct, err = auth.CheckPasswd(database.TestUser.Email, database.TestUser.PlaintextPassword)
+	correct, err = auth.CheckPasswd(server.TestUser.Email, server.TestUser.PlaintextPassword)
 	assert.Nil(t, err)
 	assert.True(t, correct)
 }

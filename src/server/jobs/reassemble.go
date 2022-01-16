@@ -4,11 +4,10 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/repo"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/database/schema"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files"
-	"gitlab.computing.dcu.ie/collint9/2021-ca400-collint9-coynemt2/src/files/hash"
+	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
+	"github.com/xy3/synche/src/server"
+	"github.com/xy3/synche/src/server/repo"
 	"os"
 	"path/filepath"
 )
@@ -32,15 +31,15 @@ func CreateUniqueFilePath(storageDir string, fileName string) (uniqueFilename st
 }
 
 // ReassembleFile Retrieves all the chunk data relating to a file and reassembles the file
-func ReassembleFile(chunkDir string, file *schema.File) error {
+func ReassembleFile(chunkDir string, file *schema2.File) error {
 	var (
-		fileChunks       []schema.FileChunk
+		fileChunks       []schema2.FileChunk
 		chunkData        []byte
 		filename         string
 		existingFileHash string
 	)
 
-	storageDir, err := repo.GetDirectoryForFileID(file.ID, database.DB)
+	storageDir, err := repo.GetDirectoryForFileID(file.ID, server.DB)
 	if err != nil {
 		return err
 	}
@@ -50,10 +49,10 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 
 	// Rename file if there is a file name collision
 	if _, err = files.Afs.Stat(reassembledFileLocation); err == nil {
-		existingFileHash, err = hash.File(reassembledFileLocation)
+		existingFileHash, err = files.FileHash(reassembledFileLocation)
 		if file.Hash != existingFileHash {
 			filename, reassembledFileLocation = CreateUniqueFilePath(storageDir.Path, filename)
-			if _, err = repo.RenameFile(file.ID, filename, database.DB); err != nil {
+			if _, err = repo.RenameFile(file.ID, filename, server.DB); err != nil {
 				return err
 			}
 		}
@@ -66,7 +65,7 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 
 	defer reassembledFile.Close()
 
-	fileChunks, err = repo.GetFileChunksInOrder(file.ID, database.DB)
+	fileChunks, err = repo.GetFileChunksInOrder(file.ID, server.DB)
 	if err != nil {
 		return err
 	}
@@ -90,7 +89,7 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 	}
 
 	// !Important! The file must be set to available once its reassembled in order for it to appear for download
-	if err = file.SetAvailable(database.DB); err != nil {
+	if err = file.SetAvailable(server.DB); err != nil {
 		return err
 	}
 
