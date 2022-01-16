@@ -4,8 +4,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/suite"
 	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server/models"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"os"
 	"testing"
@@ -18,8 +18,8 @@ func TestMain(m *testing.M) {
 
 type listTestSuite struct {
 	suite.Suite
-	user    *schema.User
-	homeDir *schema.Directory
+	user    *schema2.User
+	homeDir *schema2.Directory
 	down    func(t *testing.T)
 	db      *gorm.DB
 }
@@ -38,8 +38,8 @@ func (s *listTestSuite) SetupTest() {
 	s.db = db
 }
 
-func addTestFilesToDir(dirID, userID uint, db *gorm.DB) (testFiles []schema.File, err error) {
-	file1 := schema.File{
+func addTestFilesToDir(dirID, userID uint, db *gorm.DB) (testFiles []schema2.File, err error) {
+	file1 := schema2.File{
 		Name:           "file1",
 		Size:           10,
 		Hash:           "hash1",
@@ -57,7 +57,7 @@ func addTestFilesToDir(dirID, userID uint, db *gorm.DB) (testFiles []schema.File
 	if err = db.Create(&file2).Error; err != nil {
 		return nil, err
 	}
-	testFiles = []schema.File{file1, file2}
+	testFiles = []schema2.File{file1, file2}
 	return testFiles, err
 }
 
@@ -101,8 +101,8 @@ func (s *listTestSuite) TestGetDirWithContentsFromPath() {
 	testDir, err := CreateDirectory("testDir", s.homeDir.ID, s.db)
 	s.Require().NoError(err)
 
-	testDir.Files = []schema.File{}
-	testDir.Children = []schema.Directory{}
+	testDir.Files = []schema2.File{}
+	testDir.Children = []schema2.Directory{}
 	want := testDir
 
 	s.Run("List empty dir", func() {

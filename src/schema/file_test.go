@@ -4,9 +4,9 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/suite"
 	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/repo"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"strings"
 	"testing"
@@ -14,9 +14,9 @@ import (
 
 type fileTestSuite struct {
 	suite.Suite
-	user     *schema.User
-	homeDir  *schema.Directory
-	file     *schema.File
+	user     *schema2.User
+	homeDir  *schema2.Directory
+	file     *schema2.File
 	filePath string
 	down     func(t *testing.T)
 	db       *gorm.DB

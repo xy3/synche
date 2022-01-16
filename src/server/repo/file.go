@@ -4,8 +4,7 @@ import (
 	"errors"
 	"github.com/patrickmn/go-cache"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/hash"
-	"github.com/xy3/synche/src/server/schema"
+	schema2 "github.com/xy3/synche/src/schema"
 	"gorm.io/gorm"
 	"io"
 	"path/filepath"
@@ -14,10 +13,10 @@ import (
 )
 
 // GetFileByID returns the file information relating to the file with the specified ID
-func GetFileByID(fileID uint, db *gorm.DB) (file *schema.File, err error) {
+func GetFileByID(fileID uint, db *gorm.DB) (file *schema2.File, err error) {
 	strFileID := strconv.Itoa(int(fileID))
 	if fileValue, ok := idFileCache.Get(strFileID); ok {
-		return fileValue.(*schema.File), nil
+		return fileValue.(*schema2.File), nil
 	}
 
 	err = db.First(&file, fileID).Error
@@ -32,17 +31,17 @@ func GetFileByID(fileID uint, db *gorm.DB) (file *schema.File, err error) {
 // FindFileByFullPath finds a file by its full path on the disk. It assumes the path given
 // is a file and not a directory, so if it is given the path to a directory it will treat it
 // like a path to a file.
-func FindFileByFullPath(path string, db *gorm.DB) (*schema.File, error) {
+func FindFileByFullPath(path string, db *gorm.DB) (*schema2.File, error) {
 	if fileValue, ok := pathFileCache.Get(path); ok {
-		return fileValue.(*schema.File), nil
+		return fileValue.(*schema2.File), nil
 	}
 
 	// Get the md5 hash of only the directory part of the path
 	path = strings.TrimRight(strings.TrimSpace(path), "/")
 	filename := filepath.Base(path)
-	dirPathHash := hash.PathHash(filepath.Dir(path))
+	dirPathHash := files.PathHash(filepath.Dir(path))
 
-	file := &schema.File{}
+	file := &schema2.File{}
 	tx := db.Model(file).Preload("Directory", "path_hash = ?", dirPathHash).Where("name = ?", filename).First(file)
 
 	if tx.Error != nil {
@@ -74,13 +73,13 @@ func writeFileData(path string, reader io.Reader) (int64, error) {
 }
 
 func CreateFileFromReader(path string, reader io.Reader, userID uint, db *gorm.DB) (
-	file *schema.File,
+	file *schema2.File,
 	err error,
 ) {
 	var (
 		writtenBytes int64
 		fileHash     string
-		parentDir    *schema.Directory
+		parentDir    *schema2.Directory
 		parentPath   = filepath.Dir(path)
 		fileName     = filepath.Base(path)
 	)
@@ -101,11 +100,11 @@ func CreateFileFromReader(path string, reader io.Reader, userID uint, db *gorm.D
 		return nil, err
 	}
 
-	if fileHash, err = hash.File(path); err != nil {
+	if fileHash, err = files.FileHash(path); err != nil {
 		return nil, err
 	}
 
-	file = &schema.File{
+	file = &schema2.File{
 		Name:        fileName,
 		Size:        writtenBytes,
 		Hash:        fileHash,
@@ -121,8 +120,8 @@ func CreateFileFromReader(path string, reader io.Reader, userID uint, db *gorm.D
 	return file, nil
 }
 
-func RenameFile(fileID uint, newName string, db *gorm.DB) (newFile *schema.File, err error) {
-	tx := db.Model(&schema.File{}).Preload("Directory").Where("id = ?", fileID).First(&newFile)
+func RenameFile(fileID uint, newName string, db *gorm.DB) (newFile *schema2.File, err error) {
+	tx := db.Model(&schema2.File{}).Preload("Directory").Where("id = ?", fileID).First(&newFile)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -132,8 +131,8 @@ func RenameFile(fileID uint, newName string, db *gorm.DB) (newFile *schema.File,
 }
 
 // MoveFile moves the file to a new directory, both in the database and on the disk
-func MoveFile(file *schema.File, newFullPath string, db *gorm.DB) (err error) {
-	var directory *schema.Directory
+func MoveFile(file *schema2.File, newFullPath string, db *gorm.DB) (err error) {
+	var directory *schema2.Directory
 
 	newDirPath := filepath.Dir(newFullPath)
 	newFileName := filepath.Base(newFullPath)
@@ -157,7 +156,7 @@ func MoveFile(file *schema.File, newFullPath string, db *gorm.DB) (err error) {
 		newFileName = file.Name
 	}
 
-	tx := db.Model(file).Where("id = ?", file.ID).Updates(schema.File{
+	tx := db.Model(file).Where("id = ?", file.ID).Updates(schema2.File{
 		Name:        newFileName,
 		DirectoryID: directory.ID,
 	})
@@ -172,7 +171,7 @@ func MoveFile(file *schema.File, newFullPath string, db *gorm.DB) (err error) {
 }
 
 func GetTotalFileChunks(fileID uint64, db *gorm.DB) (uint64, error) {
-	var file schema.File
+	var file schema2.File
 	if tx := db.First(&file, fileID); tx.Error != nil {
 		return 0, tx.Error
 	}

@@ -69,13 +69,19 @@ func (sf *SplitFile) NextChunk() ([]byte, error) {
 	return chunkBytes, nil
 }
 
+type Chunk struct {
+	Hash  string
+	Num   int64
+	Bytes *[]byte
+}
+
 func (sf *SplitFile) Split(handleChunk func(*Chunk, int64) error) error {
 	for sf.CurrentIndex < sf.NumChunks() {
 		chunkBytes, err := sf.NextChunk()
 		if err != nil {
 			return err
 		}
-		chunk := NewChunk(sf.CurrentIndex, &chunkBytes)
+		chunk := &Chunk{Hash: ChunkHash(chunkBytes), Num: sf.CurrentIndex, Bytes: &chunkBytes}
 		if err = handleChunk(chunk, sf.CurrentIndex); err != nil {
 			return err
 		}

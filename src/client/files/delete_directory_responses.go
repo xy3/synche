@@ -12,7 +12,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/xy3/synche/src/client/models"
+	"github.com/xy3/synche/src/models"
 )
 
 // DeleteDirectoryReader is a Reader for the DeleteDirectory structure.

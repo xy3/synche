@@ -6,15 +6,15 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
 	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/restapi/operations/transfer"
-	"github.com/xy3/synche/src/server/schema"
 	"path/filepath"
 )
 
 // DownloadFile Responds to the client with the file specified in the client's request
-func DownloadFile(params transfer.DownloadFileParams, user *schema.User) middleware.Responder {
-	var file schema.File
+func DownloadFile(params transfer.DownloadFileParams, user *schema2.User) middleware.Responder {
+	var file schema2.File
 	tx := server.DB.Joins("Directory").First(&file, params.FileID)
 
 	if tx.Error != nil {

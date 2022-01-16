@@ -3,30 +3,30 @@ package handlers
 import (
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/repo"
 	"github.com/xy3/synche/src/server/restapi/operations/files"
-	"github.com/xy3/synche/src/server/schema"
 	"path/filepath"
 	"strings"
 )
 
 // findExistingDirByParentID Returns a directory specified by it's parent directory ID
-func findExistingDirByParentID(dirName string, parentDirID uint) (*schema.Directory, error) {
-	var directory schema.Directory
-	tx := server.DB.Where(schema.Directory{Name: dirName, ParentID: &parentDirID}).First(&directory)
+func findExistingDirByParentID(dirName string, parentDirID uint) (*schema2.Directory, error) {
+	var directory schema2.Directory
+	tx := server.DB.Where(schema2.Directory{Name: dirName, ParentID: &parentDirID}).First(&directory)
 	return &directory, tx.Error
 }
 
 // CreateDirectoryByPath Creates a directory on disk and updates the database, location is specified
 // by the path to the directory
-func CreateDirectoryByPath(params files.CreateDirPathParams, user *schema.User) middleware.Responder {
+func CreateDirectoryByPath(params files.CreateDirPathParams, user *schema2.User) middleware.Responder {
 	var (
 		err             error
 		parentPath      string
-		parentDir       *schema.Directory
-		directory       *schema.Directory
+		parentDir       *schema2.Directory
+		directory       *schema2.Directory
 		defaultRes      = files.NewCreateDirPathDefault
 		errDirTooShort  = defaultRes(400).WithPayload("directory names must be greater than 3 characters in length")
 		errCreateFailed = defaultRes(500).WithPayload("could not create the directory")
@@ -67,11 +67,11 @@ func CreateDirectoryByPath(params files.CreateDirPathParams, user *schema.User) 
 
 // CreateDirectory Creates a directory on disk and updates the database, location is specified
 // by the parent directory's ID
-func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) middleware.Responder {
+func CreateDirectory(params files.CreateDirectoryParams, user *schema2.User) middleware.Responder {
 	var (
 		err             error
-		directory       *schema.Directory
-		homeDir         *schema.Directory
+		directory       *schema2.Directory
+		homeDir         *schema2.Directory
 		defaultRes      = files.NewCreateDirectoryDefault
 		errDirTooShort  = defaultRes(400).WithPayload("directory names must be greater than 3 characters in length")
 		errCreateFailed = defaultRes(500).WithPayload("could not create the directory")
@@ -107,11 +107,11 @@ func CreateDirectory(params files.CreateDirectoryParams, user *schema.User) midd
 
 // DeleteDirectoryByPath Deletes a directory on disk and updates the database, location is specified
 // by the path to the directory
-func DeleteDirectoryByPath(params files.DeleteDirPathParams, user *schema.User) middleware.Responder {
+func DeleteDirectoryByPath(params files.DeleteDirPathParams, user *schema2.User) middleware.Responder {
 	var (
 		err         error
 		path        string
-		directory   *schema.Directory
+		directory   *schema2.Directory
 		errNotFound = files.NewDeleteDirPathDefault(404).WithPayload("directory not found")
 		err500      = files.NewDeleteDirPathDefault(500)
 		errNoAccess = files.NewDeleteDirPathUnauthorized()
@@ -139,10 +139,10 @@ func DeleteDirectoryByPath(params files.DeleteDirPathParams, user *schema.User) 
 
 // DeleteDirectory Deletes a directory from disk and from the database, location is specified
 // by the parent directory's ID
-func DeleteDirectory(params files.DeleteDirectoryParams, user *schema.User) middleware.Responder {
+func DeleteDirectory(params files.DeleteDirectoryParams, user *schema2.User) middleware.Responder {
 	var (
 		err         error
-		directory   *schema.Directory
+		directory   *schema2.Directory
 		errNotFound = files.NewDeleteDirectoryDefault(404).WithPayload("directory not found")
 		err500      = files.NewDeleteDirectoryDefault(500)
 		errNoAccess = files.NewDeleteDirectoryUnauthorized()
@@ -169,11 +169,11 @@ func DeleteDirectory(params files.DeleteDirectoryParams, user *schema.User) midd
 
 // ListDirectoryByPath Retrieves the contents of the specified directory and replies to the client.
 // Directory is specified by its path
-func ListDirectoryByPath(params files.ListDirPathInfoParams, user *schema.User) middleware.Responder {
+func ListDirectoryByPath(params files.ListDirPathInfoParams, user *schema2.User) middleware.Responder {
 	var (
 		err         error
 		path        string
-		directory   *schema.Directory
+		directory   *schema2.Directory
 		errNotFound = files.NewListDirPathInfoDefault(404).WithPayload("directory not found")
 		errNoAccess = files.NewListDirPathInfoUnauthorized()
 	)
@@ -200,10 +200,10 @@ func ListDirectoryByPath(params files.ListDirPathInfoParams, user *schema.User) 
 
 // ListDirectory Retrieves the contents of the specified directory and replies to the client.
 // Directory is specified by ID
-func ListDirectory(params files.ListDirectoryParams, user *schema.User) middleware.Responder {
+func ListDirectory(params files.ListDirectoryParams, user *schema2.User) middleware.Responder {
 	var (
 		err         error
-		directory   *schema.Directory
+		directory   *schema2.Directory
 		errNotFound = files.NewListDirectoryDefault(404).WithPayload("directory not found")
 	)
 
@@ -225,7 +225,7 @@ func ListDirectory(params files.ListDirectoryParams, user *schema.User) middlewa
 }
 
 // ListHomeDirectory Retrieves the contents of the home directory and replies with these to the client
-func ListHomeDirectory(_ files.ListHomeDirectoryParams, user *schema.User) middleware.Responder {
+func ListHomeDirectory(_ files.ListHomeDirectoryParams, user *schema2.User) middleware.Responder {
 	homeDirContents, err := repo.GetHomeDirContents(user, server.DB)
 	if err != nil {
 		return files.NewListHomeDirectoryDefault(500).WithPayload("could not list the home directory")

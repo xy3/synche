@@ -2,7 +2,7 @@ package repo
 
 import (
 	"github.com/stretchr/testify/suite"
-	"github.com/xy3/synche/src/server/schema"
+	schema2 "github.com/xy3/synche/src/schema"
 	"gorm.io/gorm"
 	"path/filepath"
 	"strings"
@@ -11,8 +11,8 @@ import (
 
 type fileTestSuite struct {
 	suite.Suite
-	user    *schema.User
-	homeDir *schema.Directory
+	user    *schema2.User
+	homeDir *schema2.Directory
 	down    func(t *testing.T)
 	dbc     *gorm.DB
 	db      *gorm.DB
@@ -140,7 +140,7 @@ func (s *fileTestSuite) TestMoveFile() {
 	reader := strings.NewReader("file content")
 
 	s.Run("Non-existing file", func() {
-		err = MoveFile(&schema.File{}, "some/path", s.db)
+		err = MoveFile(&schema2.File{}, "some/path", s.db)
 		s.Assert().Error(err)
 	})
 

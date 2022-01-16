@@ -3,22 +3,21 @@ package repo
 import (
 	"errors"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/hash"
+	schema2 "github.com/xy3/synche/src/schema"
 	c "github.com/xy3/synche/src/server"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"path/filepath"
 	"strings"
 )
 
 // GetHomeDir finds a user's home directory
-func GetHomeDir(userID uint, db *gorm.DB) (homeDir *schema.Directory, err error) {
+func GetHomeDir(userID uint, db *gorm.DB) (homeDir *schema2.Directory, err error) {
 	tx := db.Where("parent_id IS NULL AND user_id = ?", userID).First(&homeDir)
 	return homeDir, tx.Error
 }
 
 // GetOrCreateHomeDir retrieves the user's home directory, and only creates it on the disk if it is not present
-func GetOrCreateHomeDir(user *schema.User, db *gorm.DB) (homeDir *schema.Directory, err error) {
+func GetOrCreateHomeDir(user *schema2.User, db *gorm.DB) (homeDir *schema2.Directory, err error) {
 	homeDir, err = GetHomeDir(user.ID, db)
 	if err != nil {
 		return
@@ -34,7 +33,7 @@ func GetOrCreateHomeDir(user *schema.User, db *gorm.DB) (homeDir *schema.Directo
 }
 
 // BuildFullPath creates a full path by prepending it with the user's home directory
-func BuildFullPath(path string, user *schema.User, db *gorm.DB) (string, error) {
+func BuildFullPath(path string, user *schema2.User, db *gorm.DB) (string, error) {
 	homeDir, err := GetOrCreateHomeDir(user, db)
 	if err != nil {
 		return path, err
@@ -43,21 +42,21 @@ func BuildFullPath(path string, user *schema.User, db *gorm.DB) (string, error) 
 }
 
 // GetDirectoryByID retrieves a directory by its ID
-func GetDirectoryByID(dirID uint, db *gorm.DB) (dir *schema.Directory, err error) {
+func GetDirectoryByID(dirID uint, db *gorm.DB) (dir *schema2.Directory, err error) {
 	tx := db.First(&dir, dirID)
 	return dir, tx.Error
 }
 
 // GetDirByPath retrieves a directory by its path
-func GetDirByPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+func GetDirByPath(path string, db *gorm.DB) (dir *schema2.Directory, err error) {
 	path = strings.TrimRight(strings.TrimSpace(path), "/")
-	tx := db.Where(schema.Directory{PathHash: hash.PathHash(path)}).First(&dir)
+	tx := db.Where(schema2.Directory{PathHash: files.PathHash(path)}).First(&dir)
 	return dir, tx.Error
 }
 
 // GetDirectoryForFileID retrieves the directory a certain file is in
-func GetDirectoryForFileID(fileID uint, db *gorm.DB) (*schema.Directory, error) {
-	var file schema.File
+func GetDirectoryForFileID(fileID uint, db *gorm.DB) (*schema2.Directory, error) {
+	var file schema2.File
 	res := db.Joins("Directory").First(&file, fileID)
 	if res.Error != nil {
 		return nil, res.Error
@@ -67,7 +66,7 @@ func GetDirectoryForFileID(fileID uint, db *gorm.DB) (*schema.Directory, error) 
 }
 
 // GetOrCreateDirectory finds a directory by its path, or creates the it if it does not exist
-func GetOrCreateDirectory(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+func GetOrCreateDirectory(path string, db *gorm.DB) (dir *schema2.Directory, err error) {
 	if dir, err = GetDirByPath(path, db); errors.Is(err, gorm.ErrRecordNotFound) {
 		return CreateDirectoryFromPath(path, db)
 	}
@@ -76,7 +75,7 @@ func GetOrCreateDirectory(path string, db *gorm.DB) (dir *schema.Directory, err 
 
 // CreateDirectoryFromPath uses a directory full-path to create a new directory both on the
 // disk and in the database
-func CreateDirectoryFromPath(path string, db *gorm.DB) (dir *schema.Directory, err error) {
+func CreateDirectoryFromPath(path string, db *gorm.DB) (dir *schema2.Directory, err error) {
 	path = strings.TrimRight(strings.TrimSpace(path), "/")
 	parts := strings.Split(path, "/")
 
@@ -94,22 +93,22 @@ func CreateDirectoryFromPath(path string, db *gorm.DB) (dir *schema.Directory, e
 }
 
 // CreateDirectory creates a new directory inside the parentID directory, both on the disk and in the database
-func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema.Directory, err error) {
+func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema2.Directory, err error) {
 	name = strings.Trim(strings.TrimSpace(name), "/")
 	if name == "" {
 		return nil, errors.New("directory name is invalid")
 	}
 
-	parent := schema.Directory{}
+	parent := schema2.Directory{}
 	if err = db.Where("id = ?", parentID).First(&parent).Error; err != nil {
 		return nil, err
 	}
 
 	newPath := filepath.Join(parent.Path, name)
-	directory = &schema.Directory{
+	directory = &schema2.Directory{
 		Name:     name,
 		Path:     newPath,
-		PathHash: hash.PathHash(newPath),
+		PathHash: files.PathHash(newPath),
 		UserID:   parent.UserID,
 		ParentID: &parent.ID,
 	}
@@ -126,7 +125,7 @@ func CreateDirectory(name string, parentID uint, db *gorm.DB) (directory *schema
 // UpdateDirFileCount updates a directorie's file count by querying the database for files
 // with the same directory ID
 func UpdateDirFileCount(dirID uint, db *gorm.DB) error {
-	directory := &schema.Directory{}
+	directory := &schema2.Directory{}
 	tx := db.Where("id = ?", dirID).First(directory)
 	if tx.Error != nil {
 		return tx.Error
@@ -136,7 +135,7 @@ func UpdateDirFileCount(dirID uint, db *gorm.DB) error {
 }
 
 // GenerateUserDirName generates a unique name for a user's home directory using their email
-func GenerateUserDirName(user *schema.User) string {
+func GenerateUserDirName(user *schema2.User) string {
 	var userSlug = user.Email
 	userSlug = strings.Split(userSlug, "@")[0]
 	userSlug = strings.ReplaceAll(userSlug, ".", "")
@@ -145,29 +144,29 @@ func GenerateUserDirName(user *schema.User) string {
 		length = 20
 	}
 	userSlug = userSlug[:length]
-	userHash := hash.MD5HashString(user.Email + user.Name)[:10]
+	userHash := files.MD5HashString(user.Email + user.Name)[:10]
 	return userSlug + "_" + userHash
 }
 
 // MakeUserHomeDir creates the user's home directory on the disk
-func MakeUserHomeDir(user *schema.User) (homeDir string, err error) {
+func MakeUserHomeDir(user *schema2.User) (homeDir string, err error) {
 	homeDir = filepath.Join(c.Config.Server.StorageDir, GenerateUserDirName(user))
 	err = files.AppFS.MkdirAll(homeDir, 0755)
 	return
 }
 
 // SetupUserHomeDir creates a user's home directory, both on the disk and in the database
-func SetupUserHomeDir(user *schema.User, db *gorm.DB) (*schema.Directory, error) {
+func SetupUserHomeDir(user *schema2.User, db *gorm.DB) (*schema2.Directory, error) {
 	// Create the user's home directory
 	homeDirPath, err := MakeUserHomeDir(user)
 	if err != nil {
 		return nil, err
 	}
 
-	homeDir := &schema.Directory{
+	homeDir := &schema2.Directory{
 		Name:     "home",
 		Path:     homeDirPath,
-		PathHash: hash.PathHash(homeDirPath),
+		PathHash: files.PathHash(homeDirPath),
 		UserID:   user.ID,
 		ParentID: nil,
 	}

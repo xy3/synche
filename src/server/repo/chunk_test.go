@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/suite"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/server/schema"
+	schema2 "github.com/xy3/synche/src/schema"
 	"gorm.io/gorm"
 	"strconv"
 	"testing"
@@ -13,8 +13,8 @@ import (
 
 type chunkTestSuite struct {
 	suite.Suite
-	user    *schema.User
-	homeDir *schema.Directory
+	user    *schema2.User
+	homeDir *schema2.Directory
 	down    func(t *testing.T)
 	db      *gorm.DB
 }
@@ -36,7 +36,7 @@ func (s *chunkTestSuite) SetupTest() {
 func (s *chunkTestSuite) TestGetFileChunksInOrder() {
 	defer s.down(s.T())
 
-	testFile := &schema.File{
+	testFile := &schema2.File{
 		Name:           "testfile.txt",
 		Size:           2000,
 		Hash:           "fakehash",
@@ -59,9 +59,9 @@ func (s *chunkTestSuite) TestGetFileChunksInOrder() {
 	s.Run("Existing file with chunks", func() {
 		// Add some fake chunks
 		for i := 1; i <= 10; i++ {
-			tx = s.db.Create(&schema.FileChunk{
+			tx = s.db.Create(&schema2.FileChunk{
 				Number: int64(i),
-				Chunk: schema.Chunk{
+				Chunk: schema2.Chunk{
 					Hash: "hash_" + strconv.Itoa(i),
 					Size: 20,
 				},

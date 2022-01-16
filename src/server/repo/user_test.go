@@ -3,8 +3,8 @@ package repo
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"testing"
 )

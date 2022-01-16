@@ -4,8 +4,8 @@ import (
 	"github.com/goftp/server"
 	log "github.com/sirupsen/logrus"
 	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server/repo"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
@@ -15,8 +15,8 @@ import (
 type Driver struct {
 	db      *gorm.DB
 	conn    *server.Conn
-	user    *schema.User
-	homeDir *schema.Directory
+	user    *schema2.User
+	homeDir *schema2.Directory
 	logger  *log.Logger
 }
 
@@ -49,8 +49,8 @@ func (d *Driver) buildPath(path string) (string, error) {
 func (d *Driver) Stat(path string) (fileInfo server.FileInfo, err error) {
 	var (
 		fullPath string
-		file     *schema.File
-		dir      *schema.Directory
+		file     *schema2.File
+		dir      *schema2.Directory
 	)
 
 	if fullPath, err = d.buildPath(path); err != nil {
@@ -97,7 +97,7 @@ func (d *Driver) ChangeDir(path string) error {
 func (d *Driver) ListDir(path string, callback func(server.FileInfo) error) (err error) {
 	var (
 		fullPath string
-		dir      *schema.Directory
+		dir      *schema2.Directory
 	)
 
 	if fullPath, err = d.buildPath(path); err != nil {
@@ -141,7 +141,7 @@ func (d *Driver) ListDir(path string, callback func(server.FileInfo) error) (err
 func (d *Driver) DeleteDir(path string) (err error) {
 	var (
 		fullPath string
-		dir      *schema.Directory
+		dir      *schema2.Directory
 	)
 
 	if fullPath, err = d.buildPath(path); err != nil {
@@ -155,7 +155,7 @@ func (d *Driver) DeleteDir(path string) (err error) {
 }
 
 func (d *Driver) DeleteFile(path string) error {
-	var file *schema.File
+	var file *schema2.File
 
 	fullPath, err := d.buildPath(path)
 	if err != nil {
@@ -173,7 +173,7 @@ func (d *Driver) Rename(fromPath string, toPath string) (err error) {
 	var (
 		fullFromPath string
 		fullToPath   string
-		file         *schema.File
+		file         *schema2.File
 	)
 	if fullFromPath, err = d.buildPath(fromPath); err != nil {
 		return err
@@ -192,7 +192,7 @@ func (d *Driver) Rename(fromPath string, toPath string) (err error) {
 func (d *Driver) PutFile(path string, connReader io.Reader, append bool) (bytes int64, err error) {
 	var (
 		fullPath string
-		file     *schema.File
+		file     *schema2.File
 	)
 	if fullPath, err = d.buildPath(path); err != nil {
 		return 0, err
@@ -221,7 +221,7 @@ func (d *Driver) GetFile(path string, offset int64) (size int64, rc io.ReadClose
 	var (
 		fullPath       string
 		fileReadSeeker io.ReadSeeker
-		file           *schema.File
+		file           *schema2.File
 	)
 
 	if fullPath, err = d.buildPath(path); err != nil {

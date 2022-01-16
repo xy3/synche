@@ -6,7 +6,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/xy3/synche/src/client"
-	"github.com/xy3/synche/src/client/models"
+	"github.com/xy3/synche/src/models"
 	users2 "github.com/xy3/synche/src/client/users"
 	"golang.org/x/crypto/ssh/terminal"
 	"os"

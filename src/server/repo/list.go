@@ -1,16 +1,16 @@
 package repo
 
 import (
-	"github.com/xy3/synche/src/hash"
+	"github.com/xy3/synche/src/files"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server/models"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 )
 
-func GetHomeDirContents(user *schema.User, db *gorm.DB) (*models.DirectoryContents, error) {
+func GetHomeDirContents(user *schema2.User, db *gorm.DB) (*models.DirectoryContents, error) {
 	var (
 		err     error
-		homeDir *schema.Directory
+		homeDir *schema2.Directory
 	)
 	homeDir, err = GetHomeDir(user.ID, db)
 
@@ -30,7 +30,7 @@ func GetHomeDirContents(user *schema.User, db *gorm.DB) (*models.DirectoryConten
 
 func GetDirContentsByID(dirID uint, db *gorm.DB) (*models.DirectoryContents, error) {
 	contents := &models.DirectoryContents{}
-	directory := &schema.Directory{}
+	directory := &schema2.Directory{}
 
 	tx := db.Where("id = ?", dirID).First(directory)
 	if tx.Error != nil {
@@ -49,12 +49,12 @@ func GetDirContentsByID(dirID uint, db *gorm.DB) (*models.DirectoryContents, err
 		contents.CurrentDir.ParentDirectoryID = uint64(*directory.ParentID)
 	}
 
-	tx = db.Where(&schema.Directory{ParentID: &dirID}).Find(&contents.SubDirectories)
+	tx = db.Where(&schema2.Directory{ParentID: &dirID}).Find(&contents.SubDirectories)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	tx = db.Where(&schema.File{DirectoryID: dirID}).Find(&contents.Files)
+	tx = db.Where(&schema2.File{DirectoryID: dirID}).Find(&contents.Files)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -62,10 +62,10 @@ func GetDirContentsByID(dirID uint, db *gorm.DB) (*models.DirectoryContents, err
 	return contents, nil
 }
 
-func GetDirWithContentsFromPath(path string, db *gorm.DB) (*schema.Directory, error) {
-	pathHash := hash.PathHash(path)
-	directory := &schema.Directory{}
-	tx := db.Preload("Children").Preload("Files").Where(schema.Directory{PathHash: pathHash}).First(directory)
+func GetDirWithContentsFromPath(path string, db *gorm.DB) (*schema2.Directory, error) {
+	pathHash := files.PathHash(path)
+	directory := &schema2.Directory{}
+	tx := db.Preload("Children").Preload("Files").Where(schema2.Directory{PathHash: pathHash}).First(directory)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}

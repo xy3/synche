@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xy3/synche/src/client"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/hash"
 	"path"
 	"time"
 )
@@ -56,7 +55,7 @@ func FileUpload(filePath string, dirID uint) error {
 	if err != nil {
 		return err
 	}
-	fileHash, err := hash.File(filePath)
+	fileHash, err := files.FileHash(filePath)
 
 	if err != nil {
 		return err

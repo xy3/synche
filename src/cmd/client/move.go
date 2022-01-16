@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xy3/synche/src/client"
 	files2 "github.com/xy3/synche/src/client/files"
-	"github.com/xy3/synche/src/client/models"
+	"github.com/xy3/synche/src/models"
 )
 
 // printFile Logs file details in a readable format

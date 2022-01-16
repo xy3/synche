@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"errors"
-	"github.com/xy3/synche/src/client/models"
+	"github.com/xy3/synche/src/models"
 	"github.com/xy3/synche/src/client/transfer"
 	"github.com/xy3/synche/src/files"
 )

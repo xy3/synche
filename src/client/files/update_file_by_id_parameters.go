@@ -16,7 +16,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 
-	"github.com/xy3/synche/src/client/models"
+	"github.com/xy3/synche/src/models"
 )
 
 // NewUpdateFileByIDParams creates a new UpdateFileByIDParams object,

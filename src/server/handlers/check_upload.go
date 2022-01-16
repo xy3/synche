@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/repo"
 	"github.com/xy3/synche/src/server/restapi/operations/transfer"
-	"github.com/xy3/synche/src/server/schema"
 )
 
 // CheckUpload checks what chunks have already been received for a given upload

@@ -1,4 +1,4 @@
-package hash
+package files
 
 import (
 	"crypto/md5"
@@ -7,16 +7,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/kalafut/imohash"
-	"github.com/xy3/synche/src/files"
 	"hash/crc32"
 	"strings"
 )
 
-type ChunkHashFunc func(chunkBytes []byte) string
-type FileHashFunc func(filePath string) (string, error)
-
-var Chunk = MD5Hash
-var File = ImoHash
+var ChunkHash = MD5Hash
+var FileHash = ImoHash
 
 func MD5Hash(bytes []byte) string {
 	return fmt.Sprintf("%x", md5.Sum(bytes))
@@ -40,7 +36,7 @@ func CRC32Hash(bytes []byte) string {
 }
 
 func ImoHash(filePath string) (hash string, err error) {
-	fileData, err := files.Afs.ReadFile(filePath)
+	fileData, err := Afs.ReadFile(filePath)
 	if err != nil {
 		return hash, err
 	}

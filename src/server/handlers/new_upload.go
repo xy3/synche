@@ -3,19 +3,19 @@ package handlers
 import (
 	"fmt"
 	"github.com/go-openapi/runtime/middleware"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/repo"
 	"github.com/xy3/synche/src/server/restapi/operations/transfer"
-	"github.com/xy3/synche/src/server/schema"
 )
 
 // createNewUploadAndFile Stores the file data relating to a file that has been requested to be uploaded
-func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, user *schema.User) middleware.Responder {
+func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, user *schema2.User) middleware.Responder {
 	db := server.DB.Begin()
 
 	// TODO: send the chunk size in the upload request
-	file := schema.File{
+	file := schema2.File{
 		Name:        params.FileName,
 		Size:        params.FileSize,
 		Hash:        params.FileHash,
@@ -43,11 +43,11 @@ func createNewUploadAndFile(directoryID uint, params transfer.NewUploadParams, u
 }
 
 // NewUpload Handles requests to upload a new file and responds to the client
-func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Responder {
+func NewUpload(params transfer.NewUploadParams, user *schema2.User) middleware.Responder {
 	var (
 		err         error
 		directoryID uint
-		directory   *schema.Directory
+		directory   *schema2.Directory
 	)
 
 	if params.DirectoryID != nil && *params.DirectoryID != 0 {
@@ -65,8 +65,8 @@ func NewUpload(params transfer.NewUploadParams, user *schema.User) middleware.Re
 	}
 
 	// prevent users from uploading the same file twice
-	var prevFile schema.File
-	tx := server.DB.Joins("Upload").Where(&schema.File{
+	var prevFile schema2.File
+	tx := server.DB.Joins("Upload").Where(&schema2.File{
 		UserID: user.ID,
 		Hash:   params.FileHash,
 	}).First(&prevFile)

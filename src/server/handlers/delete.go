@@ -4,12 +4,12 @@ import (
 	"errors"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
+	"github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/repo"
 	"github.com/xy3/synche/src/server/restapi/operations/files"
 	"github.com/xy3/synche/src/server/restapi/operations/users"
-	"github.com/xy3/synche/src/server/schema"
 )
 
 // deleteUserDetails

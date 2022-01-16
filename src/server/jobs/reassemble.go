@@ -5,10 +5,9 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/hash"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/repo"
-	"github.com/xy3/synche/src/server/schema"
 	"os"
 	"path/filepath"
 )
@@ -32,9 +31,9 @@ func CreateUniqueFilePath(storageDir string, fileName string) (uniqueFilename st
 }
 
 // ReassembleFile Retrieves all the chunk data relating to a file and reassembles the file
-func ReassembleFile(chunkDir string, file *schema.File) error {
+func ReassembleFile(chunkDir string, file *schema2.File) error {
 	var (
-		fileChunks       []schema.FileChunk
+		fileChunks       []schema2.FileChunk
 		chunkData        []byte
 		filename         string
 		existingFileHash string
@@ -50,7 +49,7 @@ func ReassembleFile(chunkDir string, file *schema.File) error {
 
 	// Rename file if there is a file name collision
 	if _, err = files.Afs.Stat(reassembledFileLocation); err == nil {
-		existingFileHash, err = hash.File(reassembledFileLocation)
+		existingFileHash, err = files.FileHash(reassembledFileLocation)
 		if file.Hash != existingFileHash {
 			filename, reassembledFileLocation = CreateUniqueFilePath(storageDir.Path, filename)
 			if _, err = repo.RenameFile(file.ID, filename, server.DB); err != nil {

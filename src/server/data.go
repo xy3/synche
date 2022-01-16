@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"github.com/xy3/synche/src/server/schema"
+	schema2 "github.com/xy3/synche/src/schema"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -18,11 +18,11 @@ var (
 
 func MigrateAll(db *gorm.DB) error {
 	return db.AutoMigrate(
-		&schema.Chunk{},
-		&schema.File{},
-		&schema.FileChunk{},
-		&schema.Directory{},
-		&schema.User{},
+		&schema2.Chunk{},
+		&schema2.File{},
+		&schema2.FileChunk{},
+		&schema2.Directory{},
+		&schema2.User{},
 	)
 }
 

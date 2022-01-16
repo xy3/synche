@@ -1,5 +1,5 @@
-package hash
+package files
 
 func ValidateChunkHash(chunkHash string, chunkData []byte) bool {
-	return Chunk(chunkData) == chunkHash
+	return ChunkHash(chunkData) == chunkHash
 }

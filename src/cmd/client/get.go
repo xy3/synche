@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xy3/synche/src/client"
 	files3 "github.com/xy3/synche/src/client/files"
-	"github.com/xy3/synche/src/client/models"
+	"github.com/xy3/synche/src/models"
 	"github.com/xy3/synche/src/client/transfer"
 	"github.com/xy3/synche/src/files"
 	"os"

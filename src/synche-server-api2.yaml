@@ -1,0 +1,404 @@
+swagger: '2.0'
+
+host: 127.0.0.1:9449
+basePath: /v1/api
+schemes:
+  - http
+
+info:
+  description: Synche Server API
+  version: 1.0.0
+  title: Synche
+  # put the contact info for your development or API team
+  contact:
+    email: you@your-company.com
+
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+# tags are used for organizing operations
+tags:
+  - name: files
+    description: File and directory endpoints
+  - name: transfer
+    description: File transfer requests
+  - name: users
+    description: User authorization
+
+securityDefinitions:
+  AccessToken:
+    type: apiKey
+    in: header
+    name: X-Token
+  RefreshToken:
+    type: apiKey
+    in: header
+    name: X-Refresh-Token
+
+# Set the default security for all requests
+security:
+  - AccessToken: [ ]
+
+consumes:
+  - application/json
+produces:
+  - application/json
+
+paths:
+  /user/{userId}/files:
+    parameters:
+      - in: path
+        name: userId
+        type: integer
+        format: uint
+        required: true
+    post:
+      operationId: createFile
+      parameters:
+        - in: query
+          name: fileName
+          type: string
+          required: true
+          minLength: 1
+          maxLength: 256
+        - in: query
+          name: fileHash
+          type: string
+          required: true
+        - in: query
+          name: dirId
+          type: integer
+          format: uint
+          required: true
+        - in: query
+          name: fileSize
+          type: integer
+          format: int64
+          required: true
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /user/{userId}/files/{fileId}/upload:
+    parameters:
+      - in: path
+        name: userId
+        type: integer
+        format: uint
+        required: true
+      - in: path
+        name: fileId
+        type: integer
+        format: uint
+        required: true
+    post:
+      operationId: uploadChunk
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: chunkData
+          type: file
+          required: true
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /user/{userId}/files/{fileId}:
+    parameters:
+      - in: path
+        name: userId
+        type: integer
+        format: uint
+        required: true
+      - in: path
+        name: fileId
+        type: integer
+        format: uint
+        required: true
+    get:
+      operationId: getFile
+      produces:
+        - application/octet-stream
+      responses:
+        200:
+          description: OK
+          schema:
+            type: file
+          headers:
+            Content-Length:
+              type: integer
+              format: uint
+            Content-Disposition:
+              type: string
+              pattern: attachment; filename="attachement.txt"
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+    patch:
+      operationId: updateFile
+      parameters:
+        - in: body
+          name: file
+          schema:
+            $ref: '#/definitions/File'
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+    delete:
+      operationId: deleteFile
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+
+  /user/{userId}/directories:
+    parameters:
+      - in: path
+        name: userId
+        type: integer
+        required: true
+        format: uint
+    post:
+      parameters:
+        - in: query
+          name: parentDirectoryID
+          type: integer
+          format: uint
+          required: true
+        - in: query
+          name: directoryName
+          type: string
+          required: false
+      operationId: createDirectory
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /user/{userId}/directories/{dirId}:
+    parameters:
+      - in: path
+        name: userId
+        type: integer
+        required: true
+        format: uint
+      - in: path
+        name: dirId
+        type: integer
+        required: true
+        format: uint
+    get:
+      operationId: getDirectory
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/Directory"
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+    patch:
+      parameters:
+        - in: body
+          name: directory
+          required: true
+          schema:
+            $ref: "#/definitions/Directory"
+      operationId: updateDirectory
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+    delete:
+      operationId: deleteDirectory
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  #  /user/{userId}/path/{path}:
+  #    get:
+  #    delete:
+
+  /auth/signin:
+    post:
+      operationId: signin
+      parameters:
+        - in: query
+          name: email
+          type: string
+          format: email
+        - in: query
+          name: password
+          type: string
+          format: password
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/AccessAndRefreshToken'
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+  /auth/signup:
+    post:
+      operationId: signup
+      parameters:
+        - in: query
+          name: email
+          type: string
+          format: email
+        - in: query
+          name: password
+          type: string
+          format: password
+      responses:
+        200:
+          description: OK
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /token/refresh:
+    post:
+      operationId: refreshToken
+      security:
+        - RefreshToken: [ ]
+      tags:
+        - tokens
+      responses:
+        200:
+          description: Token refreshed successfully
+          schema:
+            $ref: '#/definitions/AccessToken'
+        default:
+          description: Error
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Refresh an Access token
+
+#  /upload/chunk:
+#    post:
+#      tags:
+#        - transfer
+#      summary: Upload a file chunk
+#      operationId: uploadChunk
+#      description: Uploads a new chunk to the Synche server
+#      consumes:
+#        - multipart/form-data
+#      produces:
+#        - application/json
+#      parameters:
+#        - in: formData
+#          name: chunkData
+#          type: file
+#          required: true
+#          description: Chunk file data
+#        - in: formData
+#          name: chunkHash
+#          type: string
+#          required: true
+#          description: The file hash of the chunk
+#        - in: formData
+#          name: chunkNumber
+#          type: integer
+#          required: true
+#          description: The position index of the chunk in the file the chunk is from
+#        - in: formData
+#          name: fileID
+#          type: integer
+#          format: uint
+#          required: true
+#          description: The identifier for the composite file
+#      responses:
+#        201:
+#          description: OK
+#          schema:
+#            $ref: '#/definitions/FileChunk'
+#        default:
+#          description: Error
+#          schema:
+#            $ref: '#/definitions/Error'
+
+#  /upload/check:
+#    post:
+#      tags:
+#        - transfer
+#      summary: Gets the chunks that are already on the server
+#      operationId: checkUploadedChunks
+#      parameters:
+#        - in: query
+#          name: fileID
+#          type: integer
+#          format: uint
+#          required: true
+#      responses:
+#        200:
+#          description: OK
+#          schema:
+#            $ref: '#/definitions/ExistingChunks'
+#        401:
+#          description: Unauthorised
+#        default:
+#          description: Error
+#          schema:
+#            $ref: '#/definitions/Error'
+
+definitions:
+  AccessToken:
+    type: object
+    properties:
+      accessToken:
+        type: string
+    description: Access token to authenticate a user.
+
+  AccessAndRefreshToken:
+    type: object
+    properties:
+      accessToken:
+        type: string
+      accessTokenExpiry:
+        description: the unix timestamp expiry of the access token
+        type: integer
+        format: int64
+      refreshToken:
+        type: string
+    description: Contains both the AccessToken and RefreshToken for a user.
+
+  Error:
+    properties:
+      Error:
+        type: string
+      Message:
+        type: string
+    type: object

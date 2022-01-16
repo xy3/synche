@@ -4,9 +4,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/suite"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/hash"
+	schema2 "github.com/xy3/synche/src/schema"
 	c "github.com/xy3/synche/src/server"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"path/filepath"
 	"strings"
@@ -15,8 +14,8 @@ import (
 
 type directoryTestSuite struct {
 	suite.Suite
-	user    *schema.User
-	homeDir *schema.Directory
+	user    *schema2.User
+	homeDir *schema2.Directory
 	down    func(t *testing.T)
 	db      *gorm.DB
 }
@@ -47,7 +46,7 @@ func (s *directoryTestSuite) TestBuildFullPath() {
 	})
 
 	s.Run("No user", func() {
-		_, err := BuildFullPath("/somepath", &schema.User{}, s.db)
+		_, err := BuildFullPath("/somepath", &schema2.User{}, s.db)
 		s.Assert().Error(err)
 	})
 
@@ -70,7 +69,7 @@ func (s *directoryTestSuite) TestCreateDirectory() {
 		s.Assert().Equal("someDir", gotDirectory.Name)
 		wantPath := filepath.Join(s.homeDir.Path, "someDir")
 		s.Assert().Equal(wantPath, gotDirectory.Path)
-		wantPathHash := hash.PathHash(wantPath)
+		wantPathHash := files.PathHash(wantPath)
 		s.Assert().Equal(wantPathHash, gotDirectory.PathHash)
 	})
 
@@ -246,7 +245,7 @@ func (s *directoryTestSuite) TestGetOrCreateHomeDir() {
 	defer s.down(s.T())
 
 	var (
-		gotHomeDir *schema.Directory
+		gotHomeDir *schema2.Directory
 		err        error
 	)
 
@@ -261,7 +260,7 @@ func (s *directoryTestSuite) TestGetOrCreateHomeDir() {
 	})
 
 	s.Run("Non-existing home dir", func() {
-		_, err := GetOrCreateHomeDir(&schema.User{}, s.db)
+		_, err := GetOrCreateHomeDir(&schema2.User{}, s.db)
 		s.Assert().Error(err)
 	})
 
@@ -306,7 +305,7 @@ func (s *directoryTestSuite) TestSetupUserHomeDir() {
 	defer s.down(s.T())
 
 	shouldExist := filepath.Join(c.Config.Server.StorageDir, GenerateUserDirName(s.user))
-	pathHash := hash.PathHash(shouldExist)
+	pathHash := files.PathHash(shouldExist)
 
 	s.Run("Create home dir", func() {
 		got, err := SetupUserHomeDir(s.user, s.db)

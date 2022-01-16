@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/restapi/operations/users"
-	"github.com/xy3/synche/src/server/schema"
 )
 
 func Profile(_ users.ProfileParams, user *schema.User) middleware.Responder {

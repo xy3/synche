@@ -8,10 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/hash"
+	schema2 "github.com/xy3/synche/src/schema"
 	server2 "github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/repo"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"io/ioutil"
 	"path/filepath"
@@ -26,8 +25,8 @@ const testDirName = "/this/is/a/dir"
 
 type ftpTestSuite struct {
 	suite.Suite
-	user    *schema.User
-	homeDir *schema.Directory
+	user    *schema2.User
+	homeDir *schema2.Directory
 	down    func(t *testing.T)
 	db      *gorm.DB
 	driver  *Driver
@@ -103,7 +102,7 @@ func (s *ftpTestSuite) TestDriver_Stat() {
 	s.Assert().True(dirInfo.IsDir())
 	s.Assert().Equal("dir", dirInfo.Name())
 
-	fileReader := bytes.NewReader(hash.Random(222))
+	fileReader := bytes.NewReader(files.Random(222))
 	_, err = repo.CreateFileFromReader(filepath.Join(fullPath, "file.bin"), fileReader, s.driver.user.ID, s.driver.db)
 	s.Assert().NoError(err)
 
@@ -227,12 +226,12 @@ func (s *ftpTestSuite) TestDriver_PutFile() {
 	_, err = repo.CreateFileFromReader(existingFilePath, strings.NewReader(""), s.driver.user.ID, s.driver.db)
 	s.Assert().NoError(err)
 
-	writeBytes, err := s.driver.PutFile("/create/dir/file.bin", bytes.NewReader(hash.Random(22)), true)
+	writeBytes, err := s.driver.PutFile("/create/dir/file.bin", bytes.NewReader(files.Random(22)), true)
 	s.Assert().NoError(err)
 	s.Assert().Equal(int64(22), writeBytes)
 
 	// create a new file
-	writeBytes, err = s.driver.PutFile("/create/dir/random.bytes", bytes.NewReader(hash.Random(22)), false)
+	writeBytes, err = s.driver.PutFile("/create/dir/random.bytes", bytes.NewReader(files.Random(22)), false)
 	s.Assert().NoError(err)
 	s.Assert().Equal(int64(22), writeBytes)
 }
@@ -240,8 +239,8 @@ func (s *ftpTestSuite) TestDriver_PutFile() {
 func (s *ftpTestSuite) TestDriver_GetFile() {
 	defer s.down(s.T())
 
-	randomBytes := hash.Random(256)
-	randomBytesHash := hash.SHA256Hash(randomBytes)
+	randomBytes := files.Random(256)
+	randomBytesHash := files.SHA256Hash(randomBytes)
 
 	fullPath, err := s.driver.buildPath("/create/dir/file.bin")
 	s.Assert().NoError(err)
@@ -257,7 +256,7 @@ func (s *ftpTestSuite) TestDriver_GetFile() {
 	// s.Assert().Equal(256, int(size))
 	content, err := ioutil.ReadAll(rc)
 	s.Assert().NoError(err)
-	contentHash := hash.SHA256Hash(content)
+	contentHash := files.SHA256Hash(content)
 	s.Assert().NoError(err)
 	s.Assert().Equal(randomBytesHash, contentHash)
 }

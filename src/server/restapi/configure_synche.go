@@ -10,6 +10,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
+	"github.com/xy3/synche/src/schema"
 	c "github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/handlers"
 	"github.com/xy3/synche/src/server/models"
@@ -19,7 +20,6 @@ import (
 	"github.com/xy3/synche/src/server/restapi/operations/tokens"
 	"github.com/xy3/synche/src/server/restapi/operations/transfer"
 	"github.com/xy3/synche/src/server/restapi/operations/users"
-	"github.com/xy3/synche/src/server/schema"
 	"net/http"
 )
 

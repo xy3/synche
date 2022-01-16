@@ -3,11 +3,11 @@ package handlers
 import (
 	"errors"
 	"github.com/go-openapi/runtime/middleware"
+	schema2 "github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/repo"
 	"github.com/xy3/synche/src/server/restapi/operations/files"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
 	"path/filepath"
 )
@@ -17,8 +17,8 @@ var (
 )
 
 // updateFile Checks all file details in the database and updates them if needed
-func updateFile(file *schema.File, user *schema.User, update *models.FileUpdate, db *gorm.DB) (
-	newFile *schema.File,
+func updateFile(file *schema2.File, user *schema2.User, update *models.FileUpdate, db *gorm.DB) (
+	newFile *schema2.File,
 	err error,
 ) {
 	if file.Directory == nil {
@@ -58,7 +58,7 @@ func updateFile(file *schema.File, user *schema.User, update *models.FileUpdate,
 }
 
 // UpdateFileByID Handles a request from the client to update a file and responds accordingly
-func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middleware.Responder {
+func UpdateFileByID(params files.UpdateFileByIDParams, user *schema2.User) middleware.Responder {
 	file, err := repo.GetFileByID(uint(params.FileID), server.DB)
 	if err != nil {
 		return files.NewUpdateFileByIDDefault(404).WithPayload("file not found")
@@ -77,10 +77,10 @@ func UpdateFileByID(params files.UpdateFileByIDParams, user *schema.User) middle
 }
 
 // UpdateFileByPath Handles a request from the client to update a file and responds accordingly
-func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema.User) middleware.Responder {
+func UpdateFileByPath(params files.UpdateFileByPathParams, user *schema2.User) middleware.Responder {
 	var (
-		file    *schema.File
-		newFile *schema.File
+		file    *schema2.File
+		newFile *schema2.File
 		err404  = files.NewUpdateFileByPathDefault(404)
 		err500  = files.NewUpdateFileByPathDefault(500)
 	)

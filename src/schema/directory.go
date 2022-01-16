@@ -2,8 +2,9 @@ package schema
 
 import (
 	"errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/server/models"
+	"github.com/xy3/synche/src/models"
 	"gorm.io/gorm"
 )
 
@@ -11,8 +12,9 @@ var (
 	ErrDirNotEmpty = errors.New("directory is not empty")
 )
 
+// swagger:model Directory
 type Directory struct {
-	gorm.Model
+	Model
 	Name      string `gorm:"not null"`
 	Path      string `gorm:"not null"`
 	PathHash  string `gorm:"size:32;uniqueIndex"`
@@ -24,6 +26,11 @@ type Directory struct {
 	User     User        `gorm:"association_autoupdate:false;association_autocreate:false"`
 	Children []Directory `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:parent_id;association_autoupdate:false;association_autocreate:false"`
 	Files    []File      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:directory_id;association_autoupdate:false;association_autocreate:false"`
+}
+
+// Validate validates this directory
+func (m *Directory) Validate(formats strfmt.Registry) error {
+	return nil
 }
 
 // executeDelete removes the directory and everything contained within it from the disk

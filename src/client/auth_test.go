@@ -2,8 +2,8 @@ package client
 
 import (
 	"encoding/json"
-	"github.com/xy3/synche/src/client/models"
 	"github.com/xy3/synche/src/files"
+	"github.com/xy3/synche/src/models"
 	"os"
 	"path/filepath"
 	"testing"
@@ -69,8 +69,8 @@ func TestGetSavedToken(t *testing.T) {
 		t.Errorf("getSavedToken: Invalid token")
 	}
 
-	files.AppFS.Remove(testDir)
-	files.AppFS.Remove(testFile)
+	_ = files.AppFS.Remove(testDir)
+	_ = files.AppFS.Remove(testFile)
 
 	t.Log("getSavedToken: All tests passed")
 }

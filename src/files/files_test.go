@@ -7,6 +7,22 @@ import (
 	"testing"
 )
 
+func TestSetFileSystem(t *testing.T) {
+	t.Run("MemMap filesystem", func(t *testing.T) {
+		newFs := afero.NewMemMapFs()
+		files.SetFileSystem(newFs)
+		assert.Equal(t, files.AppFS, newFs)
+		assert.Equal(t, files.Afs.Fs, newFs)
+	})
+
+	t.Run("OS filesystem", func(t *testing.T) {
+		newFs := afero.NewOsFs()
+		files.SetFileSystem(newFs)
+		assert.Equal(t, files.AppFS, newFs)
+		assert.Equal(t, files.Afs.Fs, newFs)
+	})
+}
+
 func TestDirs(t *testing.T) {
 	files.SetFileSystem(afero.NewMemMapFs())
 	dirs := []string{"dir1", "dir2", "/nested/dir", "relative/dir"}
@@ -17,3 +33,4 @@ func TestDirs(t *testing.T) {
 		assert.True(t, isDir)
 	}
 }
+

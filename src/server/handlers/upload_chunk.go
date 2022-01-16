@@ -7,13 +7,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/xy3/synche/src/files"
-	"github.com/xy3/synche/src/hash"
+	schema2 "github.com/xy3/synche/src/schema"
 	c "github.com/xy3/synche/src/server"
 	"github.com/xy3/synche/src/server/jobs"
 	"github.com/xy3/synche/src/server/models"
 	"github.com/xy3/synche/src/server/repo"
 	"github.com/xy3/synche/src/server/restapi/operations/transfer"
-	"github.com/xy3/synche/src/server/schema"
 	"path/filepath"
 	"strconv"
 )
@@ -26,7 +25,7 @@ var (
 )
 
 // UploadChunk Handles new chunks being uploaded and responds to the client with each chunk status
-func UploadChunk(params transfer.UploadChunkParams, _ *schema.User) middleware.Responder {
+func UploadChunk(params transfer.UploadChunkParams, _ *schema2.User) middleware.Responder {
 	if params.ChunkData == nil {
 		return errNoData
 	}
@@ -36,7 +35,7 @@ func UploadChunk(params transfer.UploadChunkParams, _ *schema.User) middleware.R
 	if ok {
 		log.WithFields(log.Fields{
 			"Size":        namedFile.Header.Size,
-			"ChunkHash":   params.ChunkHash,
+			"chunkHash":   params.ChunkHash,
 			"ChunkNumber": params.ChunkNumber,
 		}).Info("Received new chunk")
 	}
@@ -46,7 +45,7 @@ func UploadChunk(params transfer.UploadChunkParams, _ *schema.User) middleware.R
 		return badRequest.WithPayload("Failed to read the chunk bytes")
 	}
 
-	if !hash.ValidateChunkHash(params.ChunkHash, chunkBytes) {
+	if !files.ValidateChunkHash(params.ChunkHash, chunkBytes) {
 		return badRequest.WithPayload("chunk hash does not match its data")
 	}
 
@@ -72,12 +71,12 @@ func writeChunkFile(chunkData []byte, chunkDir, chunkHash string) error {
 func storeChunkData(
 	chunkFile *runtime.File,
 	params transfer.UploadChunkParams,
-	file *schema.File,
+	file *schema2.File,
 ) middleware.Responder {
 
 	db := c.DB.Begin()
 
-	chunk := schema.Chunk{
+	chunk := schema2.Chunk{
 		Hash: params.ChunkHash,
 		Size: chunkFile.Header.Size,
 	}
@@ -88,7 +87,7 @@ func storeChunkData(
 	}
 
 	// Insert chunk info into data
-	fileChunk := schema.FileChunk{
+	fileChunk := schema2.FileChunk{
 		Number:  params.ChunkNumber,
 		ChunkID: chunk.ID,
 		FileID:  file.ID,

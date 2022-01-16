@@ -2,7 +2,7 @@ package repo
 
 import (
 	"errors"
-	"github.com/xy3/synche/src/server/schema"
+	"github.com/xy3/synche/src/schema"
 	"gorm.io/gorm"
 	"strconv"
 )

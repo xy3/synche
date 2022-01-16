@@ -2,18 +2,20 @@ package repo
 
 import (
 	"errors"
+	"fmt"
 	"github.com/patrickmn/go-cache"
-	"github.com/xy3/synche/src/hash"
+	"github.com/xy3/synche/src/files"
+	"github.com/xy3/synche/src/schema"
 	"github.com/xy3/synche/src/server"
-	"github.com/xy3/synche/src/server/schema"
 	"gorm.io/gorm"
+	"net/mail"
 	"strings"
 )
 
 // GetUserByEmail finds a user either in the cache or database using their email address
 func GetUserByEmail(email string, db *gorm.DB) (*schema.User, error) {
 	// The email hash should be used instead of the plaintext email for performance
-	emailHash := hash.MD5Hash([]byte(strings.TrimSpace(email)))
+	emailHash := files.MD5Hash([]byte(strings.TrimSpace(email)))
 	// Check the cache for the user data
 	if res, found := EmailHashUserCache.Get(emailHash); found {
 		return res.(*schema.User), nil
@@ -34,9 +36,9 @@ func GetUserByEmail(email string, db *gorm.DB) (*schema.User, error) {
 func NewUser(email, password string, name, picture *string, db *gorm.DB) (user *schema.User, err error) {
 	user = &schema.User{
 		Email:     email,
-		EmailHash: hash.MD5HashString(email),
+		EmailHash: files.MD5HashString(email),
 		Password:  password,
-		TokenHash: hash.MD5HashString(password),
+		TokenHash: files.MD5HashString(password),
 	}
 
 	if name != nil {
@@ -46,7 +48,7 @@ func NewUser(email, password string, name, picture *string, db *gorm.DB) (user *
 		user.Picture = *picture
 	}
 
-	if err = user.ValidateForRegistration(); err != nil {
+	if err = validateForRegistration(*user, server.ValidateStrongPassword); err != nil {
 		return nil, err
 	}
 
@@ -68,4 +70,25 @@ func NewUser(email, password string, name, picture *string, db *gorm.DB) (user *
 	}
 
 	return user, nil
+}
+
+func validateForRegistration(user schema.User, passwordValidator func(string) error) error {
+	if !isEmailValid(user.Email) {
+		return errors.New("email is invalid")
+	}
+	if len(user.Name) < 3 {
+		return errors.New("name is too short")
+	}
+	if err := passwordValidator(user.Password); err != nil {
+		return err
+	}
+	if len(user.TokenHash) != 32 {
+		return fmt.Errorf("token hash must be 32 characters long but it is %d", len(user.TokenHash))
+	}
+	return nil
+}
+
+func isEmailValid(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }
