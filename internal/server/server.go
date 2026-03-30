@@ -131,8 +131,11 @@ func (s *Server) requireAuthHandler(next http.Handler) http.Handler {
 	})
 }
 
-// checkAuth validates the Authorization header. Returns true if the request
-// is authorized, false if it was rejected (and a 401 was written).
+// checkAuth validates the Authorization header. Accepts both Bearer tokens
+// and Basic Auth (password = API key, username ignored) so that standard
+// WebDAV clients (Finder, Windows Explorer, Nautilus) can connect.
+// Returns true if the request is authorized, false if it was rejected
+// (and a 401 was written).
 func (s *Server) checkAuth(w http.ResponseWriter, r *http.Request) bool {
 	if s.config.APIKey == "" {
 		return true // no auth configured
@@ -140,18 +143,28 @@ func (s *Server) checkAuth(w http.ResponseWriter, r *http.Request) bool {
 
 	auth := r.Header.Get("Authorization")
 	if auth == "" {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="synche"`)
+		// Request both Basic (for WebDAV clients) and Bearer (for API clients).
+		w.Header().Set("WWW-Authenticate", `Basic realm="synche", Bearer realm="synche"`)
 		http.Error(w, "missing authorization header", http.StatusUnauthorized)
 		return false
 	}
 
-	// Expect "Bearer <key>"
-	const prefix = "Bearer "
-	if !strings.HasPrefix(auth, prefix) {
-		http.Error(w, "invalid authorization format (expected: Bearer <key>)", http.StatusUnauthorized)
+	var token string
+	switch {
+	case strings.HasPrefix(auth, "Bearer "):
+		token = auth[len("Bearer "):]
+	case strings.HasPrefix(auth, "Basic "):
+		// Basic Auth: password is the API key, username is ignored.
+		_, password, ok := r.BasicAuth()
+		if !ok {
+			http.Error(w, "malformed basic auth header", http.StatusUnauthorized)
+			return false
+		}
+		token = password
+	default:
+		http.Error(w, "unsupported authorization type (expected: Bearer or Basic)", http.StatusUnauthorized)
 		return false
 	}
-	token := auth[len(prefix):]
 
 	if subtle.ConstantTimeCompare([]byte(token), []byte(s.config.APIKey)) != 1 {
 		http.Error(w, "invalid api key", http.StatusUnauthorized)
