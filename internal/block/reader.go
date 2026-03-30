@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -19,10 +20,11 @@ const (
 // Reader reads raw bytes from a block device or file using O_DIRECT,
 // bypassing the kernel page cache entirely.
 type Reader struct {
-	fd       int
-	size     uint64 // total device/file size in bytes
-	pos      uint64
-	readSize int // how many bytes to read per call
+	fd        int
+	size      uint64 // total device/file size in bytes
+	pos       uint64
+	readSize  int // how many bytes to read per call
+	closeOnce sync.Once
 }
 
 // NewReader opens the given path with O_DIRECT | O_RDONLY.
@@ -106,9 +108,13 @@ func (r *Reader) ReadChunk() ([]byte, int, error) {
 	return buf[:actual], actual, nil
 }
 
-// Close closes the underlying file descriptor.
+// Close closes the underlying file descriptor. Safe to call multiple times.
 func (r *Reader) Close() error {
-	return unix.Close(r.fd)
+	var err error
+	r.closeOnce.Do(func() {
+		err = unix.Close(r.fd)
+	})
+	return err
 }
 
 // deviceSize determines the size of a block device or regular file.

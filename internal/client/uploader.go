@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +16,13 @@ import (
 	"github.com/theo/synche2/internal/cache"
 	"github.com/theo/synche2/internal/chunk"
 	"github.com/theo/synche2/internal/protocol"
+)
+
+const (
+	// maxUploadRetries is how many times to retry a failed chunk upload.
+	maxUploadRetries = 3
+	// retryBaseDelay is the base delay between retries (doubled each attempt).
+	retryBaseDelay = 500 * time.Millisecond
 )
 
 // Config holds client configuration.
@@ -77,13 +85,21 @@ type pendingChunk struct {
 	data []byte
 }
 
+// uploadedHash tracks a chunk that was confirmed present on the server
+// (either uploaded successfully or server already had it). Only these
+// should be written to the local cache.
+type uploadedHash struct {
+	index uint64
+	hash  string
+}
+
 // Run executes the full upload pipeline:
 // 1. Load cached manifest (if any)
 // 2. Read raw blocks from device + hash with BLAKE3
 // 3. Compare each chunk hash against cache — skip if unchanged
 // 4. Probe server in small concurrent batches, upload needed chunks
-// 5. Save updated manifest to cache
-// 6. Upload the final manifest to server
+// 5. Save updated manifest to cache (only confirmed chunks)
+// 6. Upload the final manifest to server (abort if any chunks failed)
 func (u *Uploader) Run() error {
 	// Initialize cache.
 	var cached *cache.CachedManifest
@@ -126,7 +142,11 @@ func (u *Uploader) Run() error {
 	var allMeta []protocol.ChunkMeta
 	var metaMu sync.Mutex
 
-	// Upload worker pool.
+	// Track chunks confirmed on the server (uploaded or server-skip).
+	var confirmedHashes []uploadedHash
+	var confirmedMu sync.Mutex
+
+	// Upload worker pool with retry.
 	uploadCh := make(chan pendingChunk, u.cfg.Concurrency*2)
 	var uploadWg sync.WaitGroup
 	for i := 0; i < u.cfg.Concurrency; i++ {
@@ -134,12 +154,30 @@ func (u *Uploader) Run() error {
 		go func() {
 			defer uploadWg.Done()
 			for pc := range uploadCh {
-				if err := u.uploadChunk(pc.meta.Hash, pc.data); err != nil {
-					log.Printf("upload error chunk %d (%s): %v", pc.meta.Index, pc.meta.Hash[:12], err)
-					atomic.AddInt64(&u.stats.Failed, 1)
-				} else {
+				var lastErr error
+				success := false
+				for attempt := 0; attempt < maxUploadRetries; attempt++ {
+					if attempt > 0 {
+						delay := retryBaseDelay * time.Duration(1<<(attempt-1))
+						time.Sleep(delay)
+					}
+					if err := u.uploadChunk(pc.meta.Hash, pc.data); err != nil {
+						lastErr = err
+						continue
+					}
+					success = true
+					break
+				}
+				if success {
 					atomic.AddInt64(&u.stats.UploadedNew, 1)
 					atomic.AddInt64(&u.stats.BytesSent, int64(pc.meta.Size))
+					confirmedMu.Lock()
+					confirmedHashes = append(confirmedHashes, uploadedHash{index: pc.meta.Index, hash: pc.meta.Hash})
+					confirmedMu.Unlock()
+				} else {
+					log.Printf("upload failed chunk %d (%s) after %d retries: %v",
+						pc.meta.Index, pc.meta.Hash[:12], maxUploadRetries, lastErr)
+					atomic.AddInt64(&u.stats.Failed, 1)
 				}
 			}
 		}()
@@ -159,7 +197,7 @@ func (u *Uploader) Run() error {
 		go func() {
 			defer probeWg.Done()
 			for batch := range probeCh {
-				u.probeAndUpload(batch, uploadCh)
+				u.probeAndUpload(batch, uploadCh, &confirmedHashes, &confirmedMu)
 			}
 		}()
 	}
@@ -185,6 +223,9 @@ func (u *Uploader) Run() error {
 		probeBatchSize = u.cfg.ProbeBatch
 	}
 
+	// Track cache-skipped chunks separately (they are confirmed by definition).
+	var cacheSkippedHashes []uploadedHash
+
 	var batch []pendingChunk
 
 	for result := range results {
@@ -199,6 +240,7 @@ func (u *Uploader) Run() error {
 		if cached != nil {
 			if cachedHash, ok := cached.Hashes[result.Meta.Index]; ok && cachedHash == result.Meta.Hash {
 				atomic.AddInt64(&u.stats.SkippedCache, 1)
+				cacheSkippedHashes = append(cacheSkippedHashes, uploadedHash{index: result.Meta.Index, hash: result.Meta.Hash})
 				continue
 			}
 		}
@@ -223,14 +265,33 @@ func (u *Uploader) Run() error {
 	uploadWg.Wait()
 	close(done)
 
+	// Sort chunks by index for correct ordering in the manifest.
+	sort.Slice(allMeta, func(i, j int) bool {
+		return allMeta[i].Index < allMeta[j].Index
+	})
 	manifest.Chunks = allMeta
 
-	// Save updated cache.
+	// Check for failures before saving.
+	failed := atomic.LoadInt64(&u.stats.Failed)
+	if failed > 0 {
+		u.printFinalStats("")
+		return fmt.Errorf("%d chunks failed to upload — manifest NOT saved (re-run to retry)", failed)
+	}
+
+	// Save updated cache with only confirmed hashes.
 	if u.cache != nil {
-		if err := u.cache.Save(u.cfg.DevicePath, &manifest); err != nil {
+		// Merge confirmed uploads + server-skips + cache-skips.
+		allConfirmed := make(map[uint64]string, len(confirmedHashes)+len(cacheSkippedHashes))
+		for _, ch := range confirmedHashes {
+			allConfirmed[ch.index] = ch.hash
+		}
+		for _, ch := range cacheSkippedHashes {
+			allConfirmed[ch.index] = ch.hash
+		}
+		if err := u.cache.SaveFromMap(u.cfg.DevicePath, &manifest, allConfirmed); err != nil {
 			log.Printf("warning: failed to save cache: %v", err)
 		} else {
-			log.Printf("saved manifest cache (%d chunks)", len(manifest.Chunks))
+			log.Printf("saved manifest cache (%d chunks)", len(allConfirmed))
 		}
 	}
 
@@ -246,8 +307,9 @@ func (u *Uploader) Run() error {
 }
 
 // probeAndUpload probes the server for which chunks in the batch are needed,
-// then sends only those to the upload channel.
-func (u *Uploader) probeAndUpload(batch []pendingChunk, uploadCh chan<- pendingChunk) {
+// then sends only those to the upload channel. Chunks the server already has
+// are tracked as confirmed.
+func (u *Uploader) probeAndUpload(batch []pendingChunk, uploadCh chan<- pendingChunk, confirmed *[]uploadedHash, confirmedMu *sync.Mutex) {
 	if len(batch) == 0 {
 		return
 	}
@@ -278,6 +340,10 @@ func (u *Uploader) probeAndUpload(batch []pendingChunk, uploadCh chan<- pendingC
 			uploadCh <- pc
 		} else {
 			skipped++
+			// Server already has this chunk — confirmed.
+			confirmedMu.Lock()
+			*confirmed = append(*confirmed, uploadedHash{index: pc.meta.Index, hash: pc.meta.Hash})
+			confirmedMu.Unlock()
 		}
 	}
 	atomic.AddInt64(&u.stats.SkippedServer, int64(skipped))

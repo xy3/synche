@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"path"
 	"strconv"
@@ -129,7 +130,7 @@ func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request, vpath string
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.FormatUint(manifest.TotalBytes, 10))
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, info.Name))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": info.Name}))
 	w.Header().Set("Last-Modified", info.ModTime.UTC().Format(http.TimeFormat))
 
 	if r.Method == "HEAD" {

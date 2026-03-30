@@ -16,6 +16,15 @@ import (
 	"github.com/zeebo/blake3"
 )
 
+const (
+	// maxProbeBodySize limits the probe request body (50 MiB should cover ~500k hashes).
+	maxProbeBodySize = 50 << 20
+	// maxManifestBodySize limits manifest uploads (256 MiB covers multi-TB devices).
+	maxManifestBodySize = 256 << 20
+	// maxBatchBodySize limits batch upload requests (1 GiB).
+	maxBatchBodySize = 1 << 30
+)
+
 // Server is the chunk storage HTTP server.
 type Server struct {
 	store *store.Store
@@ -43,7 +52,7 @@ func New(addr, storePath string) (*Server, error) {
 func (s *Server) ListenAndServe() error {
 	log.Printf("synche server listening on %s", s.addr)
 	stats := s.store.Stats()
-	log.Printf("store: %s (%d existing chunks)", stats.StorePath, stats.TotalChunks)
+	log.Printf("store: %d existing chunks", stats.TotalChunks)
 	log.Printf("webdav available at http://%s/webdav/", s.addr)
 	return http.ListenAndServe(s.addr, s.mux)
 }
@@ -66,6 +75,7 @@ func (s *Server) routes() {
 
 // handleProbe accepts a list of hashes and returns which ones the server needs.
 func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxProbeBodySize)
 	var req protocol.ProbeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -83,8 +93,8 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 // The hash is provided in the URL. The server verifies it matches the data.
 func (s *Server) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 	hash := r.PathValue("hash")
-	if len(hash) != protocol.HashSize*2 {
-		http.Error(w, "invalid hash length", http.StatusBadRequest)
+	if !store.ValidHash(hash) {
+		http.Error(w, "invalid hash", http.StatusBadRequest)
 		return
 	}
 
@@ -124,6 +134,10 @@ func (s *Server) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 // handleGetChunk retrieves a chunk by hash.
 func (s *Server) handleGetChunk(w http.ResponseWriter, r *http.Request) {
 	hash := r.PathValue("hash")
+	if !store.ValidHash(hash) {
+		http.Error(w, "invalid hash", http.StatusBadRequest)
+		return
+	}
 	data, err := s.store.Get(hash)
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
@@ -135,6 +149,7 @@ func (s *Server) handleGetChunk(w http.ResponseWriter, r *http.Request) {
 
 // handleUploadManifest stores a manifest describing a complete device snapshot.
 func (s *Server) handleUploadManifest(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxManifestBodySize)
 	var manifest protocol.Manifest
 	if err := json.NewDecoder(r.Body).Decode(&manifest); err != nil {
 		http.Error(w, "invalid manifest", http.StatusBadRequest)
@@ -167,6 +182,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 // Binary wire format: [64-byte hex hash][4-byte big-endian size][data bytes]...
 // The server checks each chunk, stores new ones, skips duplicates.
 func (s *Server) handleBatchUpload(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBatchBodySize)
 	var resp protocol.BatchUploadResponse
 	hashBuf := make([]byte, protocol.HashSize*2) // 64 hex chars
 	sizeBuf := make([]byte, 4)

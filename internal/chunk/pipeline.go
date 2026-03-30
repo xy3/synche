@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"github.com/theo/synche2/internal/block"
 	"github.com/theo/synche2/internal/protocol"
@@ -92,12 +91,10 @@ func (p *Pipeline) Run() <-chan Result {
 	// We use a fixed pool of goroutines. Results may arrive out of order
 	// but each carries its index so the consumer can reorder if needed.
 	var wg sync.WaitGroup
-	var hasherCount int64
 	for i := 0; i < p.concurrency; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			atomic.AddInt64(&hasherCount, 1)
 
 			hasher := blake3.New()
 			for buf := range raw {

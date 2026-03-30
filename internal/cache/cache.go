@@ -106,6 +106,34 @@ func (c *Cache) Save(sourcePath string, manifest *protocol.Manifest) error {
 	return nil
 }
 
+// SaveFromMap writes a manifest to the cache, but only includes hashes from
+// the given confirmed map (index → hash). This ensures only chunks that were
+// actually confirmed present on the server are cached, preventing future runs
+// from skipping chunks that failed to upload.
+func (c *Cache) SaveFromMap(sourcePath string, manifest *protocol.Manifest, confirmed map[uint64]string) error {
+	cm := CachedManifest{
+		SourcePath: sourcePath,
+		TotalBytes: manifest.TotalBytes,
+		ChunkSize:  manifest.ChunkSize,
+		Hashes:     confirmed,
+	}
+
+	data, err := json.Marshal(&cm)
+	if err != nil {
+		return fmt.Errorf("marshal cache: %w", err)
+	}
+
+	path := filepath.Join(c.dir, cacheKey(sourcePath)+".json")
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return fmt.Errorf("write cache: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return fmt.Errorf("rename cache: %w", err)
+	}
+	return nil
+}
+
 // Dir returns the cache directory path.
 func (c *Cache) Dir() string {
 	return c.dir

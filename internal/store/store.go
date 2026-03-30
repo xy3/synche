@@ -4,6 +4,7 @@
 package store
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,17 @@ import (
 
 	"github.com/theo/synche2/internal/protocol"
 )
+
+// ValidHash returns true if hash is a valid hex-encoded BLAKE3-256 hash.
+// This MUST be checked before using a hash in any filesystem path to prevent
+// path traversal attacks.
+func ValidHash(hash string) bool {
+	if len(hash) != protocol.HashSize*2 {
+		return false
+	}
+	_, err := hex.DecodeString(hash)
+	return err == nil
+}
 
 // Store is a content-addressable chunk store backed by the filesystem.
 type Store struct {
@@ -74,21 +86,16 @@ func (s *Store) HasBatch(hashes []string) []string {
 // Put stores a chunk. Returns (accepted=true) if the chunk was new,
 // (accepted=false) if it was a duplicate (no error in either case).
 func (s *Store) Put(hash string, data []byte) (bool, error) {
+	if !ValidHash(hash) {
+		return false, fmt.Errorf("invalid hash: %q", hash)
+	}
+
 	// Fast path: already have it.
 	if s.Has(hash) {
 		return false, nil
 	}
 
 	path := s.chunkPath(hash)
-
-	// Double-check with lock held to avoid races.
-	s.mu.Lock()
-	if _, ok := s.hashes[hash]; ok {
-		s.mu.Unlock()
-		return false, nil
-	}
-	s.hashes[hash] = struct{}{}
-	s.mu.Unlock()
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, fmt.Errorf("mkdir for chunk: %w", err)
@@ -97,24 +104,26 @@ func (s *Store) Put(hash string, data []byte) (bool, error) {
 	// Write atomically: write to tmp, then rename.
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		// Roll back the in-memory state.
-		s.mu.Lock()
-		delete(s.hashes, hash)
-		s.mu.Unlock()
 		return false, fmt.Errorf("write chunk: %w", err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		s.mu.Lock()
-		delete(s.hashes, hash)
-		s.mu.Unlock()
+		os.Remove(tmp) // best-effort cleanup
 		return false, fmt.Errorf("rename chunk: %w", err)
 	}
+
+	// Mark present in memory AFTER successful disk write.
+	s.mu.Lock()
+	s.hashes[hash] = struct{}{}
+	s.mu.Unlock()
 
 	return true, nil
 }
 
 // Get retrieves chunk data by hash. Returns os.ErrNotExist if not found.
 func (s *Store) Get(hash string) ([]byte, error) {
+	if !ValidHash(hash) {
+		return nil, fmt.Errorf("invalid hash: %q", hash)
+	}
 	path := s.chunkPath(hash)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -181,8 +190,23 @@ func (s *Store) ListManifests() ([]ManifestInfo, error) {
 	return results, nil
 }
 
+// ValidManifestID returns true if the ID is safe for use in a filepath
+// (no path separators, no .., not empty).
+func ValidManifestID(id string) bool {
+	if id == "" || id == "." || id == ".." {
+		return false
+	}
+	if strings.ContainsAny(id, "/\\") {
+		return false
+	}
+	return true
+}
+
 // LoadManifest reads a manifest by ID.
 func (s *Store) LoadManifest(id string) (*protocol.Manifest, error) {
+	if !ValidManifestID(id) {
+		return nil, fmt.Errorf("invalid manifest ID: %q", id)
+	}
 	path := filepath.Join(s.root, "manifests", id+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -203,8 +227,7 @@ func (s *Store) ReadChunk(hash string) ([]byte, error) {
 
 // Stats returns basic statistics about the store.
 type Stats struct {
-	TotalChunks int    `json:"total_chunks"`
-	StorePath   string `json:"store_path"`
+	TotalChunks int `json:"total_chunks"`
 }
 
 // Stats returns store statistics.
@@ -213,7 +236,6 @@ func (s *Store) Stats() Stats {
 	defer s.mu.RUnlock()
 	return Stats{
 		TotalChunks: len(s.hashes),
-		StorePath:   s.root,
 	}
 }
 
