@@ -46,28 +46,43 @@ scp is a raw SSH pipe with no checksumming or delta logic — it's the baseline 
 
 ```sh
 go build -o bin/synche-server ./cmd/synche-server
-./bin/synche-server --addr :8420 --store ./synche-store
+./bin/synche-server --addr :8420 --store ./synche-store --api-key YOUR_SECRET_KEY
 ```
 
-Uploaded files are browsable at `http://localhost:8420/webdav/`.
+Options:
+- `--addr` — listen address (default `:8420`)
+- `--store` — chunk store directory (default `./synche-store`)
+- `--api-key` — require API key for all requests (or set `SYNCHE_API_KEY` env var)
+- `--tls-cert` — path to TLS certificate file (enables HTTPS)
+- `--tls-key` — path to TLS private key file
+
+With TLS:
+```sh
+./bin/synche-server --addr :8420 --store ./synche-store \
+    --api-key YOUR_SECRET_KEY \
+    --tls-cert /path/to/cert.pem --tls-key /path/to/key.pem
+```
+
+Uploaded files are browsable at `http://localhost:8420/webdav/` (or `https://` with TLS).
 
 ### Client
 
 ```sh
 go build -o bin/synche-client ./cmd/synche-client
-./bin/synche-client --server http://localhost:8420 --source /path/to/file
+./bin/synche-client --server http://localhost:8420 --source /path/to/file --api-key YOUR_SECRET_KEY
 ```
 
 Options:
 - `--server` — server URL (default `http://localhost:8420`)
 - `--source` — file or block device to upload
-- `--concurrency` — parallel upload workers (default 20)
+- `--api-key` — API key for server authentication (or set `SYNCHE_API_KEY` env var)
+- `--concurrency` — parallel upload workers (default: number of CPUs)
 - `--no-cache` — disable local manifest cache
 
 ### Benchmark
 
 ```sh
-./benchmark.sh --server-host <ip> --rounds 3
+./benchmark.sh --server YOUR_SERVER_IP --rsync-mode ssh --ssh-user root --api-key YOUR_SECRET_KEY
 ```
 
 ## How it works

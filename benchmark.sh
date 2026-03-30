@@ -49,6 +49,8 @@ SSH_USER=""
 RSYNC_SSH_PATH="/tmp/rsync-bench"  # remote path for rsync over SSH
 SCP_PATH="/tmp/scp-bench"          # remote path for scp uploads
 SCP_ENABLED=true                   # scp benchmark (remote mode only)
+SYNCHE_API_KEY=""                   # API key for synche server (optional)
+SYNCHE_STORE="/var/lib/synche-store" # remote synche store directory
 
 # ---------------------------------------------------------------------------
 # Parse args
@@ -67,6 +69,8 @@ while [[ $# -gt 0 ]]; do
         --ssh-user)      SSH_USER="$2"; shift 2;;
         --scp-path)      SCP_PATH="$2"; shift 2;;
         --no-scp)        SCP_ENABLED=false; shift;;
+        --api-key)       SYNCHE_API_KEY="$2"; shift 2;;
+        --synche-store)  SYNCHE_STORE="$2"; shift 2;;
         --help|-h)
             cat <<EOF
 Usage: $0 [OPTIONS]
@@ -83,6 +87,8 @@ Options:
   --ssh-user USER    SSH user for remote rsync over SSH (default: current user)
   --scp-path PATH    Remote directory for scp uploads (default: /tmp/scp-bench)
   --no-scp           Disable scp benchmark
+  --api-key KEY      API key for synche server authentication
+  --synche-store DIR Remote synche store directory (default: /var/lib/synche-store)
   --setup-remote     Print remote server setup instructions and exit
   --help             Show this help
 EOF
@@ -187,9 +193,17 @@ fi
 if [[ -n "$SSH_USER" ]]; then
     RSYNC_SSH_TARGET="${SSH_USER}@${RSYNC_HOST}"
     SCP_SSH_TARGET="${SSH_USER}@${RSYNC_HOST}"
+    SYNCHE_SSH_TARGET="${SSH_USER}@${RSYNC_HOST}"
 else
     RSYNC_SSH_TARGET="${RSYNC_HOST}"
     SCP_SSH_TARGET="${RSYNC_HOST}"
+    SYNCHE_SSH_TARGET="${RSYNC_HOST}"
+fi
+
+# Build synche client API key flag.
+SYNCHE_API_KEY_FLAG=""
+if [[ -n "$SYNCHE_API_KEY" ]]; then
+    SYNCHE_API_KEY_FLAG="--api-key ${SYNCHE_API_KEY}"
 fi
 
 # Determine which rsync modes to run.
@@ -223,26 +237,66 @@ trap cleanup EXIT
 start_synche_server() {
     if [[ "$MODE" == "local" ]]; then
         rm -rf "${BENCH_DIR}/synche-store"
+        local api_key_flag=""
+        if [[ -n "$SYNCHE_API_KEY" ]]; then
+            api_key_flag="--api-key ${SYNCHE_API_KEY}"
+        fi
         "$SYNCHE_SERVER" --addr ":${SYNCHE_PORT}" --store "${BENCH_DIR}/synche-store" \
-            >/dev/null 2>&1 &
+            $api_key_flag >/dev/null 2>&1 &
         SYNCHE_PID=$!
         sleep 0.5
     fi
 }
 
-stop_synche_server() {
+reset_synche_server() {
     if [[ "$MODE" == "local" ]]; then
+        # Local: stop, wipe store, restart.
         kill "$SYNCHE_PID" 2>/dev/null || true
         wait "$SYNCHE_PID" 2>/dev/null || true
-        SYNCHE_PID=0
+        rm -rf "${BENCH_DIR}/synche-store"
+        local api_key_flag=""
+        if [[ -n "$SYNCHE_API_KEY" ]]; then
+            api_key_flag="--api-key ${SYNCHE_API_KEY}"
+        fi
+        "$SYNCHE_SERVER" --addr ":${SYNCHE_PORT}" --store "${BENCH_DIR}/synche-store" \
+            $api_key_flag >/dev/null 2>&1 &
+        SYNCHE_PID=$!
+        sleep 0.5
     fi
 }
 
-reset_synche_server() {
-    if ! curl -s -f -X POST "${SYNCHE_URL}/api/reset" -o /dev/null; then
-        echo "[error] failed to reset synche server at ${SYNCHE_URL}/api/reset"
-        exit 1
+# delete_synche_manifest <manifest_id>
+# Deletes a manifest and its orphaned chunks via the API.
+delete_synche_manifest() {
+    local id="$1"
+    if [[ -z "$id" ]]; then
+        return
     fi
+    local auth_header=""
+    if [[ -n "$SYNCHE_API_KEY" ]]; then
+        auth_header="Authorization: Bearer ${SYNCHE_API_KEY}"
+    fi
+    if ! curl -sf -X DELETE "${SYNCHE_URL}/api/manifest/${id}" \
+        ${auth_header:+-H "$auth_header"} -o /dev/null; then
+        echo "[warning] failed to delete manifest ${id}"
+    fi
+}
+
+# run_synche <source_file> [extra_args...]
+# Runs the synche client and prints the manifest ID to stdout.
+run_synche() {
+    local src="$1"
+    shift
+    local output
+    output=$("$SYNCHE_CLIENT" \
+        --source "$src" \
+        --server "$SYNCHE_URL" \
+        --cache-dir "${BENCH_DIR}/synche-cache" \
+        --concurrency "$CONCURRENCY" \
+        $SYNCHE_API_KEY_FLAG "$@" 2>&1)
+    local mid
+    mid=$(echo "$output" | grep -oP 'manifest ID:\s+\K\S+' || true)
+    echo "$mid"
 }
 
 start_rsync_daemon() {
@@ -375,6 +429,9 @@ fi
 if $SCP_ENABLED; then
 echo "  scp:          ${SCP_SSH_TARGET}:${SCP_PATH}"
 fi
+if [[ -n "$SYNCHE_API_KEY" ]]; then
+echo "  api key:      enabled"
+fi
 echo "  rounds:       ${ROUNDS}"
 echo "  data size:    ${SIZE_MB} MiB"
 echo "  concurrency:  ${CONCURRENCY}"
@@ -476,22 +533,24 @@ echo "  CASE 1: Fresh ${SIZE_MB} MiB upload (no data on server)"
 echo "================================================================="
 echo ""
 
+# In local mode, reset once for a clean slate.
+if [[ "$MODE" == "local" ]]; then
+    reset_synche_server
+fi
+
 for ((r=1; r<=ROUNDS; r++)); do
     echo "--- Round $r/$ROUNDS ---"
 
     # -- synche --
-    reset_synche_server
     rm -rf "${BENCH_DIR}/synche-cache"
     t_start=$(date +%s%N)
-    "$SYNCHE_CLIENT" \
-        --source "${BENCH_DIR}/source-full" \
-        --server "$SYNCHE_URL" \
-        --cache-dir "${BENCH_DIR}/synche-cache" \
-        --concurrency "$CONCURRENCY"
+    manifest_id=$(run_synche "${BENCH_DIR}/source-full")
     t_end=$(date +%s%N)
     synche_ms=$(( (t_end - t_start) / 1000000 ))
     CASE1_SYNCHE+=("$synche_ms")
     echo "  >> synche:          ${synche_ms} ms"
+    # Clean up: delete manifest and orphaned chunks via API.
+    delete_synche_manifest "$manifest_id"
 
     # -- rsync (each mode) --
     for rmode in "${RSYNC_MODES[@]}"; do
@@ -532,28 +591,31 @@ echo "  CASE 2: ${SIZE_MB} MiB upload (${HALF_MB} MiB already on server)"
 echo "================================================================="
 echo ""
 
+# In local mode, reset once for a clean slate before Case 2.
+if [[ "$MODE" == "local" ]]; then
+    reset_synche_server
+fi
+
 for ((r=1; r<=ROUNDS; r++)); do
     echo "--- Round $r/$ROUNDS ---"
 
     # -- synche: pre-populate server with the first half --
-    reset_synche_server
     rm -rf "${BENCH_DIR}/synche-cache"
-    "$SYNCHE_CLIENT" \
-        --source "${BENCH_DIR}/preexist-half" \
-        --server "$SYNCHE_URL" \
-        --cache-dir "${BENCH_DIR}/synche-cache" \
-        --concurrency "$CONCURRENCY" 2>/dev/null
+    pre_manifest_id=$(run_synche "${BENCH_DIR}/preexist-half")
+    # Clear local cache so the timed upload can't skip hashing.
     rm -rf "${BENCH_DIR}/synche-cache"
+    # Timed: upload case-2 source (half overlaps with pre-existing chunks).
     t_start=$(date +%s%N)
-    "$SYNCHE_CLIENT" \
-        --source "${BENCH_DIR}/source-case2" \
-        --server "$SYNCHE_URL" \
-        --cache-dir "${BENCH_DIR}/synche-cache" \
-        --concurrency "$CONCURRENCY"
+    case2_manifest_id=$(run_synche "${BENCH_DIR}/source-case2")
     t_end=$(date +%s%N)
     synche_ms=$(( (t_end - t_start) / 1000000 ))
     CASE2_SYNCHE+=("$synche_ms")
     echo "  >> synche:          ${synche_ms} ms"
+    # Clean up: delete both manifests (order matters — delete case2 first
+    # so its unique chunks are orphaned, then delete preexist which cleans
+    # up the shared chunks).
+    delete_synche_manifest "$case2_manifest_id"
+    delete_synche_manifest "$pre_manifest_id"
 
     # -- rsync (each mode): pre-populate, then delta sync --
     for rmode in "${RSYNC_MODES[@]}"; do

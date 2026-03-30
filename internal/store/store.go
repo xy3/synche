@@ -248,29 +248,82 @@ func (s *Store) chunkPath(hash string) string {
 	return filepath.Join(s.root, "chunks", hash[:2], hash[2:4], hash)
 }
 
-// Reset wipes all chunks and manifests from the store.
-func (s *Store) Reset() error {
+// DeleteManifest removes a manifest by ID. The chunks it referenced are NOT
+// deleted because they may be shared by other manifests.
+func (s *Store) DeleteManifest(id string) error {
+	if !ValidManifestID(id) {
+		return fmt.Errorf("invalid manifest ID: %q", id)
+	}
+	path := filepath.Join(s.root, "manifests", id+".json")
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("remove manifest: %w", err)
+	}
+	return nil
+}
+
+// DeleteManifestAndOrphanedChunks removes a manifest and any chunks that are
+// no longer referenced by any remaining manifest. Returns the number of
+// orphaned chunks deleted.
+func (s *Store) DeleteManifestAndOrphanedChunks(id string) (int, error) {
+	if !ValidManifestID(id) {
+		return 0, fmt.Errorf("invalid manifest ID: %q", id)
+	}
+
+	// Load the target manifest to know which chunks it references.
+	target, err := s.LoadManifest(id)
+	if err != nil {
+		return 0, fmt.Errorf("load manifest to delete: %w", err)
+	}
+
+	targetHashes := make(map[string]struct{}, len(target.Chunks))
+	for _, c := range target.Chunks {
+		targetHashes[c.Hash] = struct{}{}
+	}
+
+	// Collect hashes referenced by all OTHER manifests.
+	allManifests, err := s.ListManifests()
+	if err != nil {
+		return 0, fmt.Errorf("list manifests: %w", err)
+	}
+
+	referenced := make(map[string]struct{})
+	for _, info := range allManifests {
+		if info.ID == id {
+			continue // skip the one we're deleting
+		}
+		m, err := s.LoadManifest(info.ID)
+		if err != nil {
+			continue // skip unreadable manifests
+		}
+		for _, c := range m.Chunks {
+			referenced[c.Hash] = struct{}{}
+		}
+	}
+
+	// Delete the manifest file first.
+	manifestPath := filepath.Join(s.root, "manifests", id+".json")
+	if err := os.Remove(manifestPath); err != nil {
+		return 0, fmt.Errorf("remove manifest: %w", err)
+	}
+
+	// Delete orphaned chunks (in target but not referenced by others).
+	deleted := 0
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	chunkDir := filepath.Join(s.root, "chunks")
-	manifestDir := filepath.Join(s.root, "manifests")
-
-	if err := os.RemoveAll(chunkDir); err != nil {
-		return fmt.Errorf("remove chunks: %w", err)
-	}
-	if err := os.RemoveAll(manifestDir); err != nil {
-		return fmt.Errorf("remove manifests: %w", err)
-	}
-	if err := os.MkdirAll(chunkDir, 0o755); err != nil {
-		return fmt.Errorf("recreate chunks dir: %w", err)
-	}
-	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
-		return fmt.Errorf("recreate manifests dir: %w", err)
+	for hash := range targetHashes {
+		if _, shared := referenced[hash]; shared {
+			continue // still referenced by another manifest
+		}
+		path := s.chunkPath(hash)
+		if err := os.Remove(path); err != nil {
+			continue // best-effort: chunk may already be gone
+		}
+		delete(s.hashes, hash)
+		deleted++
 	}
 
-	s.hashes = make(map[string]struct{})
-	return nil
+	return deleted, nil
 }
 
 // loadIndex scans the chunk directory and populates the in-memory hash set.

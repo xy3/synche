@@ -18,6 +18,7 @@ func main() {
 	probeBatch := flag.Int("probe-batch", 512, "number of hashes per probe request")
 	cacheDir := flag.String("cache-dir", "", "manifest cache directory (default: ~/.cache/synche)")
 	noCache := flag.Bool("no-cache", false, "disable local manifest caching")
+	apiKey := flag.String("api-key", "", "API key for server authentication (or set SYNCHE_API_KEY env var)")
 
 	// Keep --device as an alias for backwards compat.
 	device := flag.String("device", "", "alias for --source")
@@ -38,6 +39,12 @@ func main() {
 	}
 	f.Close()
 
+	// API key from flag takes precedence, then env var.
+	key := *apiKey
+	if key == "" {
+		key = os.Getenv("SYNCHE_API_KEY")
+	}
+
 	cfg := client.Config{
 		ServerURL:   *serverURL,
 		DevicePath:  src,
@@ -45,6 +52,7 @@ func main() {
 		ProbeBatch:  *probeBatch,
 		CacheDir:    *cacheDir,
 		NoCache:     *noCache,
+		APIKey:      key,
 	}
 
 	log.Printf("synche client starting")

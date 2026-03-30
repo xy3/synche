@@ -47,16 +47,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handlePropfind(w, r, vpath)
 	case "GET", "HEAD":
 		h.handleGet(w, r, vpath)
+	case "DELETE":
+		h.handleDelete(w, r, vpath)
 	default:
-		// Read-only: reject writes.
-		w.Header().Set("Allow", "OPTIONS, PROPFIND, GET, HEAD")
-		http.Error(w, "method not allowed (read-only WebDAV)", http.StatusMethodNotAllowed)
+		w.Header().Set("Allow", "OPTIONS, PROPFIND, GET, HEAD, DELETE")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 // handleOptions returns DAV capabilities.
 func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Allow", "OPTIONS, PROPFIND, GET, HEAD")
+	w.Header().Set("Allow", "OPTIONS, PROPFIND, GET, HEAD, DELETE")
 	w.Header().Set("DAV", "1")
 	w.WriteHeader(http.StatusOK)
 }
@@ -149,6 +150,39 @@ func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request, vpath string
 			return // client disconnected
 		}
 	}
+}
+
+// handleDelete removes a manifest and its orphaned chunks.
+func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request, vpath string) {
+	filename := strings.TrimPrefix(path.Clean(vpath), "/")
+	if filename == "" || filename == "." || filename == "/" {
+		// Cannot delete the root collection.
+		http.Error(w, "cannot delete root collection", http.StatusForbidden)
+		return
+	}
+
+	manifests, err := h.store.ListManifests()
+	if err != nil {
+		log.Printf("webdav: list manifests for delete: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	info := h.findManifest(manifests, filename)
+	if info == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	deleted, err := h.store.DeleteManifestAndOrphanedChunks(info.ID)
+	if err != nil {
+		log.Printf("webdav: delete manifest %s: %v", info.ID, err)
+		http.Error(w, "delete failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("webdav: deleted manifest %s (%d orphaned chunks removed)", info.ID, deleted)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleDirectoryListing returns a simple HTML page listing files.

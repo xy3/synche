@@ -33,6 +33,7 @@ type Config struct {
 	ProbeBatch  int    // how many hashes to send per probe request
 	CacheDir    string // local manifest cache dir (empty = ~/.cache/synche)
 	NoCache     bool   // disable local caching
+	APIKey      string // API key for server authentication (empty = no auth)
 }
 
 // Stats tracks upload progress.
@@ -77,6 +78,13 @@ func NewUploader(cfg Config) *Uploader {
 			},
 		},
 		stats: Stats{StartTime: time.Now()},
+	}
+}
+
+// setAuth adds the Authorization header to a request if an API key is configured.
+func (u *Uploader) setAuth(req *http.Request) {
+	if u.cfg.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+u.cfg.APIKey)
 	}
 }
 
@@ -356,7 +364,14 @@ func (u *Uploader) probe(hashes []string) ([]string, error) {
 		return nil, err
 	}
 
-	resp, err := u.http.Post(u.cfg.ServerURL+"/api/probe", "application/json", bytes.NewReader(reqBody))
+	req, err := http.NewRequest(http.MethodPost, u.cfg.ServerURL+"/api/probe", bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	u.setAuth(req)
+
+	resp, err := u.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("probe request: %w", err)
 	}
@@ -382,6 +397,7 @@ func (u *Uploader) uploadChunk(hash string, data []byte) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
+	u.setAuth(req)
 
 	resp, err := u.http.Do(req)
 	if err != nil {
@@ -407,15 +423,22 @@ func (u *Uploader) uploadManifest(m *protocol.Manifest) (string, error) {
 		return "", err
 	}
 
-	resp, err := u.http.Post(u.cfg.ServerURL+"/api/manifest", "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, u.cfg.ServerURL+"/api/manifest", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	u.setAuth(req)
+
+	resp, err := u.http.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("manifest request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("manifest returned %d: %s", resp.StatusCode, body)
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("manifest returned %d: %s", resp.StatusCode, respBody)
 	}
 
 	var mResp protocol.ManifestUploadResponse

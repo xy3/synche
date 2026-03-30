@@ -2,6 +2,8 @@
 package server
 
 import (
+	"crypto/subtle"
+	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/theo/synche2/internal/protocol"
 	"github.com/theo/synche2/internal/store"
@@ -25,52 +28,137 @@ const (
 	maxBatchBodySize = 1 << 30
 )
 
-// Server is the chunk storage HTTP server.
-type Server struct {
-	store *store.Store
-	mux   *http.ServeMux
-	addr  string
+// Config holds server configuration.
+type Config struct {
+	Addr      string // listen address (e.g. ":8420")
+	StorePath string // path to chunk store directory
+	APIKey    string // required API key (empty = no auth)
+	TLSCert   string // path to TLS certificate file (empty = plain HTTP)
+	TLSKey    string // path to TLS private key file
 }
 
-// New creates a new server that listens on addr and stores chunks in storePath.
-func New(addr, storePath string) (*Server, error) {
-	s, err := store.New(storePath)
+// Server is the chunk storage HTTP server.
+type Server struct {
+	store  *store.Store
+	mux    *http.ServeMux
+	config Config
+}
+
+// New creates a new server with the given configuration.
+func New(cfg Config) (*Server, error) {
+	s, err := store.New(cfg.StorePath)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}
 
 	srv := &Server{
-		store: s,
-		mux:   http.NewServeMux(),
-		addr:  addr,
+		store:  s,
+		mux:    http.NewServeMux(),
+		config: cfg,
 	}
 	srv.routes()
 	return srv, nil
 }
 
-// ListenAndServe starts the HTTP server.
+// ListenAndServe starts the HTTP or HTTPS server.
 func (s *Server) ListenAndServe() error {
-	log.Printf("synche server listening on %s", s.addr)
+	log.Printf("synche server listening on %s", s.config.Addr)
 	stats := s.store.Stats()
 	log.Printf("store: %d existing chunks", stats.TotalChunks)
-	log.Printf("webdav available at http://%s/webdav/", s.addr)
-	return http.ListenAndServe(s.addr, s.mux)
+	if s.config.APIKey != "" {
+		log.Printf("api key: enabled")
+	} else {
+		log.Printf("api key: disabled (WARNING: no authentication)")
+	}
+
+	if s.config.TLSCert != "" && s.config.TLSKey != "" {
+		log.Printf("tls: enabled")
+		log.Printf("webdav available at https://%s/webdav/", s.config.Addr)
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+		server := &http.Server{
+			Addr:      s.config.Addr,
+			Handler:   s.mux,
+			TLSConfig: tlsConfig,
+		}
+		return server.ListenAndServeTLS(s.config.TLSCert, s.config.TLSKey)
+	}
+
+	log.Printf("tls: disabled (WARNING: traffic is unencrypted)")
+	log.Printf("webdav available at http://%s/webdav/", s.config.Addr)
+	return http.ListenAndServe(s.config.Addr, s.mux)
 }
 
 func (s *Server) routes() {
-	s.mux.HandleFunc("POST /api/probe", s.handleProbe)
-	s.mux.HandleFunc("PUT /api/chunk/{hash}", s.handleUploadChunk)
-	s.mux.HandleFunc("GET /api/chunk/{hash}", s.handleGetChunk)
-	s.mux.HandleFunc("POST /api/upload-batch", s.handleBatchUpload)
-	s.mux.HandleFunc("POST /api/manifest", s.handleUploadManifest)
-	s.mux.HandleFunc("POST /api/reset", s.handleReset)
-	s.mux.HandleFunc("GET /api/stats", s.handleStats)
+	// Health check — always unauthenticated.
 	s.mux.HandleFunc("GET /api/health", s.handleHealth)
 
+	// All other API endpoints require authentication.
+	s.mux.HandleFunc("POST /api/probe", s.requireAuth(s.handleProbe))
+	s.mux.HandleFunc("PUT /api/chunk/{hash}", s.requireAuth(s.handleUploadChunk))
+	s.mux.HandleFunc("GET /api/chunk/{hash}", s.requireAuth(s.handleGetChunk))
+	s.mux.HandleFunc("POST /api/upload-batch", s.requireAuth(s.handleBatchUpload))
+	s.mux.HandleFunc("POST /api/manifest", s.requireAuth(s.handleUploadManifest))
+	s.mux.HandleFunc("DELETE /api/manifest/{id}", s.requireAuth(s.handleDeleteManifest))
+	s.mux.HandleFunc("GET /api/stats", s.requireAuth(s.handleStats))
+
 	// WebDAV: read-only virtual filesystem of uploaded files.
+	// Authenticated so files aren't publicly browsable.
 	dav := webdav.New(s.store, "/webdav")
-	s.mux.Handle("/webdav/", dav)
+	s.mux.Handle("/webdav/", s.requireAuthHandler(dav))
 	s.mux.Handle("/webdav", http.RedirectHandler("/webdav/", http.StatusMovedPermanently))
+}
+
+// requireAuth wraps a handler function with API key authentication.
+// If no API key is configured, all requests are allowed.
+func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.checkAuth(w, r) {
+			return
+		}
+		next(w, r)
+	}
+}
+
+// requireAuthHandler wraps an http.Handler with API key authentication.
+func (s *Server) requireAuthHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.checkAuth(w, r) {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// checkAuth validates the Authorization header. Returns true if the request
+// is authorized, false if it was rejected (and a 401 was written).
+func (s *Server) checkAuth(w http.ResponseWriter, r *http.Request) bool {
+	if s.config.APIKey == "" {
+		return true // no auth configured
+	}
+
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="synche"`)
+		http.Error(w, "missing authorization header", http.StatusUnauthorized)
+		return false
+	}
+
+	// Expect "Bearer <key>"
+	const prefix = "Bearer "
+	if !strings.HasPrefix(auth, prefix) {
+		http.Error(w, "invalid authorization format (expected: Bearer <key>)", http.StatusUnauthorized)
+		return false
+	}
+	token := auth[len(prefix):]
+
+	if subtle.ConstantTimeCompare([]byte(token), []byte(s.config.APIKey)) != 1 {
+		http.Error(w, "invalid api key", http.StatusUnauthorized)
+		return false
+	}
+
+	return true
 }
 
 // handleProbe accepts a list of hashes and returns which ones the server needs.
@@ -253,14 +341,21 @@ func (s *Server) handleBatchUpload(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// handleReset wipes all chunks and manifests from the store.
-func (s *Server) handleReset(w http.ResponseWriter, r *http.Request) {
-	log.Println("resetting store...")
-	if err := s.store.Reset(); err != nil {
-		http.Error(w, "reset failed: "+err.Error(), http.StatusInternalServerError)
+// handleDeleteManifest deletes a manifest by ID and removes any chunks that
+// are no longer referenced by any remaining manifest.
+func (s *Server) handleDeleteManifest(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !store.ValidManifestID(id) {
+		http.Error(w, "invalid manifest ID", http.StatusBadRequest)
 		return
 	}
-	log.Println("store reset complete")
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"reset"}`))
+
+	deleted, err := s.store.DeleteManifestAndOrphanedChunks(id)
+	if err != nil {
+		http.Error(w, "delete manifest: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	log.Printf("deleted manifest %s (%d orphaned chunks removed)", id, deleted)
+	w.WriteHeader(http.StatusNoContent)
 }
