@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -135,6 +136,69 @@ func (s *Store) SaveManifest(m *protocol.Manifest) (string, error) {
 		return "", err
 	}
 	return id, nil
+}
+
+// ManifestInfo holds metadata about a stored manifest.
+type ManifestInfo struct {
+	ID         string    // manifest ID (filename without .json)
+	Name       string    // source device/file basename
+	TotalBytes uint64    // total size of the original file
+	NumChunks  int       // number of chunks
+	ModTime    time.Time // when the manifest was saved
+}
+
+// ListManifests returns info about all stored manifests.
+func (s *Store) ListManifests() ([]ManifestInfo, error) {
+	manifestDir := filepath.Join(s.root, "manifests")
+	entries, err := os.ReadDir(manifestDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []ManifestInfo
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		id := strings.TrimSuffix(e.Name(), ".json")
+		m, err := s.LoadManifest(id)
+		if err != nil {
+			continue
+		}
+		info, _ := e.Info()
+		modTime := time.Time{}
+		if info != nil {
+			modTime = info.ModTime()
+		}
+		results = append(results, ManifestInfo{
+			ID:         id,
+			Name:       filepath.Base(m.SourceDevice),
+			TotalBytes: m.TotalBytes,
+			NumChunks:  len(m.Chunks),
+			ModTime:    modTime,
+		})
+	}
+	return results, nil
+}
+
+// LoadManifest reads a manifest by ID.
+func (s *Store) LoadManifest(id string) (*protocol.Manifest, error) {
+	path := filepath.Join(s.root, "manifests", id+".json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var m protocol.Manifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// ReadChunk reads a chunk and writes it to the given writer. This is used
+// for streaming reassembly without loading the entire chunk into memory.
+func (s *Store) ReadChunk(hash string) ([]byte, error) {
+	return s.Get(hash)
 }
 
 // Stats returns basic statistics about the store.

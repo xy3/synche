@@ -12,6 +12,7 @@ import (
 
 	"github.com/theo/synche2/internal/protocol"
 	"github.com/theo/synche2/internal/store"
+	"github.com/theo/synche2/internal/webdav"
 	"github.com/zeebo/blake3"
 )
 
@@ -43,6 +44,7 @@ func (s *Server) ListenAndServe() error {
 	log.Printf("synche server listening on %s", s.addr)
 	stats := s.store.Stats()
 	log.Printf("store: %s (%d existing chunks)", stats.StorePath, stats.TotalChunks)
+	log.Printf("webdav available at http://%s/webdav/", s.addr)
 	return http.ListenAndServe(s.addr, s.mux)
 }
 
@@ -55,6 +57,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/reset", s.handleReset)
 	s.mux.HandleFunc("GET /api/stats", s.handleStats)
 	s.mux.HandleFunc("GET /api/health", s.handleHealth)
+
+	// WebDAV: read-only virtual filesystem of uploaded files.
+	dav := webdav.New(s.store, "/webdav")
+	s.mux.Handle("/webdav/", dav)
+	s.mux.Handle("/webdav", http.RedirectHandler("/webdav/", http.StatusMovedPermanently))
 }
 
 // handleProbe accepts a list of hashes and returns which ones the server needs.
