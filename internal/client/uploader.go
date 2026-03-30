@@ -60,7 +60,7 @@ func NewUploader(cfg Config) *Uploader {
 	return &Uploader{
 		cfg: cfg,
 		http: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 120 * time.Second,
 			Transport: &http.Transport{
 				MaxIdleConns:        cfg.Concurrency * 2,
 				MaxIdleConnsPerHost: cfg.Concurrency * 2,
@@ -81,7 +81,7 @@ type pendingChunk struct {
 // 1. Load cached manifest (if any)
 // 2. Read raw blocks from device + hash with BLAKE3
 // 3. Compare each chunk hash against cache — skip if unchanged
-// 4. Stream chunks directly to upload workers (fresh run) or probe+upload (repeat run)
+// 4. Probe server in small concurrent batches, upload needed chunks
 // 5. Save updated manifest to cache
 // 6. Upload the final manifest to server
 func (u *Uploader) Run() error {
@@ -145,6 +145,25 @@ func (u *Uploader) Run() error {
 		}()
 	}
 
+	// Concurrent probe+upload pipeline: probe batches are dispatched to a
+	// pool of goroutines so probing one batch doesn't block reading or
+	// uploading of other batches.
+	probeCh := make(chan []pendingChunk, u.cfg.Concurrency)
+	var probeWg sync.WaitGroup
+	probeWorkers := u.cfg.Concurrency
+	if probeWorkers > 4 {
+		probeWorkers = 4
+	}
+	for i := 0; i < probeWorkers; i++ {
+		probeWg.Add(1)
+		go func() {
+			defer probeWg.Done()
+			for batch := range probeCh {
+				u.probeAndUpload(batch, uploadCh)
+			}
+		}()
+	}
+
 	// Progress reporter.
 	done := make(chan struct{})
 	go func() {
@@ -160,55 +179,46 @@ func (u *Uploader) Run() error {
 		}
 	}()
 
-	// Decide strategy based on whether we have a cache.
-	// Fresh run (no cache): stream chunks directly to upload workers — no probing.
-	// Repeat run (has cache): skip cached chunks, probe+upload changed ones in batches.
-	hasCachedData := cached != nil && len(cached.Hashes) > 0
+	// Use smaller probe batches to keep the pipeline flowing.
+	probeBatchSize := u.cfg.Concurrency * 2
+	if probeBatchSize > u.cfg.ProbeBatch {
+		probeBatchSize = u.cfg.ProbeBatch
+	}
 
-	if hasCachedData {
-		// REPEAT RUN: use probe batching for changed chunks.
-		var batch []pendingChunk
+	var batch []pendingChunk
 
-		for result := range results {
-			atomic.AddInt64(&u.stats.TotalChunks, 1)
-			atomic.AddInt64(&u.stats.BytesRead, int64(result.Meta.Size))
+	for result := range results {
+		atomic.AddInt64(&u.stats.TotalChunks, 1)
+		atomic.AddInt64(&u.stats.BytesRead, int64(result.Meta.Size))
 
-			metaMu.Lock()
-			allMeta = append(allMeta, result.Meta)
-			metaMu.Unlock()
+		metaMu.Lock()
+		allMeta = append(allMeta, result.Meta)
+		metaMu.Unlock()
 
-			// Cache check: skip unchanged chunks.
+		// Cache check: skip unchanged chunks entirely.
+		if cached != nil {
 			if cachedHash, ok := cached.Hashes[result.Meta.Index]; ok && cachedHash == result.Meta.Hash {
 				atomic.AddInt64(&u.stats.SkippedCache, 1)
 				continue
 			}
-
-			batch = append(batch, pendingChunk{meta: result.Meta, data: result.Data})
-
-			if len(batch) >= u.cfg.ProbeBatch {
-				u.processBatch(batch, uploadCh)
-				batch = nil
-			}
 		}
-		// Flush remaining.
-		u.processBatch(batch, uploadCh)
-	} else {
-		// FRESH RUN: stream directly to upload workers, no probing overhead.
-		// Each chunk goes straight from hash pipeline → upload worker.
-		for result := range results {
-			atomic.AddInt64(&u.stats.TotalChunks, 1)
-			atomic.AddInt64(&u.stats.BytesRead, int64(result.Meta.Size))
 
-			metaMu.Lock()
-			allMeta = append(allMeta, result.Meta)
-			metaMu.Unlock()
+		batch = append(batch, pendingChunk{meta: result.Meta, data: result.Data})
 
-			// Send directly to upload workers — no probe delay.
-			uploadCh <- pendingChunk{meta: result.Meta, data: result.Data}
+		if len(batch) >= probeBatchSize {
+			probeCh <- batch
+			batch = nil
 		}
 	}
 
-	// Wait for all uploads to finish.
+	// Flush remaining batch.
+	if len(batch) > 0 {
+		probeCh <- batch
+	}
+
+	// Wait for all probes to complete, then all uploads.
+	close(probeCh)
+	probeWg.Wait()
 	close(uploadCh)
 	uploadWg.Wait()
 	close(done)
@@ -235,21 +245,21 @@ func (u *Uploader) Run() error {
 	return nil
 }
 
-// processBatch probes the server for which chunks are needed, then uploads them.
-func (u *Uploader) processBatch(batch []pendingChunk, uploadCh chan<- pendingChunk) {
+// probeAndUpload probes the server for which chunks in the batch are needed,
+// then sends only those to the upload channel.
+func (u *Uploader) probeAndUpload(batch []pendingChunk, uploadCh chan<- pendingChunk) {
 	if len(batch) == 0 {
 		return
 	}
 
 	hashes := make([]string, len(batch))
-	hashToChunk := make(map[string]pendingChunk, len(batch))
 	for i, pc := range batch {
 		hashes[i] = pc.meta.Hash
-		hashToChunk[pc.meta.Hash] = pc
 	}
 
 	needed, err := u.probe(hashes)
 	if err != nil {
+		// Probe failed — upload everything (server will reject dupes).
 		log.Printf("probe failed, uploading all %d chunks: %v", len(batch), err)
 		for _, pc := range batch {
 			uploadCh <- pc
@@ -313,10 +323,13 @@ func (u *Uploader) uploadChunk(hash string, data []byte) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	// Accept both 200 OK and 204 No Content as success.
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("upload returned %d: %s", resp.StatusCode, body)
 	}
+	// Drain body to allow connection reuse.
+	io.Copy(io.Discard, resp.Body)
 
 	return nil
 }

@@ -47,3 +47,10 @@ type ManifestUploadResponse struct {
 	ID    string `json:"id"` // server-assigned manifest ID
 	Error string `json:"error,omitempty"`
 }
+
+// BatchUploadResponse is returned after a batch upload.
+type BatchUploadResponse struct {
+	Accepted int `json:"accepted"` // number of new chunks stored
+	Skipped  int `json:"skipped"`  // number of chunks server already had
+	Failed   int `json:"failed"`   // number of chunks that failed
+}

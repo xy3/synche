@@ -2,6 +2,7 @@
 package server
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -49,6 +50,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/probe", s.handleProbe)
 	s.mux.HandleFunc("PUT /api/chunk/{hash}", s.handleUploadChunk)
 	s.mux.HandleFunc("GET /api/chunk/{hash}", s.handleGetChunk)
+	s.mux.HandleFunc("POST /api/upload-batch", s.handleBatchUpload)
 	s.mux.HandleFunc("POST /api/manifest", s.handleUploadManifest)
 	s.mux.HandleFunc("POST /api/reset", s.handleReset)
 	s.mux.HandleFunc("GET /api/stats", s.handleStats)
@@ -81,11 +83,7 @@ func (s *Server) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	// Fast reject: already have it.
 	if s.store.Has(hash) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(protocol.UploadResponse{
-			Hash:     hash,
-			Accepted: false,
-		})
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -108,17 +106,12 @@ func (s *Server) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accepted, err := s.store.Put(hash, data)
-	if err != nil {
+	if _, err := s.store.Put(hash, data); err != nil {
 		http.Error(w, "store chunk: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(protocol.UploadResponse{
-		Hash:     hash,
-		Accepted: accepted,
-	})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleGetChunk retrieves a chunk by hash.
@@ -161,6 +154,80 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status":"ok"}`))
+}
+
+// handleBatchUpload receives multiple chunks in a single request.
+// Binary wire format: [64-byte hex hash][4-byte big-endian size][data bytes]...
+// The server checks each chunk, stores new ones, skips duplicates.
+func (s *Server) handleBatchUpload(w http.ResponseWriter, r *http.Request) {
+	var resp protocol.BatchUploadResponse
+	hashBuf := make([]byte, protocol.HashSize*2) // 64 hex chars
+	sizeBuf := make([]byte, 4)
+	hasher := blake3.New()
+
+	for {
+		// Read hash (64 hex bytes).
+		if _, err := io.ReadFull(r.Body, hashBuf); err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				break // end of stream
+			}
+			http.Error(w, "read hash: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		hash := string(hashBuf)
+
+		// Read size (4 bytes big-endian).
+		if _, err := io.ReadFull(r.Body, sizeBuf); err != nil {
+			http.Error(w, "read size: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		size := binary.BigEndian.Uint32(sizeBuf)
+		if size > uint32(protocol.ChunkSize) {
+			http.Error(w, "chunk too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		// If server already has it, skip the data bytes.
+		if s.store.Has(hash) {
+			if _, err := io.CopyN(io.Discard, r.Body, int64(size)); err != nil {
+				http.Error(w, "skip data: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			resp.Skipped++
+			continue
+		}
+
+		// Read data.
+		data := make([]byte, size)
+		if _, err := io.ReadFull(r.Body, data); err != nil {
+			http.Error(w, "read data: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Verify hash.
+		hasher.Reset()
+		hasher.Write(data)
+		computed := hex.EncodeToString(hasher.Sum(nil))
+		if computed != hash {
+			resp.Failed++
+			continue
+		}
+
+		// Store.
+		accepted, err := s.store.Put(hash, data)
+		if err != nil {
+			resp.Failed++
+			continue
+		}
+		if accepted {
+			resp.Accepted++
+		} else {
+			resp.Skipped++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 // handleReset wipes all chunks and manifests from the store.
