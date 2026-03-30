@@ -14,7 +14,7 @@ A concurrent, deduplicated file upload system written in Go. Reads raw data from
 
 ## Benchmark
 
-Tested against a remote server (YOUR_SERVER_IP), 100 MiB of deterministic data, averaged over 3 rounds:
+Tested against a remote server, 100 MiB of deterministic data, averaged over 3 rounds:
 
 ```
                                              synche      rsync(ssh)             scp
