@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 #
-# benchmark.sh — Compare synche vs rsync for two scenarios:
+# benchmark.sh — Compare synche vs rsync vs scp for two scenarios:
 #   Case 1: Upload 100MB of data that doesn't exist on the server
 #   Case 2: Upload 100MB of data where 50MB already exists on the server
+#
+# scp is included in remote mode to provide a baseline for raw SSH transfer
+# speed (no checksumming or delta logic). Use --no-scp to disable.
 #
 # This script is fully repeatable: deterministic data, clean state each run.
 #
@@ -44,6 +47,8 @@ BENCHDATA="${SCRIPT_DIR}/bin/benchdata"
 SETUP_REMOTE=false
 SSH_USER=""
 RSYNC_SSH_PATH="/tmp/rsync-bench"  # remote path for rsync over SSH
+SCP_PATH="/tmp/scp-bench"          # remote path for scp uploads
+SCP_ENABLED=true                   # scp benchmark (remote mode only)
 
 # ---------------------------------------------------------------------------
 # Parse args
@@ -60,6 +65,8 @@ while [[ $# -gt 0 ]]; do
         --size)          SIZE_MB="$2"; HALF_MB=$(($2 / 2)); shift 2;;
         --setup-remote)  SETUP_REMOTE=true; shift;;
         --ssh-user)      SSH_USER="$2"; shift 2;;
+        --scp-path)      SCP_PATH="$2"; shift 2;;
+        --no-scp)        SCP_ENABLED=false; shift;;
         --help|-h)
             cat <<EOF
 Usage: $0 [OPTIONS]
@@ -74,6 +81,8 @@ Options:
   --concurrency N    Synche upload concurrency (default: 8)
   --size N           Total data size in MiB (default: 100)
   --ssh-user USER    SSH user for remote rsync over SSH (default: current user)
+  --scp-path PATH    Remote directory for scp uploads (default: /tmp/scp-bench)
+  --no-scp           Disable scp benchmark
   --setup-remote     Print remote server setup instructions and exit
   --help             Show this help
 EOF
@@ -164,6 +173,10 @@ if [[ -z "$SERVER_HOST" ]]; then
         echo "[warning] --rsync-mode both not supported in local mode, using daemon"
         RSYNC_MODE="daemon"
     fi
+    if $SCP_ENABLED; then
+        echo "[warning] scp benchmark not supported in local mode, disabling"
+        SCP_ENABLED=false
+    fi
 else
     MODE="remote"
     SYNCHE_URL="http://${SERVER_HOST}:${SYNCHE_PORT}"
@@ -173,8 +186,10 @@ fi
 # Build SSH target.
 if [[ -n "$SSH_USER" ]]; then
     RSYNC_SSH_TARGET="${SSH_USER}@${RSYNC_HOST}"
+    SCP_SSH_TARGET="${SSH_USER}@${RSYNC_HOST}"
 else
     RSYNC_SSH_TARGET="${RSYNC_HOST}"
+    SCP_SSH_TARGET="${RSYNC_HOST}"
 fi
 
 # Determine which rsync modes to run.
@@ -318,6 +333,17 @@ rsync_mode_label() {
     esac
 }
 
+# scp_reset — remove all files in the scp destination directory.
+scp_reset() {
+    ssh "${SCP_SSH_TARGET}" "rm -rf ${SCP_PATH}/* ${SCP_PATH}/.[!.]*" 2>/dev/null || true
+}
+
+# scp_send <src_file> <dest_name>
+scp_send() {
+    local src="$1" dest_name="$2"
+    scp -q "$src" "${SCP_SSH_TARGET}:${SCP_PATH}/${dest_name}"
+}
+
 check_server() {
     local label="$1"
     local url="$2"
@@ -332,7 +358,7 @@ check_server() {
 # Setup
 # ---------------------------------------------------------------------------
 echo "================================================================="
-echo "  synche vs rsync benchmark"
+echo "  synche vs rsync vs scp benchmark"
 echo "================================================================="
 echo "  mode:         ${MODE}"
 if [[ "$MODE" == "remote" ]]; then
@@ -345,6 +371,9 @@ echo "  rsync daemon: ${RSYNC_HOST}:${RSYNC_PORT}"
 fi
 if [[ " ${RSYNC_MODES[*]} " =~ " ssh " ]]; then
 echo "  rsync ssh:    ${RSYNC_SSH_TARGET}:${RSYNC_SSH_PATH}"
+fi
+if $SCP_ENABLED; then
+echo "  scp:          ${SCP_SSH_TARGET}:${SCP_PATH}"
 fi
 echo "  rounds:       ${ROUNDS}"
 echo "  data size:    ${SIZE_MB} MiB"
@@ -395,6 +424,18 @@ else
         ssh "${RSYNC_SSH_TARGET}" "mkdir -p ${RSYNC_SSH_PATH}"
         echo "  rsync ssh:     OK"
     fi
+
+    if $SCP_ENABLED; then
+        # SSH was already validated above if rsync ssh mode is active,
+        # but check again in case only scp is used.
+        if ! ssh -o ConnectTimeout=5 "${SCP_SSH_TARGET}" "echo ok" >/dev/null 2>&1; then
+            echo "  [error] SSH not reachable at ${SCP_SSH_TARGET}"
+            echo "          Check SSH access and use --ssh-user if needed."
+            exit 1
+        fi
+        ssh "${SCP_SSH_TARGET}" "mkdir -p ${SCP_PATH}"
+        echo "  scp:           OK"
+    fi
     echo ""
 fi
 
@@ -425,6 +466,7 @@ echo ""
 declare -a CASE1_SYNCHE CASE2_SYNCHE
 declare -a CASE1_RSYNC_DAEMON CASE1_RSYNC_SSH
 declare -a CASE2_RSYNC_DAEMON CASE2_RSYNC_SSH
+declare -a CASE1_SCP CASE2_SCP
 
 # ---------------------------------------------------------------------------
 # Case 1: Fresh upload (nothing on server)
@@ -467,6 +509,17 @@ for ((r=1; r<=ROUNDS; r++)); do
             ssh)    CASE1_RSYNC_SSH+=("$rsync_ms");;
         esac
     done
+
+    # -- scp --
+    if $SCP_ENABLED; then
+        scp_reset
+        t_start=$(date +%s%N)
+        scp_send "${BENCH_DIR}/source-full" "source-full"
+        t_end=$(date +%s%N)
+        scp_ms=$(( (t_end - t_start) / 1000000 ))
+        CASE1_SCP+=("$scp_ms")
+        echo "  >> scp:             ${scp_ms} ms"
+    fi
 
     echo ""
 done
@@ -522,6 +575,17 @@ for ((r=1; r<=ROUNDS; r++)); do
         esac
     done
 
+    # -- scp (always sends full file, no delta awareness) --
+    if $SCP_ENABLED; then
+        scp_reset
+        t_start=$(date +%s%N)
+        scp_send "${BENCH_DIR}/source-case2" "source-case2"
+        t_end=$(date +%s%N)
+        scp_ms=$(( (t_end - t_start) / 1000000 ))
+        CASE2_SCP+=("$scp_ms")
+        echo "  >> scp:             ${scp_ms} ms (full file, no delta)"
+    fi
+
     echo ""
 done
 
@@ -549,64 +613,67 @@ avg() {
 c1_synche_avg=$(avg "${CASE1_SYNCHE[@]}")
 c2_synche_avg=$(avg "${CASE2_SYNCHE[@]}")
 
-# Build header columns dynamically.
-header_cols="synche"
-divider_cols="--------"
-declare -a c1_rsync_avgs c2_rsync_avgs rsync_labels
+# Build competitor columns dynamically: rsync modes + scp.
+declare -a all_labels c1_all_avgs c2_all_avgs
 
 for rmode in "${RSYNC_MODES[@]}"; do
     label=$(rsync_mode_label "$rmode")
-    rsync_labels+=("$label")
-    header_cols+=$(printf "%14s" "$label")
-    divider_cols+="  ------------"
+    all_labels+=("$label")
 
     case "$rmode" in
         daemon)
-            c1_rsync_avgs+=($(avg "${CASE1_RSYNC_DAEMON[@]}"))
-            c2_rsync_avgs+=($(avg "${CASE2_RSYNC_DAEMON[@]}"))
+            c1_all_avgs+=($(avg "${CASE1_RSYNC_DAEMON[@]}"))
+            c2_all_avgs+=($(avg "${CASE2_RSYNC_DAEMON[@]}"))
             ;;
         ssh)
-            c1_rsync_avgs+=($(avg "${CASE1_RSYNC_SSH[@]}"))
-            c2_rsync_avgs+=($(avg "${CASE2_RSYNC_SSH[@]}"))
+            c1_all_avgs+=($(avg "${CASE1_RSYNC_SSH[@]}"))
+            c2_all_avgs+=($(avg "${CASE2_RSYNC_SSH[@]}"))
             ;;
     esac
 done
 
+if $SCP_ENABLED && [[ ${#CASE1_SCP[@]} -gt 0 ]]; then
+    all_labels+=("scp")
+    c1_all_avgs+=($(avg "${CASE1_SCP[@]}"))
+    c2_all_avgs+=($(avg "${CASE2_SCP[@]}"))
+fi
+
+# Print table header.
 printf "  %-40s %10s" "" "synche"
-for label in "${rsync_labels[@]}"; do
-    printf "  %12s" "$label"
+for label in "${all_labels[@]}"; do
+    printf "  %14s" "$label"
 done
 echo ""
 
 printf "  %-40s %10s" "" "--------"
-for _ in "${rsync_labels[@]}"; do
-    printf "  %12s" "------------"
+for _ in "${all_labels[@]}"; do
+    printf "  %14s" "--------------"
 done
 echo ""
 
 # Case 1 row
 printf "  %-40s %7d ms" "Case 1: ${SIZE_MB} MiB fresh upload (avg)" "$c1_synche_avg"
-for val in "${c1_rsync_avgs[@]}"; do
-    printf "  %9d ms" "$val"
+for val in "${c1_all_avgs[@]}"; do
+    printf "  %11d ms" "$val"
 done
 echo ""
 
 # Case 2 row
 printf "  %-40s %7d ms" "Case 2: ${SIZE_MB} MiB, ${HALF_MB} MiB exists (avg)" "$c2_synche_avg"
-for val in "${c2_rsync_avgs[@]}"; do
-    printf "  %9d ms" "$val"
+for val in "${c2_all_avgs[@]}"; do
+    printf "  %11d ms" "$val"
 done
 echo ""
 echo ""
 
-# Speed comparisons
-for i in "${!rsync_labels[@]}"; do
-    label="${rsync_labels[$i]}"
+# Speed comparisons — synche vs each competitor.
+for i in "${!all_labels[@]}"; do
+    label="${all_labels[$i]}"
     for case_num in 1 2; do
         if [[ "$case_num" == "1" ]]; then
-            s_avg=$c1_synche_avg; r_avg=${c1_rsync_avgs[$i]}; clabel="Case 1"
+            s_avg=$c1_synche_avg; r_avg=${c1_all_avgs[$i]}; clabel="Case 1"
         else
-            s_avg=$c2_synche_avg; r_avg=${c2_rsync_avgs[$i]}; clabel="Case 2"
+            s_avg=$c2_synche_avg; r_avg=${c2_all_avgs[$i]}; clabel="Case 2"
         fi
         if [[ "$s_avg" -lt "$r_avg" && "$s_avg" -gt 0 ]]; then
             speedup=$(echo "scale=1; $r_avg / $s_avg" | bc)
@@ -631,6 +698,9 @@ for ((i=0; i<ROUNDS; i++)); do
             ssh)    printf "  ssh=%d" "${CASE1_RSYNC_SSH[$i]}";;
         esac
     done
+    if $SCP_ENABLED && [[ ${#CASE1_SCP[@]} -gt 0 ]]; then
+        printf "  scp=%d" "${CASE1_SCP[$i]}"
+    fi
     echo ""
 done
 echo ""
@@ -644,6 +714,9 @@ for ((i=0; i<ROUNDS; i++)); do
             ssh)    printf "  ssh=%d" "${CASE2_RSYNC_SSH[$i]}";;
         esac
     done
+    if $SCP_ENABLED && [[ ${#CASE2_SCP[@]} -gt 0 ]]; then
+        printf "  scp=%d" "${CASE2_SCP[$i]}"
+    fi
     echo ""
 done
 echo ""
