@@ -9,6 +9,7 @@ A concurrent, deduplicated file upload system written in Go. Reads raw data from
 - **Local caching** — unchanged chunks are skipped entirely on subsequent runs (no network I/O)
 - **Content-addressable storage** — chunks are keyed by BLAKE3 hash, so two files that share data (e.g. a short video and a longer version of it) share chunks on disk
 - **WebDAV access** — uploaded files appear as downloadable files at `/webdav/`, reassembled from chunks on the fly
+- **Resumable uploads** — if an upload is interrupted, re-running the same command picks up where it left off; chunks already on the server are skipped automatically
 - **Raw block device support** — reads directly with `O_DIRECT` to bypass the kernel page cache
 
 ## Benchmark
