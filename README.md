@@ -77,21 +77,3 @@ Options:
 6. **Manifest** — a manifest mapping chunk indices to hashes is saved on the server
 
 The server stores chunks in a content-addressable filesystem (`chunks/ab/cd/<hash>`). Multiple manifests can reference the same chunks, so uploading similar files costs only the storage of their unique chunks.
-
-## Project structure
-
-```
-cmd/
-  synche-client/    Client CLI
-  synche-server/    Server CLI
-  benchdata/        Deterministic test data generator
-internal/
-  block/            Raw block device I/O with O_DIRECT
-  cache/            Local manifest cache (~/.cache/synche/)
-  chunk/            Concurrent read → hash pipeline
-  client/           Upload client with probe, retry, dedup
-  protocol/         Shared types and constants
-  server/           HTTP API server
-  store/            Content-addressable chunk storage
-  webdav/           Read-only WebDAV handler
-```
