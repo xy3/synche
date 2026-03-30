@@ -17,26 +17,28 @@ A concurrent, deduplicated file upload system written in Go. Reads raw data from
 Tested against a remote server (YOUR_SERVER_IP), 100 MiB of deterministic data, averaged over 3 rounds:
 
 ```
-                                           synche    rsync(ssh)
-                                         --------  ------------
-Case 1: 100 MiB fresh upload (avg)        3409 ms       4592 ms
-Case 2: 100 MiB, 50 MiB exists (avg)      2293 ms       4014 ms
+                                             synche      rsync(ssh)             scp
+                                           --------  --------------  --------------
+Case 1: 100 MiB fresh upload (avg)          3925 ms         4806 ms         4798 ms
+Case 2: 100 MiB, 50 MiB exists (avg)        2640 ms         3853 ms         5817 ms
 
-Case 1 vs rsync(ssh): synche is 1.3x faster
-Case 2 vs rsync(ssh): synche is 1.7x faster
+Case 1 vs rsync(ssh): synche is 1.2x faster
+Case 2 vs rsync(ssh): synche is 1.4x faster
+Case 1 vs scp: synche is 1.2x faster
+Case 2 vs scp: synche is 2.2x faster
 
 Case 1 individual rounds (ms):
-  round 1:  synche=3425  ssh=4392
-  round 2:  synche=3537  ssh=4763
-  round 3:  synche=3265  ssh=4623
+  round 1:  synche=3477  ssh=4703  scp=4405
+  round 2:  synche=3926  ssh=4567  scp=4867
+  round 3:  synche=4372  ssh=5149  scp=5124
 
 Case 2 individual rounds (ms):
-  round 1:  synche=2447  ssh=5067
-  round 2:  synche=2343  ssh=3758
-  round 3:  synche=2089  ssh=3219
+  round 1:  synche=2399  ssh=4037  scp=5484
+  round 2:  synche=2836  ssh=4038  scp=5359
+  round 3:  synche=2687  ssh=3484  scp=6609
 ```
 
-The advantage grows in Case 2 because synche skips chunks the server already has, while rsync still needs to compute and compare rolling checksums over the full file.
+scp is a raw SSH pipe with no checksumming or delta logic — it's the baseline for "how fast can bytes travel over SSH." synche beats it in both cases because it skips known chunks. The advantage is dramatic in Case 2: scp always sends the full file, while synche skips the 50 MiB already on the server.
 
 ## Usage
 
