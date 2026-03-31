@@ -270,10 +270,14 @@ func (s *Server) handleUploadManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := s.store.SaveManifest(&manifest)
+	id, created, err := s.store.SaveManifest(&manifest)
 	if err != nil {
 		http.Error(w, "save manifest: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if !created {
+		log.Printf("manifest %s already exists, returning existing ID", id)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

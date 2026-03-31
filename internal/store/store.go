@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/theo/synche2/internal/protocol"
+	"github.com/zeebo/blake3"
 )
 
 // ValidHash returns true if hash is a valid hex-encoded BLAKE3-256 hash.
@@ -143,17 +144,38 @@ func (s *Store) Get(hash string) ([]byte, error) {
 	return data, nil
 }
 
+// manifestContentID generates a deterministic manifest ID from the source
+// filename and the ordered list of chunk hashes. Re-uploading the same file
+// with the same content always produces the same ID.
+func manifestContentID(m *protocol.Manifest) string {
+	h := blake3.New()
+	h.Write([]byte(filepath.Base(m.SourceDevice)))
+	for _, c := range m.Chunks {
+		h.Write([]byte(c.Hash))
+	}
+	sum := hex.EncodeToString(h.Sum(nil))
+	return fmt.Sprintf("%s_%s", filepath.Base(m.SourceDevice), sum[:16])
+}
+
 // SaveManifest persists a manifest and returns a generated ID.
-func (s *Store) SaveManifest(m *protocol.Manifest) (string, error) {
-	id := fmt.Sprintf("%s_%d", filepath.Base(m.SourceDevice), time.Now().UnixNano())
+// The ID is content-based: re-uploading the same file with identical chunks
+// returns the existing manifest ID without creating a duplicate.
+// The second return value is true if the manifest was newly created.
+func (s *Store) SaveManifest(m *protocol.Manifest) (string, bool, error) {
+	id := manifestContentID(m)
 	path := filepath.Join(s.root, "manifests", id+".json")
+
+	// If this exact manifest already exists, return the existing ID.
+	if _, err := os.Stat(path); err == nil {
+		return id, false, nil
+	}
 
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	// Update in-memory chunk reference counts.
@@ -163,7 +185,7 @@ func (s *Store) SaveManifest(m *protocol.Manifest) (string, error) {
 	}
 	s.mu.Unlock()
 
-	return id, nil
+	return id, true, nil
 }
 
 // ManifestInfo holds metadata about a stored manifest.

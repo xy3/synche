@@ -624,8 +624,8 @@ func (u *Uploader) runFile(filePath string) (string, error) {
 		probeBatchSize = u.cfg.ProbeBatch
 	}
 
-	// Track cache-skipped chunks separately (they are confirmed by definition).
-	var cacheSkippedHashes []uploadedHash
+	// Track cache-skipped hashes for cache saving (but they still go through
+	// the probe pipeline to verify the server has them).
 
 	var batch []pendingChunk
 
@@ -637,12 +637,12 @@ func (u *Uploader) runFile(filePath string) (string, error) {
 		allMeta = append(allMeta, result.Meta)
 		metaMu.Unlock()
 
-		// Cache check: skip unchanged chunks entirely.
+		// Cache check: if hash matches the cached hash for this index,
+		// count it as a cache hit for stats, but still probe the server
+		// in case the chunk was deleted server-side.
 		if cached != nil {
 			if cachedHash, ok := cached.Hashes[result.Meta.Index]; ok && cachedHash == result.Meta.Hash {
 				atomic.AddInt64(&u.stats.SkippedCache, 1)
-				cacheSkippedHashes = append(cacheSkippedHashes, uploadedHash{index: result.Meta.Index, hash: result.Meta.Hash})
-				continue
 			}
 		}
 
@@ -681,12 +681,8 @@ func (u *Uploader) runFile(filePath string) (string, error) {
 
 	// Save updated cache with only confirmed hashes.
 	if u.cache != nil {
-		// Merge confirmed uploads + server-skips + cache-skips.
-		allConfirmed := make(map[uint64]string, len(confirmedHashes)+len(cacheSkippedHashes))
+		allConfirmed := make(map[uint64]string, len(confirmedHashes))
 		for _, ch := range confirmedHashes {
-			allConfirmed[ch.index] = ch.hash
-		}
-		for _, ch := range cacheSkippedHashes {
 			allConfirmed[ch.index] = ch.hash
 		}
 		if err := u.cache.SaveFromMap(filePath, &manifest, allConfirmed); err != nil {
@@ -883,7 +879,7 @@ func (u *Uploader) printFinalStats(manifestID string) {
 
 	log.Printf("--- complete ---")
 	log.Printf("  chunks:        %d total", total)
-	log.Printf("  cache skip:    %d (unchanged since last run)", skippedCache)
+	log.Printf("  cache hit:     %d (hash unchanged since last run)", skippedCache)
 	log.Printf("  server skip:   %d (server already had)", skippedServer)
 	log.Printf("  uploaded:      %d new chunks", uploaded)
 	log.Printf("  failed:        %d", failed)
@@ -893,7 +889,8 @@ func (u *Uploader) printFinalStats(manifestID string) {
 	log.Printf("  manifest ID:   %s", manifestID)
 
 	if total > 0 {
-		savingsPct := float64(skippedCache+skippedServer) / float64(total) * 100
+		skipped := total - uploaded - failed
+		savingsPct := float64(skipped) / float64(total) * 100
 		log.Printf("  dedup savings: %.1f%% of chunks skipped", savingsPct)
 	}
 }
