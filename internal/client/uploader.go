@@ -3,14 +3,18 @@ package client
 
 import (
 	"bytes"
+	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,6 +22,7 @@ import (
 	"github.com/theo/synche2/internal/cache"
 	"github.com/theo/synche2/internal/chunk"
 	"github.com/theo/synche2/internal/protocol"
+	"golang.org/x/net/http2"
 )
 
 const (
@@ -60,6 +65,8 @@ type Uploader struct {
 }
 
 // NewUploader creates an uploader with the given configuration.
+// Uses HTTP/2 cleartext (h2c) for plain HTTP and HTTP/2 over TLS for HTTPS,
+// multiplexing all requests over a single TCP connection.
 func NewUploader(cfg Config) *Uploader {
 	if cfg.Concurrency < 1 {
 		cfg.Concurrency = 8
@@ -68,16 +75,32 @@ func NewUploader(cfg Config) *Uploader {
 		cfg.ProbeBatch = 256
 	}
 
+	var transport http.RoundTripper
+
+	if strings.HasPrefix(cfg.ServerURL, "https://") {
+		// HTTP/2 over TLS — Go's default transport handles this via ALPN.
+		transport = &http2.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // allow self-signed certs
+			},
+		}
+	} else {
+		// HTTP/2 cleartext (h2c) — prior knowledge, single TCP connection.
+		transport = &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				// h2c: dial a plain TCP connection (no TLS).
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
+			},
+		}
+	}
+
 	return &Uploader{
 		cfg: cfg,
 		http: &http.Client{
-			Timeout: 120 * time.Second,
-			Transport: &http.Transport{
-				MaxIdleConns:        cfg.Concurrency * 2,
-				MaxIdleConnsPerHost: cfg.Concurrency * 2,
-				MaxConnsPerHost:     cfg.Concurrency * 2,
-				IdleConnTimeout:     90 * time.Second,
-			},
+			Timeout:   120 * time.Second,
+			Transport: transport,
 		},
 		stats: Stats{StartTime: time.Now()},
 	}

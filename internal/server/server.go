@@ -17,6 +17,8 @@ import (
 	"github.com/theo/synche2/internal/store"
 	"github.com/theo/synche2/internal/webdav"
 	"github.com/zeebo/blake3"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 const (
@@ -61,6 +63,8 @@ func New(cfg Config) (*Server, error) {
 }
 
 // ListenAndServe starts the HTTP or HTTPS server.
+// Plain HTTP mode uses h2c (cleartext HTTP/2) for clients that support it,
+// while remaining backward-compatible with HTTP/1.1 clients.
 func (s *Server) ListenAndServe() error {
 	log.Printf("synche server listening on %s", s.config.Addr)
 	stats := s.store.Stats()
@@ -72,7 +76,7 @@ func (s *Server) ListenAndServe() error {
 	}
 
 	if s.config.TLSCert != "" && s.config.TLSKey != "" {
-		log.Printf("tls: enabled")
+		log.Printf("tls: enabled (HTTP/2 via ALPN)")
 		log.Printf("webdav available at https://%s/webdav/", s.config.Addr)
 		tlsConfig := &tls.Config{
 			MinVersion: tls.VersionTLS12,
@@ -82,12 +86,21 @@ func (s *Server) ListenAndServe() error {
 			Handler:   s.mux,
 			TLSConfig: tlsConfig,
 		}
+		// Go's HTTP server automatically enables HTTP/2 over TLS.
+		http2.ConfigureServer(server, &http2.Server{})
 		return server.ListenAndServeTLS(s.config.TLSCert, s.config.TLSKey)
 	}
 
-	log.Printf("tls: disabled (WARNING: traffic is unencrypted)")
+	log.Printf("tls: disabled (HTTP/2 via h2c, backward-compatible with HTTP/1.1)")
 	log.Printf("webdav available at http://%s/webdav/", s.config.Addr)
-	return http.ListenAndServe(s.config.Addr, s.mux)
+	// Wrap handler with h2c to accept cleartext HTTP/2 (prior knowledge).
+	h2s := &http2.Server{}
+	handler := h2c.NewHandler(s.mux, h2s)
+	server := &http.Server{
+		Addr:    s.config.Addr,
+		Handler: handler,
+	}
+	return server.ListenAndServe()
 }
 
 func (s *Server) routes() {
