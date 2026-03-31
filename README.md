@@ -10,35 +10,24 @@ A concurrent, deduplicated file upload system written in Go. Reads raw data from
 - **Content-addressable storage** — chunks are keyed by BLAKE3 hash, so two files that share data (e.g. a short video and a longer version of it) share chunks on disk
 - **WebDAV access** — uploaded files appear as downloadable files at `/webdav/`, reassembled from chunks on the fly
 - **Resumable uploads** — if an upload is interrupted, re-running the same command picks up where it left off; chunks already on the server are skipped automatically
+- **Directory uploads** — walks a directory tree and uploads each file individually with a 4-phase concurrent pipeline; each file gets its own manifest visible in WebDAV
+- **HTTP/2** — client and server use HTTP/2 (h2c for cleartext, ALPN for TLS) to multiplex all requests over a single TCP connection
 - **Raw block device support** — reads directly with `O_DIRECT` to bypass the kernel page cache
 
 ## Benchmark
 
-Tested against a remote server, 100 MiB of deterministic data, averaged over 3 rounds:
+Tested against a remote server over HTTP/2, averaged over 3 rounds. Six test cases covering single files, disk images, and directory uploads:
 
-```
-                                               synche      rsync(ssh)             scp
-                                             --------  --------------  --------------
-  Case 1: 100 MiB fresh upload (avg)          8699 ms        16558 ms        13004 ms
-  Case 2: 100 MiB, 50 MiB exists (avg)        4655 ms         6401 ms        18660 ms
+| Case | synche | rsync (ssh) | synche advantage |
+|------|--------|-------------|------------------|
+| 100 MiB fresh upload | 4,068 ms | 4,588 ms | **1.1x faster** |
+| 100 MiB, 50 MiB already on server | 2,159 ms | 2,909 ms | **1.3x faster** |
+| 90 MiB disk image fresh | 3,463 ms | 4,219 ms | **1.2x faster** |
+| Disk image, 10% changed | 952 ms | 1,888 ms | **1.9x faster** |
+| 100 files (directory) fresh | 3,818 ms | 4,116 ms | **1.0x faster** |
+| 100 files, 10% changed | 992 ms | 1,872 ms | **1.8x faster** |
 
-  Case 1 vs rsync(ssh): synche is 1.9x faster
-  Case 2 vs rsync(ssh): synche is 1.3x faster
-  Case 1 vs scp: synche is 1.4x faster
-  Case 2 vs scp: synche is 4.0x faster
-
-  Case 1 individual rounds (ms):
-    round 1:  synche=8703  ssh=17017  scp=9909
-    round 2:  synche=8720  ssh=14956  scp=18808
-    round 3:  synche=8676  ssh=17701  scp=10295
-
-  Case 2 individual rounds (ms):
-    round 1:  synche=4569  ssh=6347  scp=35562
-    round 2:  synche=4969  ssh=7057  scp=10437
-    round 3:  synche=4429  ssh=5800  scp=9981
-```
-
-scp is a raw SSH pipe with no checksumming or delta logic — it's the baseline for "how fast can bytes travel over SSH." synche beats it in both cases because it skips known chunks. The advantage is dramatic in Case 2: scp always sends the full file, while synche skips the 50 MiB already on the server.
+The biggest wins are on incremental syncs (Cases 4 and 6) — synche's content-addressable storage means only changed chunks need to travel over the wire. Directory uploads use a 4-phase pipeline (hash all → batch probe → upload needed chunks → upload manifests) to minimize round-trips.
 
 ## Usage
 
@@ -74,10 +63,17 @@ go build -o bin/synche-client ./cmd/synche-client
 
 Options:
 - `--server` — server URL (default `http://localhost:8420`)
-- `--source` — file or block device to upload
+- `--source` — file, directory, or block device to upload
 - `--api-key` — API key for server authentication (or set `SYNCHE_API_KEY` env var)
 - `--concurrency` — parallel upload workers (default: number of CPUs)
 - `--no-cache` — disable local manifest cache
+
+Upload a directory:
+```sh
+./bin/synche-client --server http://localhost:8420 --source /path/to/dir --api-key YOUR_SECRET_KEY
+```
+
+Each file in the directory gets its own manifest and appears individually in WebDAV.
 
 ### Benchmark
 
