@@ -276,9 +276,9 @@ delete_synche_manifest() {
     if [[ -n "$SYNCHE_API_KEY" ]]; then
         auth_header="Authorization: Bearer ${SYNCHE_API_KEY}"
     fi
-    if ! curl -sf -X DELETE "${SYNCHE_URL}/api/manifest/${id}" \
+    if ! curl -sf --max-time 5 -X DELETE "${SYNCHE_URL}/api/manifest/${id}" \
         ${auth_header:+-H "$auth_header"} -o /dev/null; then
-        echo "[warning] failed to delete manifest ${id}"
+        : # silently ignore (may be duplicate or already deleted)
     fi
 }
 
@@ -297,6 +297,58 @@ run_synche() {
     local mid
     mid=$(echo "$output" | grep -oP 'manifest ID:\s+\K\S+' || true)
     echo "$mid"
+}
+
+# run_synche_dir <source_dir> [extra_args...]
+# Runs the synche client on a directory and prints all manifest IDs (one per line).
+run_synche_dir() {
+    local src="$1"
+    shift
+    local output
+    output=$("$SYNCHE_CLIENT" \
+        --source "$src" \
+        --server "$SYNCHE_URL" \
+        --cache-dir "${BENCH_DIR}/synche-cache" \
+        --concurrency "$CONCURRENCY" \
+        $SYNCHE_API_KEY_FLAG "$@" 2>&1)
+    echo "$output" | grep -oP 'manifest ID:\s+\K\S+' | sort -u
+}
+
+# delete_synche_manifests <manifest_ids...>
+# Deletes multiple manifests (one ID per argument or newline-separated).
+delete_synche_manifests() {
+    for id in "$@"; do
+        # Handle newline-separated IDs from run_synche_dir.
+        while IFS= read -r mid; do
+            delete_synche_manifest "$mid"
+        done <<< "$id"
+    done
+}
+
+# rsync_send_dir <mode> <src_dir> [extra flags...]
+# Sends a directory via rsync using the specified mode.
+rsync_send_dir() {
+    local rmode="$1" src="$2"
+    shift 2
+    local extra_flags=("$@")
+
+    case "$rmode" in
+        daemon)
+            rsync "${extra_flags[@]}" -r "$src/" \
+                "rsync://${RSYNC_HOST}:${RSYNC_PORT}/bench/"
+            ;;
+        ssh)
+            rsync "${extra_flags[@]}" -r "$src/" \
+                "${RSYNC_SSH_TARGET}:${RSYNC_SSH_PATH}/"
+            ;;
+    esac
+}
+
+# scp_send_dir <src_dir>
+# Sends a directory via scp.
+scp_send_dir() {
+    local src="$1"
+    scp -q -r "$src/" "${SCP_SSH_TARGET}:${SCP_PATH}/"
 }
 
 start_rsync_daemon() {
@@ -513,17 +565,68 @@ echo "[setup] building case-2 rsync previous-version file..."
 cp "${BENCH_DIR}/preexist-half" "${BENCH_DIR}/rsync-prev-case2"
 dd if=/dev/zero bs=1M count="$HALF_MB" >> "${BENCH_DIR}/rsync-prev-case2" 2>/dev/null
 
+# Case 3/4: simulated disk image — 100 files of 0.9 MiB each (~90 MiB total).
+DISK_FILES=100
+DISK_FILE_SIZE_KB=921  # 0.9 MiB ~ 921 KB
+DISK_CHANGED=10        # number of files that change between versions
+DISK_TOTAL_KB=$((DISK_FILES * DISK_FILE_SIZE_KB))
+DISK_TOTAL_MB=$(( (DISK_TOTAL_KB + 1023) / 1024 ))  # ceiling
+DISK_CHANGED_KB=$((DISK_CHANGED * DISK_FILE_SIZE_KB))
+
+echo "[setup] building ${DISK_TOTAL_MB} MiB disk image (${DISK_FILES} x ${DISK_FILE_SIZE_KB}KB files)..."
+"$BENCHDATA" --seed 7777 --size "$DISK_TOTAL_MB" --out "${BENCH_DIR}/disk-original"
+truncate -s "${DISK_TOTAL_KB}K" "${BENCH_DIR}/disk-original"
+
+echo "[setup] building modified disk image (${DISK_CHANGED}/${DISK_FILES} files changed, ~${DISK_CHANGED_KB}KB delta)..."
+cp "${BENCH_DIR}/disk-original" "${BENCH_DIR}/disk-modified"
+# Overwrite 10 file-sized regions at evenly spaced positions with different data.
+for ((i=0; i<DISK_CHANGED; i++)); do
+    file_idx=$(( i * (DISK_FILES / DISK_CHANGED) ))  # files 0, 10, 20, ...
+    offset_kb=$(( file_idx * DISK_FILE_SIZE_KB ))
+    "$BENCHDATA" --seed $((9000 + i)) --size 1 --out "${BENCH_DIR}/disk-patch"
+    truncate -s "${DISK_FILE_SIZE_KB}K" "${BENCH_DIR}/disk-patch"
+    dd if="${BENCH_DIR}/disk-patch" of="${BENCH_DIR}/disk-modified" \
+        bs=1024 seek="$offset_kb" conv=notrunc 2>/dev/null
+done
+rm -f "${BENCH_DIR}/disk-patch"
+
+# Case-4 rsync "previous version" = disk-original (rsync will delta-sync to disk-modified).
+cp "${BENCH_DIR}/disk-original" "${BENCH_DIR}/rsync-prev-case4"
+
+# Case 5/6: directory of 100 individual files (0.9 MiB each).
+echo "[setup] building directory with ${DISK_FILES} x ${DISK_FILE_SIZE_KB}KB files..."
+mkdir -p "${BENCH_DIR}/dir-original"
+for ((i=0; i<DISK_FILES; i++)); do
+    fname=$(printf "file_%03d.bin" "$i")
+    "$BENCHDATA" --seed $((2000 + i)) --size 1 --out "${BENCH_DIR}/dir-original/${fname}"
+    truncate -s "${DISK_FILE_SIZE_KB}K" "${BENCH_DIR}/dir-original/${fname}"
+done
+
+echo "[setup] building modified directory (${DISK_CHANGED}/${DISK_FILES} files replaced)..."
+cp -r "${BENCH_DIR}/dir-original" "${BENCH_DIR}/dir-modified"
+for ((i=0; i<DISK_CHANGED; i++)); do
+    file_idx=$(( i * (DISK_FILES / DISK_CHANGED) ))
+    fname=$(printf "file_%03d.bin" "$file_idx")
+    "$BENCHDATA" --seed $((5000 + i)) --size 1 --out "${BENCH_DIR}/dir-modified/${fname}"
+    truncate -s "${DISK_FILE_SIZE_KB}K" "${BENCH_DIR}/dir-modified/${fname}"
+done
+
 echo "[setup] checksums:"
-md5sum "${BENCH_DIR}/source-full" "${BENCH_DIR}/source-case2" "${BENCH_DIR}/preexist-half"
+md5sum "${BENCH_DIR}/source-full" "${BENCH_DIR}/source-case2" "${BENCH_DIR}/preexist-half" \
+    "${BENCH_DIR}/disk-original" "${BENCH_DIR}/disk-modified"
 echo ""
 
 # ---------------------------------------------------------------------------
 # Results storage — one array per (case, tool+mode)
 # ---------------------------------------------------------------------------
-declare -a CASE1_SYNCHE CASE2_SYNCHE
+declare -a CASE1_SYNCHE CASE2_SYNCHE CASE3_SYNCHE CASE4_SYNCHE CASE5_SYNCHE CASE6_SYNCHE
 declare -a CASE1_RSYNC_DAEMON CASE1_RSYNC_SSH
 declare -a CASE2_RSYNC_DAEMON CASE2_RSYNC_SSH
-declare -a CASE1_SCP CASE2_SCP
+declare -a CASE3_RSYNC_DAEMON CASE3_RSYNC_SSH
+declare -a CASE4_RSYNC_DAEMON CASE4_RSYNC_SSH
+declare -a CASE5_RSYNC_DAEMON CASE5_RSYNC_SSH
+declare -a CASE6_RSYNC_DAEMON CASE6_RSYNC_SSH
+declare -a CASE1_SCP CASE2_SCP CASE3_SCP CASE4_SCP CASE5_SCP CASE6_SCP
 
 # ---------------------------------------------------------------------------
 # Case 1: Fresh upload (nothing on server)
@@ -652,6 +755,244 @@ for ((r=1; r<=ROUNDS; r++)); do
 done
 
 # ---------------------------------------------------------------------------
+# Case 3: Fresh upload of simulated disk image (100 files x 0.9 MiB)
+# ---------------------------------------------------------------------------
+echo "================================================================="
+echo "  CASE 3: Fresh ${DISK_TOTAL_MB} MiB disk image (${DISK_FILES} x ${DISK_FILE_SIZE_KB}KB files)"
+echo "================================================================="
+echo ""
+
+# In local mode, reset once for a clean slate.
+if [[ "$MODE" == "local" ]]; then
+    reset_synche_server
+fi
+
+for ((r=1; r<=ROUNDS; r++)); do
+    echo "--- Round $r/$ROUNDS ---"
+
+    # -- synche --
+    rm -rf "${BENCH_DIR}/synche-cache"
+    t_start=$(date +%s%N)
+    manifest_id=$(run_synche "${BENCH_DIR}/disk-original")
+    t_end=$(date +%s%N)
+    synche_ms=$(( (t_end - t_start) / 1000000 ))
+    CASE3_SYNCHE+=("$synche_ms")
+    echo "  >> synche:          ${synche_ms} ms"
+    delete_synche_manifest "$manifest_id"
+
+    # -- rsync (each mode) --
+    for rmode in "${RSYNC_MODES[@]}"; do
+        rsync_reset "$rmode"
+        t_start=$(date +%s%N)
+        rsync_send "$rmode" "${BENCH_DIR}/disk-original" "disk-original" --whole-file
+        t_end=$(date +%s%N)
+        rsync_ms=$(( (t_end - t_start) / 1000000 ))
+
+        label=$(rsync_mode_label "$rmode")
+        printf "  %-18s %d ms\n" "${label}:" "$rsync_ms"
+
+        case "$rmode" in
+            daemon) CASE3_RSYNC_DAEMON+=("$rsync_ms");;
+            ssh)    CASE3_RSYNC_SSH+=("$rsync_ms");;
+        esac
+    done
+
+    # -- scp --
+    if $SCP_ENABLED; then
+        scp_reset
+        t_start=$(date +%s%N)
+        scp_send "${BENCH_DIR}/disk-original" "disk-original"
+        t_end=$(date +%s%N)
+        scp_ms=$(( (t_end - t_start) / 1000000 ))
+        CASE3_SCP+=("$scp_ms")
+        echo "  >> scp:             ${scp_ms} ms"
+    fi
+
+    echo ""
+done
+
+# ---------------------------------------------------------------------------
+# Case 4: Re-upload disk image after 10% of files changed
+# ---------------------------------------------------------------------------
+echo "================================================================="
+echo "  CASE 4: ${DISK_TOTAL_MB} MiB disk image, ${DISK_CHANGED}/${DISK_FILES} files changed (~${DISK_CHANGED_KB}KB delta)"
+echo "================================================================="
+echo ""
+
+# In local mode, reset once for a clean slate.
+if [[ "$MODE" == "local" ]]; then
+    reset_synche_server
+fi
+
+for ((r=1; r<=ROUNDS; r++)); do
+    echo "--- Round $r/$ROUNDS ---"
+
+    # -- synche: pre-populate with original disk image --
+    rm -rf "${BENCH_DIR}/synche-cache"
+    orig_manifest_id=$(run_synche "${BENCH_DIR}/disk-original")
+    rm -rf "${BENCH_DIR}/synche-cache"
+    # Timed: upload modified disk image (90% chunks already exist).
+    t_start=$(date +%s%N)
+    mod_manifest_id=$(run_synche "${BENCH_DIR}/disk-modified")
+    t_end=$(date +%s%N)
+    synche_ms=$(( (t_end - t_start) / 1000000 ))
+    CASE4_SYNCHE+=("$synche_ms")
+    echo "  >> synche:          ${synche_ms} ms"
+    delete_synche_manifest "$mod_manifest_id"
+    delete_synche_manifest "$orig_manifest_id"
+
+    # -- rsync (each mode): pre-seed with original, then delta-sync modified --
+    for rmode in "${RSYNC_MODES[@]}"; do
+        rsync_reset "$rmode"
+        rsync_send "$rmode" "${BENCH_DIR}/rsync-prev-case4" "disk-image" --whole-file --quiet
+        t_start=$(date +%s%N)
+        rsync_send "$rmode" "${BENCH_DIR}/disk-modified" "disk-image"
+        t_end=$(date +%s%N)
+        rsync_ms=$(( (t_end - t_start) / 1000000 ))
+
+        label=$(rsync_mode_label "$rmode")
+        printf "  %-18s %d ms\n" "${label}:" "$rsync_ms"
+
+        case "$rmode" in
+            daemon) CASE4_RSYNC_DAEMON+=("$rsync_ms");;
+            ssh)    CASE4_RSYNC_SSH+=("$rsync_ms");;
+        esac
+    done
+
+    # -- scp (always sends full file) --
+    if $SCP_ENABLED; then
+        scp_reset
+        t_start=$(date +%s%N)
+        scp_send "${BENCH_DIR}/disk-modified" "disk-modified"
+        t_end=$(date +%s%N)
+        scp_ms=$(( (t_end - t_start) / 1000000 ))
+        CASE4_SCP+=("$scp_ms")
+        echo "  >> scp:             ${scp_ms} ms (full file, no delta)"
+    fi
+
+    echo ""
+done
+
+# ---------------------------------------------------------------------------
+# Case 5: Fresh directory upload (100 individual files)
+# ---------------------------------------------------------------------------
+echo "================================================================="
+echo "  CASE 5: Fresh directory upload (${DISK_FILES} x ${DISK_FILE_SIZE_KB}KB files, ~${DISK_TOTAL_MB} MiB)"
+echo "================================================================="
+echo ""
+
+# In local mode, reset once for a clean slate.
+if [[ "$MODE" == "local" ]]; then
+    reset_synche_server
+fi
+
+for ((r=1; r<=ROUNDS; r++)); do
+    echo "--- Round $r/$ROUNDS ---"
+
+    # -- synche --
+    rm -rf "${BENCH_DIR}/synche-cache"
+    t_start=$(date +%s%N)
+    manifest_ids=$(run_synche_dir "${BENCH_DIR}/dir-original")
+    t_end=$(date +%s%N)
+    synche_ms=$(( (t_end - t_start) / 1000000 ))
+    CASE5_SYNCHE+=("$synche_ms")
+    echo "  >> synche:          ${synche_ms} ms"
+    delete_synche_manifests "$manifest_ids"
+
+    # -- rsync (each mode) --
+    for rmode in "${RSYNC_MODES[@]}"; do
+        rsync_reset "$rmode"
+        t_start=$(date +%s%N)
+        rsync_send_dir "$rmode" "${BENCH_DIR}/dir-original" --whole-file
+        t_end=$(date +%s%N)
+        rsync_ms=$(( (t_end - t_start) / 1000000 ))
+
+        label=$(rsync_mode_label "$rmode")
+        printf "  %-18s %d ms\n" "${label}:" "$rsync_ms"
+
+        case "$rmode" in
+            daemon) CASE5_RSYNC_DAEMON+=("$rsync_ms");;
+            ssh)    CASE5_RSYNC_SSH+=("$rsync_ms");;
+        esac
+    done
+
+    # -- scp --
+    if $SCP_ENABLED; then
+        scp_reset
+        t_start=$(date +%s%N)
+        scp_send_dir "${BENCH_DIR}/dir-original"
+        t_end=$(date +%s%N)
+        scp_ms=$(( (t_end - t_start) / 1000000 ))
+        CASE5_SCP+=("$scp_ms")
+        echo "  >> scp:             ${scp_ms} ms"
+    fi
+
+    echo ""
+done
+
+# ---------------------------------------------------------------------------
+# Case 6: Re-upload directory after 10% of files changed
+# ---------------------------------------------------------------------------
+echo "================================================================="
+echo "  CASE 6: Directory re-upload, ${DISK_CHANGED}/${DISK_FILES} files changed (~${DISK_CHANGED_KB}KB delta)"
+echo "================================================================="
+echo ""
+
+# In local mode, reset once for a clean slate.
+if [[ "$MODE" == "local" ]]; then
+    reset_synche_server
+fi
+
+for ((r=1; r<=ROUNDS; r++)); do
+    echo "--- Round $r/$ROUNDS ---"
+
+    # -- synche: pre-populate with original directory --
+    rm -rf "${BENCH_DIR}/synche-cache"
+    orig_manifest_ids=$(run_synche_dir "${BENCH_DIR}/dir-original")
+    rm -rf "${BENCH_DIR}/synche-cache"
+    # Timed: upload modified directory (90% of files unchanged, chunks already on server).
+    t_start=$(date +%s%N)
+    mod_manifest_ids=$(run_synche_dir "${BENCH_DIR}/dir-modified")
+    t_end=$(date +%s%N)
+    synche_ms=$(( (t_end - t_start) / 1000000 ))
+    CASE6_SYNCHE+=("$synche_ms")
+    echo "  >> synche:          ${synche_ms} ms"
+    delete_synche_manifests "$mod_manifest_ids"
+    delete_synche_manifests "$orig_manifest_ids"
+
+    # -- rsync (each mode): pre-seed with original, then sync modified --
+    for rmode in "${RSYNC_MODES[@]}"; do
+        rsync_reset "$rmode"
+        rsync_send_dir "$rmode" "${BENCH_DIR}/dir-original" --whole-file --quiet
+        t_start=$(date +%s%N)
+        rsync_send_dir "$rmode" "${BENCH_DIR}/dir-modified"
+        t_end=$(date +%s%N)
+        rsync_ms=$(( (t_end - t_start) / 1000000 ))
+
+        label=$(rsync_mode_label "$rmode")
+        printf "  %-18s %d ms\n" "${label}:" "$rsync_ms"
+
+        case "$rmode" in
+            daemon) CASE6_RSYNC_DAEMON+=("$rsync_ms");;
+            ssh)    CASE6_RSYNC_SSH+=("$rsync_ms");;
+        esac
+    done
+
+    # -- scp (always sends everything) --
+    if $SCP_ENABLED; then
+        scp_reset
+        t_start=$(date +%s%N)
+        scp_send_dir "${BENCH_DIR}/dir-modified"
+        t_end=$(date +%s%N)
+        scp_ms=$(( (t_end - t_start) / 1000000 ))
+        CASE6_SCP+=("$scp_ms")
+        echo "  >> scp:             ${scp_ms} ms (full dir, no delta)"
+    fi
+
+    echo ""
+done
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo "================================================================="
@@ -674,9 +1015,13 @@ avg() {
 
 c1_synche_avg=$(avg "${CASE1_SYNCHE[@]}")
 c2_synche_avg=$(avg "${CASE2_SYNCHE[@]}")
+c3_synche_avg=$(avg "${CASE3_SYNCHE[@]}")
+c4_synche_avg=$(avg "${CASE4_SYNCHE[@]}")
+c5_synche_avg=$(avg "${CASE5_SYNCHE[@]}")
+c6_synche_avg=$(avg "${CASE6_SYNCHE[@]}")
 
 # Build competitor columns dynamically: rsync modes + scp.
-declare -a all_labels c1_all_avgs c2_all_avgs
+declare -a all_labels c1_all_avgs c2_all_avgs c3_all_avgs c4_all_avgs c5_all_avgs c6_all_avgs
 
 for rmode in "${RSYNC_MODES[@]}"; do
     label=$(rsync_mode_label "$rmode")
@@ -686,10 +1031,18 @@ for rmode in "${RSYNC_MODES[@]}"; do
         daemon)
             c1_all_avgs+=($(avg "${CASE1_RSYNC_DAEMON[@]}"))
             c2_all_avgs+=($(avg "${CASE2_RSYNC_DAEMON[@]}"))
+            c3_all_avgs+=($(avg "${CASE3_RSYNC_DAEMON[@]}"))
+            c4_all_avgs+=($(avg "${CASE4_RSYNC_DAEMON[@]}"))
+            c5_all_avgs+=($(avg "${CASE5_RSYNC_DAEMON[@]}"))
+            c6_all_avgs+=($(avg "${CASE6_RSYNC_DAEMON[@]}"))
             ;;
         ssh)
             c1_all_avgs+=($(avg "${CASE1_RSYNC_SSH[@]}"))
             c2_all_avgs+=($(avg "${CASE2_RSYNC_SSH[@]}"))
+            c3_all_avgs+=($(avg "${CASE3_RSYNC_SSH[@]}"))
+            c4_all_avgs+=($(avg "${CASE4_RSYNC_SSH[@]}"))
+            c5_all_avgs+=($(avg "${CASE5_RSYNC_SSH[@]}"))
+            c6_all_avgs+=($(avg "${CASE6_RSYNC_SSH[@]}"))
             ;;
     esac
 done
@@ -698,45 +1051,62 @@ if $SCP_ENABLED && [[ ${#CASE1_SCP[@]} -gt 0 ]]; then
     all_labels+=("scp")
     c1_all_avgs+=($(avg "${CASE1_SCP[@]}"))
     c2_all_avgs+=($(avg "${CASE2_SCP[@]}"))
+    c3_all_avgs+=($(avg "${CASE3_SCP[@]}"))
+    c4_all_avgs+=($(avg "${CASE4_SCP[@]}"))
+    c5_all_avgs+=($(avg "${CASE5_SCP[@]}"))
+    c6_all_avgs+=($(avg "${CASE6_SCP[@]}"))
 fi
 
 # Print table header.
-printf "  %-40s %10s" "" "synche"
+printf "  %-50s %10s" "" "synche"
 for label in "${all_labels[@]}"; do
     printf "  %14s" "$label"
 done
 echo ""
 
-printf "  %-40s %10s" "" "--------"
+printf "  %-50s %10s" "" "--------"
 for _ in "${all_labels[@]}"; do
     printf "  %14s" "--------------"
 done
 echo ""
 
-# Case 1 row
-printf "  %-40s %7d ms" "Case 1: ${SIZE_MB} MiB fresh upload (avg)" "$c1_synche_avg"
-for val in "${c1_all_avgs[@]}"; do
-    printf "  %11d ms" "$val"
-done
+printf "  %-50s %7d ms" "Case 1: ${SIZE_MB} MiB fresh upload" "$c1_synche_avg"
+for val in "${c1_all_avgs[@]}"; do printf "  %11d ms" "$val"; done
 echo ""
 
-# Case 2 row
-printf "  %-40s %7d ms" "Case 2: ${SIZE_MB} MiB, ${HALF_MB} MiB exists (avg)" "$c2_synche_avg"
-for val in "${c2_all_avgs[@]}"; do
-    printf "  %11d ms" "$val"
-done
+printf "  %-50s %7d ms" "Case 2: ${SIZE_MB} MiB, ${HALF_MB} MiB exists" "$c2_synche_avg"
+for val in "${c2_all_avgs[@]}"; do printf "  %11d ms" "$val"; done
+echo ""
+
+printf "  %-50s %7d ms" "Case 3: ${DISK_TOTAL_MB} MiB disk image fresh" "$c3_synche_avg"
+for val in "${c3_all_avgs[@]}"; do printf "  %11d ms" "$val"; done
+echo ""
+
+printf "  %-50s %7d ms" "Case 4: disk image, 10%% changed" "$c4_synche_avg"
+for val in "${c4_all_avgs[@]}"; do printf "  %11d ms" "$val"; done
+echo ""
+
+printf "  %-50s %7d ms" "Case 5: directory (${DISK_FILES} files) fresh" "$c5_synche_avg"
+for val in "${c5_all_avgs[@]}"; do printf "  %11d ms" "$val"; done
+echo ""
+
+printf "  %-50s %7d ms" "Case 6: directory, 10%% files changed" "$c6_synche_avg"
+for val in "${c6_all_avgs[@]}"; do printf "  %11d ms" "$val"; done
 echo ""
 echo ""
 
 # Speed comparisons — synche vs each competitor.
+declare -a case_labels case_synche_avgs
+case_labels=("Case 1" "Case 2" "Case 3" "Case 4" "Case 5" "Case 6")
+case_synche_avgs=("$c1_synche_avg" "$c2_synche_avg" "$c3_synche_avg" "$c4_synche_avg" "$c5_synche_avg" "$c6_synche_avg")
+
 for i in "${!all_labels[@]}"; do
     label="${all_labels[$i]}"
-    for case_num in 1 2; do
-        if [[ "$case_num" == "1" ]]; then
-            s_avg=$c1_synche_avg; r_avg=${c1_all_avgs[$i]}; clabel="Case 1"
-        else
-            s_avg=$c2_synche_avg; r_avg=${c2_all_avgs[$i]}; clabel="Case 2"
-        fi
+    declare -a comp_avgs=("${c1_all_avgs[$i]}" "${c2_all_avgs[$i]}" "${c3_all_avgs[$i]}" "${c4_all_avgs[$i]}" "${c5_all_avgs[$i]}" "${c6_all_avgs[$i]}")
+    for c in 0 1 2 3 4 5; do
+        s_avg=${case_synche_avgs[$c]}
+        r_avg=${comp_avgs[$c]}
+        clabel=${case_labels[$c]}
         if [[ "$s_avg" -lt "$r_avg" && "$s_avg" -gt 0 ]]; then
             speedup=$(echo "scale=1; $r_avg / $s_avg" | bc)
             echo "  ${clabel} vs ${label}: synche is ${speedup}x faster"
@@ -750,36 +1120,37 @@ for i in "${!all_labels[@]}"; do
 done
 echo ""
 
-# Individual rounds
-echo "  Case 1 individual rounds (ms):"
-for ((i=0; i<ROUNDS; i++)); do
-    printf "    round %d:  synche=%d" $((i+1)) "${CASE1_SYNCHE[$i]}"
-    for rmode in "${RSYNC_MODES[@]}"; do
-        case "$rmode" in
-            daemon) printf "  daemon=%d" "${CASE1_RSYNC_DAEMON[$i]}";;
-            ssh)    printf "  ssh=%d" "${CASE1_RSYNC_SSH[$i]}";;
-        esac
-    done
-    if $SCP_ENABLED && [[ ${#CASE1_SCP[@]} -gt 0 ]]; then
-        printf "  scp=%d" "${CASE1_SCP[$i]}"
-    fi
-    echo ""
-done
-echo ""
+# Individual rounds — helper function.
+print_rounds() {
+    local case_label="$1"
+    shift
+    local -n synche_arr=$1; shift
+    local -n daemon_arr=$1; shift
+    local -n ssh_arr=$1; shift
+    local -n scp_arr=$1; shift
 
-echo "  Case 2 individual rounds (ms):"
-for ((i=0; i<ROUNDS; i++)); do
-    printf "    round %d:  synche=%d" $((i+1)) "${CASE2_SYNCHE[$i]}"
-    for rmode in "${RSYNC_MODES[@]}"; do
-        case "$rmode" in
-            daemon) printf "  daemon=%d" "${CASE2_RSYNC_DAEMON[$i]}";;
-            ssh)    printf "  ssh=%d" "${CASE2_RSYNC_SSH[$i]}";;
-        esac
+    echo "  ${case_label} individual rounds (ms):"
+    for ((i=0; i<ROUNDS; i++)); do
+        printf "    round %d:  synche=%d" $((i+1)) "${synche_arr[$i]}"
+        for rmode in "${RSYNC_MODES[@]}"; do
+            case "$rmode" in
+                daemon) printf "  daemon=%d" "${daemon_arr[$i]}";;
+                ssh)    printf "  ssh=%d" "${ssh_arr[$i]}";;
+            esac
+        done
+        if $SCP_ENABLED && [[ ${#scp_arr[@]} -gt 0 ]]; then
+            printf "  scp=%d" "${scp_arr[$i]}"
+        fi
+        echo ""
     done
-    if $SCP_ENABLED && [[ ${#CASE2_SCP[@]} -gt 0 ]]; then
-        printf "  scp=%d" "${CASE2_SCP[$i]}"
-    fi
     echo ""
-done
-echo ""
+}
+
+print_rounds "Case 1" CASE1_SYNCHE CASE1_RSYNC_DAEMON CASE1_RSYNC_SSH CASE1_SCP
+print_rounds "Case 2" CASE2_SYNCHE CASE2_RSYNC_DAEMON CASE2_RSYNC_SSH CASE2_SCP
+print_rounds "Case 3" CASE3_SYNCHE CASE3_RSYNC_DAEMON CASE3_RSYNC_SSH CASE3_SCP
+print_rounds "Case 4" CASE4_SYNCHE CASE4_RSYNC_DAEMON CASE4_RSYNC_SSH CASE4_SCP
+print_rounds "Case 5" CASE5_SYNCHE CASE5_RSYNC_DAEMON CASE5_RSYNC_SSH CASE5_SCP
+print_rounds "Case 6" CASE6_SYNCHE CASE6_RSYNC_DAEMON CASE6_RSYNC_SSH CASE6_SCP
+
 echo "================================================================="

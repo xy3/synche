@@ -34,6 +34,11 @@ type Store struct {
 	// In-memory set of known hashes for fast existence checks.
 	mu     sync.RWMutex
 	hashes map[string]struct{}
+
+	// chunkRefs tracks how many manifests reference each chunk hash.
+	// Maintained in memory so that orphan detection during delete is O(1)
+	// per chunk instead of requiring a full manifest scan.
+	chunkRefs map[string]int
 }
 
 // New creates or opens a chunk store at the given root directory.
@@ -48,13 +53,19 @@ func New(root string) (*Store, error) {
 	}
 
 	s := &Store{
-		root:   root,
-		hashes: make(map[string]struct{}),
+		root:      root,
+		hashes:    make(map[string]struct{}),
+		chunkRefs: make(map[string]int),
 	}
 
 	// Scan existing chunks into memory for fast lookups.
 	if err := s.loadIndex(); err != nil {
 		return nil, fmt.Errorf("load index: %w", err)
+	}
+
+	// Build chunk reference counts from manifests.
+	if err := s.loadChunkRefs(); err != nil {
+		return nil, fmt.Errorf("load chunk refs: %w", err)
 	}
 
 	return s, nil
@@ -144,6 +155,14 @@ func (s *Store) SaveManifest(m *protocol.Manifest) (string, error) {
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return "", err
 	}
+
+	// Update in-memory chunk reference counts.
+	s.mu.Lock()
+	for _, c := range m.Chunks {
+		s.chunkRefs[c.Hash]++
+	}
+	s.mu.Unlock()
+
 	return id, nil
 }
 
@@ -264,6 +283,9 @@ func (s *Store) DeleteManifest(id string) error {
 // DeleteManifestAndOrphanedChunks removes a manifest and any chunks that are
 // no longer referenced by any remaining manifest. Returns the number of
 // orphaned chunks deleted.
+//
+// Uses in-memory chunk reference counts so this is O(chunks_in_manifest)
+// rather than requiring a scan of all manifests.
 func (s *Store) DeleteManifestAndOrphanedChunks(id string) (int, error) {
 	if !ValidManifestID(id) {
 		return 0, fmt.Errorf("invalid manifest ID: %q", id)
@@ -275,52 +297,28 @@ func (s *Store) DeleteManifestAndOrphanedChunks(id string) (int, error) {
 		return 0, fmt.Errorf("load manifest to delete: %w", err)
 	}
 
-	targetHashes := make(map[string]struct{}, len(target.Chunks))
-	for _, c := range target.Chunks {
-		targetHashes[c.Hash] = struct{}{}
-	}
-
-	// Collect hashes referenced by all OTHER manifests.
-	allManifests, err := s.ListManifests()
-	if err != nil {
-		return 0, fmt.Errorf("list manifests: %w", err)
-	}
-
-	referenced := make(map[string]struct{})
-	for _, info := range allManifests {
-		if info.ID == id {
-			continue // skip the one we're deleting
-		}
-		m, err := s.LoadManifest(info.ID)
-		if err != nil {
-			continue // skip unreadable manifests
-		}
-		for _, c := range m.Chunks {
-			referenced[c.Hash] = struct{}{}
-		}
-	}
-
 	// Delete the manifest file first.
 	manifestPath := filepath.Join(s.root, "manifests", id+".json")
 	if err := os.Remove(manifestPath); err != nil {
 		return 0, fmt.Errorf("remove manifest: %w", err)
 	}
 
-	// Delete orphaned chunks (in target but not referenced by others).
+	// Decrement reference counts and delete orphaned chunks.
 	deleted := 0
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for hash := range targetHashes {
-		if _, shared := referenced[hash]; shared {
-			continue // still referenced by another manifest
+	for _, c := range target.Chunks {
+		s.chunkRefs[c.Hash]--
+		if s.chunkRefs[c.Hash] <= 0 {
+			// No more manifests reference this chunk — delete it.
+			delete(s.chunkRefs, c.Hash)
+			path := s.chunkPath(c.Hash)
+			if err := os.Remove(path); err == nil {
+				delete(s.hashes, c.Hash)
+				deleted++
+			}
 		}
-		path := s.chunkPath(hash)
-		if err := os.Remove(path); err != nil {
-			continue // best-effort: chunk may already be gone
-		}
-		delete(s.hashes, hash)
-		deleted++
 	}
 
 	return deleted, nil
@@ -346,4 +344,32 @@ func (s *Store) loadIndex() error {
 		s.mu.Unlock()
 		return nil
 	})
+}
+
+// loadChunkRefs scans all manifests and builds the in-memory chunk reference
+// count map. Called once at startup.
+func (s *Store) loadChunkRefs() error {
+	manifestDir := filepath.Join(s.root, "manifests")
+	entries, err := os.ReadDir(manifestDir)
+	if err != nil {
+		return nil // no manifests dir is fine
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		id := strings.TrimSuffix(e.Name(), ".json")
+		m, err := s.LoadManifest(id)
+		if err != nil {
+			continue
+		}
+		for _, c := range m.Chunks {
+			s.chunkRefs[c.Hash]++
+		}
+	}
+	return nil
 }

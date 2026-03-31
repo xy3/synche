@@ -13,7 +13,7 @@ func main() {
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
 
 	serverURL := flag.String("server", "http://localhost:8420", "server URL")
-	source := flag.String("source", "", "block device or file path to upload (e.g. /dev/sda, /path/to/file)")
+	source := flag.String("source", "", "file, directory, or block device to upload")
 	concurrency := flag.Int("concurrency", runtime.NumCPU(), "number of parallel upload/hash workers")
 	probeBatch := flag.Int("probe-batch", 512, "number of hashes per probe request")
 	cacheDir := flag.String("cache-dir", "", "manifest cache directory (default: ~/.cache/synche)")

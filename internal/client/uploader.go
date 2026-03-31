@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -101,14 +103,382 @@ type uploadedHash struct {
 	hash  string
 }
 
-// Run executes the full upload pipeline:
-// 1. Load cached manifest (if any)
-// 2. Read raw blocks from device + hash with BLAKE3
-// 3. Compare each chunk hash against cache — skip if unchanged
-// 4. Probe server in small concurrent batches, upload needed chunks
-// 5. Save updated manifest to cache (only confirmed chunks)
-// 6. Upload the final manifest to server (abort if any chunks failed)
+// Run executes the upload. If the source is a directory, it uploads each file
+// as a separate manifest. Otherwise it uploads a single file/device.
 func (u *Uploader) Run() error {
+	fi, err := os.Stat(u.cfg.DevicePath)
+	if err != nil {
+		return fmt.Errorf("stat source: %w", err)
+	}
+	if fi.IsDir() {
+		return u.runDirectory(u.cfg.DevicePath)
+	}
+	_, err = u.runFile(u.cfg.DevicePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// FileResult holds the result of uploading a single file.
+type FileResult struct {
+	Path       string
+	ManifestID string
+	Stats      Stats
+}
+
+// dirFileInfo holds all chunks for a single file during directory upload.
+type dirFileInfo struct {
+	relPath  string
+	absPath  string
+	manifest protocol.Manifest
+	chunks   []pendingChunk // only populated for chunks that need uploading
+}
+
+// runDirectory walks a directory and uploads each regular file as its own
+// manifest. Uses a multi-phase pipeline to minimize round-trips:
+//   - Phase 1: Hash all files concurrently (local I/O, parallel)
+//   - Phase 2: Batch probe ALL hashes across all files (few round-trips)
+//   - Phase 3: Upload only needed chunks (concurrent)
+//   - Phase 4: Upload all manifests concurrently
+func (u *Uploader) runDirectory(dir string) error {
+	var files []string
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && info.Size() > 0 {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("walk directory: %w", err)
+	}
+
+	if len(files) == 0 {
+		return fmt.Errorf("no files found in %s", dir)
+	}
+
+	log.Printf("found %d files in %s", len(files), dir)
+	totalStart := time.Now()
+
+	// ── Phase 1: Hash all files concurrently ──────────────────────────
+	log.Printf("phase 1: hashing all files...")
+	phaseStart := time.Now()
+
+	fileInfos := make([]dirFileInfo, len(files))
+	// allChunkData maps hash -> data for chunks we may need to upload.
+	allChunkData := make(map[string][]byte)
+	var dataMu sync.Mutex
+
+	hashWorkers := u.cfg.Concurrency
+	if hashWorkers > len(files) {
+		hashWorkers = len(files)
+	}
+
+	fileCh := make(chan int, hashWorkers)
+	var hashWg sync.WaitGroup
+	var hashErr error
+	var hashErrMu sync.Mutex
+
+	for w := 0; w < hashWorkers; w++ {
+		hashWg.Add(1)
+		go func() {
+			defer hashWg.Done()
+			for idx := range fileCh {
+				path := files[idx]
+				relPath, _ := filepath.Rel(dir, path)
+
+				pipeline, err := chunk.NewPipeline(path, 2) // light concurrency per file
+				if err != nil {
+					hashErrMu.Lock()
+					if hashErr == nil {
+						hashErr = fmt.Errorf("hash %s: %w", relPath, err)
+					}
+					hashErrMu.Unlock()
+					continue
+				}
+
+				fi := dirFileInfo{
+					relPath: relPath,
+					absPath: path,
+					manifest: protocol.Manifest{
+						SourceDevice: path,
+						TotalBytes:   pipeline.DeviceSize(),
+						ChunkSize:    protocol.ChunkSize,
+					},
+				}
+
+				results := pipeline.Run()
+				var metas []protocol.ChunkMeta
+				for r := range results {
+					metas = append(metas, r.Meta)
+					dataMu.Lock()
+					if _, exists := allChunkData[r.Meta.Hash]; !exists {
+						allChunkData[r.Meta.Hash] = r.Data
+					}
+					dataMu.Unlock()
+				}
+
+				sort.Slice(metas, func(i, j int) bool {
+					return metas[i].Index < metas[j].Index
+				})
+				fi.manifest.Chunks = metas
+				fileInfos[idx] = fi
+			}
+		}()
+	}
+
+	for i := range files {
+		fileCh <- i
+	}
+	close(fileCh)
+	hashWg.Wait()
+
+	if hashErr != nil {
+		return hashErr
+	}
+
+	// Collect all unique hashes.
+	allHashes := make([]string, 0, len(allChunkData))
+	for h := range allChunkData {
+		allHashes = append(allHashes, h)
+	}
+
+	var totalBytes int64
+	for _, fi := range fileInfos {
+		totalBytes += int64(fi.manifest.TotalBytes)
+	}
+	atomic.StoreInt64(&u.stats.BytesRead, totalBytes)
+
+	log.Printf("phase 1 complete: %d files, %d unique chunks, %.1f MiB hashed in %s",
+		len(files), len(allHashes), float64(totalBytes)/(1<<20),
+		time.Since(phaseStart).Round(time.Millisecond))
+
+	// ── Phase 2: Batch probe all hashes ───────────────────────────────
+	log.Printf("phase 2: probing %d unique hashes...", len(allHashes))
+	phaseStart = time.Now()
+
+	neededSet := make(map[string]struct{})
+	batchSize := u.cfg.ProbeBatch
+	if batchSize < 256 {
+		batchSize = 256
+	}
+
+	// Probe in parallel batches.
+	type probeResult struct {
+		needed []string
+		err    error
+	}
+	probeCh := make(chan []string, u.cfg.Concurrency)
+	probeResults := make(chan probeResult, u.cfg.Concurrency)
+
+	// Launch probe workers.
+	probeWorkers := 4
+	if probeWorkers > u.cfg.Concurrency {
+		probeWorkers = u.cfg.Concurrency
+	}
+	var probeWg sync.WaitGroup
+	for w := 0; w < probeWorkers; w++ {
+		probeWg.Add(1)
+		go func() {
+			defer probeWg.Done()
+			for batch := range probeCh {
+				needed, err := u.probe(batch)
+				probeResults <- probeResult{needed: needed, err: err}
+			}
+		}()
+	}
+
+	// Feed batches.
+	go func() {
+		for i := 0; i < len(allHashes); i += batchSize {
+			end := i + batchSize
+			if end > len(allHashes) {
+				end = len(allHashes)
+			}
+			probeCh <- allHashes[i:end]
+		}
+		close(probeCh)
+		probeWg.Wait()
+		close(probeResults)
+	}()
+
+	// Collect probe results.
+	var probeErr error
+	for pr := range probeResults {
+		if pr.err != nil {
+			probeErr = pr.err
+			continue
+		}
+		for _, h := range pr.needed {
+			neededSet[h] = struct{}{}
+		}
+	}
+
+	if probeErr != nil {
+		// On probe failure, upload everything.
+		log.Printf("probe had errors, uploading all chunks: %v", probeErr)
+		for _, h := range allHashes {
+			neededSet[h] = struct{}{}
+		}
+	}
+
+	skipped := len(allHashes) - len(neededSet)
+	atomic.StoreInt64(&u.stats.SkippedServer, int64(skipped))
+
+	log.Printf("phase 2 complete: %d needed, %d already on server, in %s",
+		len(neededSet), skipped, time.Since(phaseStart).Round(time.Millisecond))
+
+	// ── Phase 3: Upload needed chunks concurrently ────────────────────
+	log.Printf("phase 3: uploading %d chunks...", len(neededSet))
+	phaseStart = time.Now()
+
+	uploadCh := make(chan pendingChunk, u.cfg.Concurrency*2)
+	var uploadWg sync.WaitGroup
+	var uploadFailed int64
+
+	for w := 0; w < u.cfg.Concurrency; w++ {
+		uploadWg.Add(1)
+		go func() {
+			defer uploadWg.Done()
+			for pc := range uploadCh {
+				var lastErr error
+				success := false
+				for attempt := 0; attempt < maxUploadRetries; attempt++ {
+					if attempt > 0 {
+						delay := retryBaseDelay * time.Duration(1<<(attempt-1))
+						time.Sleep(delay)
+					}
+					if err := u.uploadChunk(pc.meta.Hash, pc.data); err != nil {
+						lastErr = err
+						continue
+					}
+					success = true
+					break
+				}
+				if success {
+					atomic.AddInt64(&u.stats.UploadedNew, 1)
+					atomic.AddInt64(&u.stats.BytesSent, int64(pc.meta.Size))
+				} else {
+					log.Printf("upload failed chunk %s after %d retries: %v",
+						pc.meta.Hash[:12], maxUploadRetries, lastErr)
+					atomic.AddInt64(&uploadFailed, 1)
+				}
+			}
+		}()
+	}
+
+	// Feed unique needed chunks.
+	for hash := range neededSet {
+		data := allChunkData[hash]
+		uploadCh <- pendingChunk{
+			meta: protocol.ChunkMeta{Hash: hash, Size: len(data)},
+			data: data,
+		}
+	}
+	close(uploadCh)
+	uploadWg.Wait()
+
+	if uploadFailed > 0 {
+		return fmt.Errorf("%d chunks failed to upload", uploadFailed)
+	}
+
+	// Free chunk data — no longer needed.
+	allChunkData = nil
+
+	log.Printf("phase 3 complete: %d chunks uploaded, %.1f MiB sent in %s",
+		len(neededSet),
+		float64(atomic.LoadInt64(&u.stats.BytesSent))/(1<<20),
+		time.Since(phaseStart).Round(time.Millisecond))
+
+	// ── Phase 4: Upload all manifests concurrently ────────────────────
+	log.Printf("phase 4: uploading %d manifests...", len(fileInfos))
+	phaseStart = time.Now()
+
+	type manifestResult struct {
+		idx        int
+		manifestID string
+		err        error
+	}
+
+	manifestCh := make(chan int, len(fileInfos))
+	manifestResults := make(chan manifestResult, len(fileInfos))
+
+	manifestWorkers := u.cfg.Concurrency
+	if manifestWorkers > len(fileInfos) {
+		manifestWorkers = len(fileInfos)
+	}
+
+	var mWg sync.WaitGroup
+	for w := 0; w < manifestWorkers; w++ {
+		mWg.Add(1)
+		go func() {
+			defer mWg.Done()
+			for idx := range manifestCh {
+				mid, err := u.uploadManifest(&fileInfos[idx].manifest)
+				manifestResults <- manifestResult{idx: idx, manifestID: mid, err: err}
+			}
+		}()
+	}
+
+	for i := range fileInfos {
+		manifestCh <- i
+	}
+	close(manifestCh)
+	mWg.Wait()
+	close(manifestResults)
+
+	var results []FileResult
+	var failed int
+	for mr := range manifestResults {
+		if mr.err != nil {
+			log.Printf("FAILED manifest for %s: %v", fileInfos[mr.idx].relPath, mr.err)
+			failed++
+			continue
+		}
+		results = append(results, FileResult{
+			Path:       fileInfos[mr.idx].relPath,
+			ManifestID: mr.manifestID,
+		})
+	}
+
+	log.Printf("phase 4 complete: %d manifests uploaded in %s",
+		len(results), time.Since(phaseStart).Round(time.Millisecond))
+
+	// Sort results by path for deterministic output.
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Path < results[j].Path
+	})
+
+	elapsed := time.Since(totalStart)
+
+	// Print directory summary.
+	sent := atomic.LoadInt64(&u.stats.BytesSent)
+	log.Printf("--- directory upload complete ---")
+	log.Printf("  files:         %d uploaded, %d failed", len(results), failed)
+	log.Printf("  total read:    %.2f MiB", float64(totalBytes)/(1<<20))
+	log.Printf("  total sent:    %.2f MiB", float64(sent)/(1<<20))
+	log.Printf("  total time:    %s", elapsed.Round(time.Millisecond))
+	if elapsed.Seconds() > 0 {
+		log.Printf("  throughput:    %.2f MiB/s (read), %.2f MiB/s (sent)",
+			float64(totalBytes)/(1<<20)/elapsed.Seconds(),
+			float64(sent)/(1<<20)/elapsed.Seconds())
+	}
+	for _, r := range results {
+		log.Printf("  manifest ID:   %s  (%s)", r.ManifestID, r.Path)
+	}
+
+	if failed > 0 {
+		return fmt.Errorf("%d files failed to upload", failed)
+	}
+	return nil
+}
+
+// runFile uploads a single file/device and returns its manifest ID.
+// This is the core upload logic extracted from the original Run().
+func (u *Uploader) runFile(filePath string) (string, error) {
 	// Initialize cache.
 	var cached *cache.CachedManifest
 	if !u.cfg.NoCache {
@@ -117,7 +487,7 @@ func (u *Uploader) Run() error {
 			log.Printf("warning: cache init failed, continuing without cache: %v", err)
 		} else {
 			u.cache = c
-			cached, err = c.Load(u.cfg.DevicePath)
+			cached, err = c.Load(filePath)
 			if err != nil {
 				log.Printf("warning: cache load failed: %v", err)
 			}
@@ -129,11 +499,11 @@ func (u *Uploader) Run() error {
 		}
 	}
 
-	log.Printf("opening source: %s", u.cfg.DevicePath)
+	log.Printf("opening source: %s", filePath)
 
-	pipeline, err := chunk.NewPipeline(u.cfg.DevicePath, u.cfg.Concurrency)
+	pipeline, err := chunk.NewPipeline(filePath, u.cfg.Concurrency)
 	if err != nil {
-		return fmt.Errorf("create pipeline: %w", err)
+		return "", fmt.Errorf("create pipeline: %w", err)
 	}
 
 	deviceSize := pipeline.DeviceSize()
@@ -143,7 +513,7 @@ func (u *Uploader) Run() error {
 	results := pipeline.Run()
 
 	var manifest protocol.Manifest
-	manifest.SourceDevice = u.cfg.DevicePath
+	manifest.SourceDevice = filePath
 	manifest.TotalBytes = deviceSize
 	manifest.ChunkSize = protocol.ChunkSize
 
@@ -283,7 +653,7 @@ func (u *Uploader) Run() error {
 	failed := atomic.LoadInt64(&u.stats.Failed)
 	if failed > 0 {
 		u.printFinalStats("")
-		return fmt.Errorf("%d chunks failed to upload — manifest NOT saved (re-run to retry)", failed)
+		return "", fmt.Errorf("%d chunks failed to upload — manifest NOT saved (re-run to retry)", failed)
 	}
 
 	// Save updated cache with only confirmed hashes.
@@ -296,7 +666,7 @@ func (u *Uploader) Run() error {
 		for _, ch := range cacheSkippedHashes {
 			allConfirmed[ch.index] = ch.hash
 		}
-		if err := u.cache.SaveFromMap(u.cfg.DevicePath, &manifest, allConfirmed); err != nil {
+		if err := u.cache.SaveFromMap(filePath, &manifest, allConfirmed); err != nil {
 			log.Printf("warning: failed to save cache: %v", err)
 		} else {
 			log.Printf("saved manifest cache (%d chunks)", len(allConfirmed))
@@ -307,11 +677,11 @@ func (u *Uploader) Run() error {
 	log.Println("uploading manifest...")
 	manifestID, err := u.uploadManifest(&manifest)
 	if err != nil {
-		return fmt.Errorf("upload manifest: %w", err)
+		return "", fmt.Errorf("upload manifest: %w", err)
 	}
 
 	u.printFinalStats(manifestID)
-	return nil
+	return manifestID, nil
 }
 
 // probeAndUpload probes the server for which chunks in the batch are needed,
