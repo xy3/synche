@@ -19,6 +19,7 @@ func main() {
 	cacheDir := flag.String("cache-dir", "", "manifest cache directory (default: ~/.cache/synche)")
 	noCache := flag.Bool("no-cache", false, "disable local manifest caching")
 	apiKey := flag.String("api-key", "", "API key for server authentication (or set SYNCHE_API_KEY env var)")
+	insecure := flag.Bool("insecure", false, "skip TLS certificate verification (only for servers with self-signed certs)")
 
 	// Keep --device as an alias for backwards compat.
 	device := flag.String("device", "", "alias for --source")
@@ -53,6 +54,7 @@ func main() {
 		CacheDir:    *cacheDir,
 		NoCache:     *noCache,
 		APIKey:      key,
+		Insecure:    *insecure,
 	}
 
 	log.Printf("synche client starting")
@@ -62,6 +64,9 @@ func main() {
 	log.Printf("  probe batch: %d", cfg.ProbeBatch)
 	if cfg.NoCache {
 		log.Printf("  cache:       disabled")
+	}
+	if cfg.Insecure {
+		log.Printf("  tls:         WARNING: certificate verification disabled")
 	}
 
 	uploader := client.NewUploader(cfg)

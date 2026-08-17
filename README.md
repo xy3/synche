@@ -67,6 +67,9 @@ Options:
 - `--api-key` — API key for server authentication (or set `SYNCHE_API_KEY` env var)
 - `--concurrency` — parallel upload workers (default: number of CPUs)
 - `--no-cache` — disable local manifest cache
+- `--insecure` — skip TLS certificate verification. Only for servers using a
+  self-signed cert. The API key is sent as a bearer token on every request, so
+  without verification it goes to whoever answers the connection.
 
 Upload a directory:
 ```sh

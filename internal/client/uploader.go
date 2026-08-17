@@ -41,6 +41,7 @@ type Config struct {
 	CacheDir    string // local manifest cache dir (empty = ~/.cache/synche)
 	NoCache     bool   // disable local caching
 	APIKey      string // API key for server authentication (empty = no auth)
+	Insecure    bool   // skip TLS certificate verification (self-signed servers)
 }
 
 // Stats tracks upload progress.
@@ -79,9 +80,15 @@ func NewUploader(cfg Config) *Uploader {
 
 	if strings.HasPrefix(cfg.ServerURL, "https://") {
 		// HTTP/2 over TLS — Go's default transport handles this via ALPN.
+		//
+		// Certificates are verified unless --insecure is passed. The API key
+		// travels as a bearer token on every request, so skipping verification
+		// by default would mean handing it to whoever answered the connection.
+		// Self-signed servers are the exception and have to say so.
 		transport = &http2.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, // allow self-signed certs
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: cfg.Insecure,
 			},
 		}
 	} else {
